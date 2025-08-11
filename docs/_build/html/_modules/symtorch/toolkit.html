@@ -81,7 +81,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pysr</span><span class="w"> </span><span class="kn">import</span> <span class="n">PySRRegressor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.mlp_sr</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
 
@@ -176,23 +177,10 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span> <span class="o">=</span> <span class="n">initial_dim</span> 
         <span class="bp">self</span><span class="o">.</span><span class="n">target_dim</span> <span class="o">=</span> <span class="n">target_dim</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pruning_schedule</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span></div>
+        <span class="c1"># Register pruning_mask as a buffer so it moves with the model</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">register_buffer</span><span class="p">(</span><span class="s1">&#39;pruning_mask&#39;</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">))</span></div>
 
     
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Forward pass with pruning mask applied to MLP_SR output.</span>
-<span class="sd">        </span>
-<span class="sd">        Args:</span>
-<span class="sd">            x (torch.Tensor): Input tensor of shape (batch_size, input_dim)</span>
-<span class="sd">            </span>
-<span class="sd">        Returns:</span>
-<span class="sd">            torch.Tensor: Output tensor with inactive dimensions masked to zero</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Use parent&#39;s forward method (handles symbolic/MLP switching)</span>
-        <span class="n">output</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-        <span class="c1"># Apply pruning mask to zero out inactive dimensions</span>
-        <span class="k">return</span> <span class="n">output</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span>
 
 <div class="viewcode-block" id="Pruning_MLP.set_schedule">
 <a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.set_schedule">[docs]</a>
@@ -325,7 +313,8 @@
             
             <span class="n">new_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros_like</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">)</span>
             <span class="n">new_mask</span><span class="p">[</span><span class="n">most_important</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span> <span class="o">=</span> <span class="n">new_mask</span>
+            <span class="c1"># Update the registered buffer (this maintains device consistency)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">new_mask</span><span class="o">.</span><span class="n">data</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span> <span class="o">=</span> <span class="n">target_dims</span></div>
 
 
@@ -349,7 +338,11 @@
 
 <div class="viewcode-block" id="Pruning_MLP.interpret">
 <a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.interpret">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">interpret</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_data</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">pysr_kwargs</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">interpret</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+                 <span class="n">variable_transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">sr_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                 <span class="n">fit_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Discover symbolic expressions for active (non-pruned) dimensions only.</span>
 <span class="sd">        </span>
@@ -357,24 +350,44 @@
 <span class="sd">        that survived the pruning process, ignoring inactive/masked dimensions.</span>
 <span class="sd">        </span>
 <span class="sd">        Args:</span>
-<span class="sd">            sample_data (torch.Tensor): Input data for symbolic regression fitting.</span>
+<span class="sd">            inputs (torch.Tensor): Input data for symbolic regression fitting</span>
+<span class="sd">            output_dim(int, optional): The output dimension to run PySR on. If None, PySR run on all active outputs. Default: None.</span>
 <span class="sd">            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.</span>
 <span class="sd">                                              If provided, will trace intermediate activations to get</span>
 <span class="sd">                                              the actual inputs/outputs at this layer level.</span>
-<span class="sd">            **pysr_kwargs: Parameters passed to PySRRegressor. Inherits same defaults as MLP_SR:</span>
+<span class="sd">            variable_transforms (List[Callable], optional): List of functions to transform input variables.</span>
+<span class="sd">                                                           Each function should take the full input tensor and return</span>
+<span class="sd">                                                           a transformed tensor. Example: [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]</span>
+<span class="sd">            save_path (str, optional): Custom base directory for PySR outputs.</span>
+<span class="sd">                                     If None, uses default &quot;SR_output/&quot; directory.</span>
+<span class="sd">                                     Example: &quot;/custom/output/path&quot;</span>
+<span class="sd">            sr_params (Dict[str, Any], optional): Parameters passed to PySRRegressor. Inherits same defaults as MLP_SR:</span>
 <span class="sd">                - binary_operators (list): [&quot;+&quot;, &quot;*&quot;]</span>
 <span class="sd">                - unary_operators (list): [&quot;inv(x) = 1/x&quot;, &quot;sin&quot;, &quot;exp&quot;]</span>
 <span class="sd">                - niterations (int): 400</span>
-<span class="sd">                - output_directory (str): &quot;SR_output/{mlp_name}&quot;</span>
+<span class="sd">                - output_directory (str): &quot;{save_path}/{mlp_name}&quot; or &quot;SR_output/{mlp_name}&quot;</span>
 <span class="sd">                - run_id (str): &quot;dim{dim_idx}_{timestamp}&quot;</span>
+<span class="sd">            fit_params (Dict[str, Any], optional): Parameters passed to the regressor.fit() method. Defaults:</span>
+<span class="sd">                - variable_names (List[str]): Custom names for variables if variable_transforms is used.</span>
+<span class="sd">                                             If provided, must match the length of variable_transforms.</span>
+<span class="sd">                                             Example: [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;]</span>
 <span class="sd">                </span>
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: Dictionary mapping active dimension indices to fitted PySRRegressor objects</span>
 <span class="sd">            </span>
 <span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.interpret(train_data, niterations=1000)</span>
+<span class="sd">            &gt;&gt;&gt; # Basic usage</span>
+<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.interpret(train_data, </span>
+<span class="sd">            ...                                  sr_params={&#39;niterations&#39;: 1000})</span>
 <span class="sd">            &gt;&gt;&gt; for dim_idx, regressor in regressors.items():</span>
 <span class="sd">            ...     print(f&quot;Dimension {dim_idx}: {regressor.get_best()[&#39;equation&#39;]}&quot;)</span>
+<span class="sd">            </span>
+<span class="sd">            &gt;&gt;&gt; # With variable transformations</span>
+<span class="sd">            &gt;&gt;&gt; transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]</span>
+<span class="sd">            &gt;&gt;&gt; names = [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;, &quot;sin_x3&quot;]</span>
+<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.interpret(train_data, </span>
+<span class="sd">            ...                                  variable_transforms=transforms, </span>
+<span class="sd">            ...                                  fit_params={&#39;variable_names&#39;: names})</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">active_dims</span><span class="p">:</span>
@@ -398,14 +411,14 @@
             <span class="c1"># Run parent model to capture intermediate activations</span>
             <span class="n">parent_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="n">parent_model</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">parent_model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
             
             <span class="c1"># Remove hook</span>
             <span class="n">hook</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
             
             <span class="c1"># Use captured intermediate data</span>
             <span class="k">if</span> <span class="n">layer_inputs</span> <span class="ow">and</span> <span class="n">layer_outputs</span><span class="p">:</span>
-                <span class="n">inputs</span> <span class="o">=</span> <span class="n">layer_inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">actual_inputs</span> <span class="o">=</span> <span class="n">layer_inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="n">full_output</span> <span class="o">=</span> <span class="n">layer_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="n">active_output</span> <span class="o">=</span> <span class="n">full_output</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
@@ -414,45 +427,139 @@
             <span class="c1"># Original behavior - extract inputs and outputs for active dimensions only</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-                <span class="n">inputs</span> <span class="o">=</span> <span class="n">sample_data</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
-                <span class="n">full_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
+                <span class="n">actual_inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
+                <span class="n">full_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
                 <span class="n">active_output</span> <span class="o">=</span> <span class="n">full_output</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">]</span>
+
+        <span class="c1"># Extract fit parameters</span>
+        <span class="k">if</span> <span class="n">fit_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fit_params</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="n">variable_names</span> <span class="o">=</span> <span class="n">fit_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;variable_names&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        
+        <span class="c1"># Apply variable transformations if provided</span>
+        <span class="k">if</span> <span class="n">variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Validate inputs</span>
+            <span class="k">if</span> <span class="n">variable_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable_names</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Length of variable_names (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">variable_names</span><span class="p">)</span><span class="si">}</span><span class="s2">) must match length of variable_transforms (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Apply transformations</span>
+            <span class="n">transformed_inputs</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">transform_func</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transform_func</span><span class="p">(</span><span class="n">actual_inputs</span><span class="p">)</span>
+                    <span class="c1"># Ensure the result is 1D (batch_size,)</span>
+                    <span class="k">if</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                        <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                    <span class="n">transformed_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error applying transformation </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Stack transformed variables into input matrix</span>
+            <span class="n">actual_inputs_numpy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">transformed_inputs</span><span class="p">)</span>
+            
+            <span class="c1"># Store transformation info for later use in switch_to_equation</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="o">=</span> <span class="n">variable_transforms</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="n">variable_names</span>
+            
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🔄 Applied </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2"> variable transformations&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">variable_names</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Variable names: </span><span class="si">{</span><span class="n">variable_names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Use original inputs</span>
+            <span class="n">actual_inputs_numpy</span> <span class="o">=</span> <span class="n">actual_inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="kc">None</span>
 
         <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
         
+        <span class="c1"># Extract sr_params with defaults</span>
+        <span class="k">if</span> <span class="n">sr_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">sr_params</span> <span class="o">=</span> <span class="p">{}</span>
+        
         <span class="c1"># Use same default parameters as MLP_SR</span>
-        <span class="n">default_params</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">output_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SR_output/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">output_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2">&quot;</span>
+        
+        <span class="n">default_sr_params</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s2">&quot;binary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">],</span>
             <span class="s2">&quot;unary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;inv(x) = 1/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sin&quot;</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">],</span>
             <span class="s2">&quot;extra_sympy_mappings&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;inv&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span><span class="o">/</span><span class="n">x</span><span class="p">},</span>
             <span class="s2">&quot;niterations&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span>
             <span class="s2">&quot;complexity_of_operators&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;sin&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
-            <span class="s2">&quot;output_directory&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;SR_output/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;output_directory&quot;</span><span class="p">:</span> <span class="n">output_name</span><span class="p">,</span>
         <span class="p">}</span>
-        <span class="n">default_params</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">pysr_kwargs</span><span class="p">)</span>
 
-        <span class="c1"># Run SR for each active dimension</span>
-        <span class="n">regressors</span> <span class="o">=</span> <span class="p">{}</span>
-        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">active_dims</span><span class="p">):</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🛠️ Running SR on active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_dims</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-            
-            <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">default_params</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">:</span> <span class="n">run_id</span><span class="p">}</span>
-            
-            <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">params</span><span class="p">)</span>
-            <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">(),</span> <span class="n">active_output</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
-            <span class="n">regressors</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
-            
-            <span class="n">best_eq</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;💡Best equation for active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">best_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            
-        <span class="c1"># Store in the format expected by MLP_SR (replace entire dict, don&#39;t merge)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="n">regressors</span>
         <span class="c1"># Set output_dims for compatibility</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">output_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_dim</span>
         
+        <span class="c1"># Filter active dimensions based on output_dim parameter</span>
+        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❗Requested output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> is not active. Active dimensions: </span><span class="si">{</span><span class="n">active_dims</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">{}</span>
+            <span class="n">target_dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_dim</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">target_dims</span> <span class="o">=</span> <span class="n">active_dims</span>
+        
+        <span class="c1"># Run SR for requested dimension(s)</span>
+        <span class="n">regressors</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Single dimension case</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🛠️ Running SR on active output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            
+            <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">final_sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">default_sr_params</span><span class="p">,</span> <span class="o">**</span><span class="n">sr_params</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">:</span> <span class="n">run_id</span><span class="p">}</span>
+            
+            <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_sr_params</span><span class="p">)</span>
+            
+            <span class="c1"># Find the index of this dimension in the active output</span>
+            <span class="n">dim_index</span> <span class="o">=</span> <span class="n">active_dims</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">output_dim</span><span class="p">)</span>
+            
+            <span class="c1"># Prepare fit arguments</span>
+            <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">actual_inputs_numpy</span><span class="p">,</span> <span class="n">active_output</span><span class="p">[:,</span> <span class="n">dim_index</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
+            <span class="n">final_fit_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fit_params</span><span class="p">)</span>  <span class="c1"># Copy to avoid modifying original</span>
+            
+            <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
+            
+            <span class="n">regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
+            
+            <span class="n">best_eq</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;💡Best equation for active dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">best_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Multiple dimensions case</span>
+            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">active_dims</span><span class="p">):</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🛠️ Running SR on active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_dims</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+                
+                <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">final_sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">default_sr_params</span><span class="p">,</span> <span class="o">**</span><span class="n">sr_params</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">:</span> <span class="n">run_id</span><span class="p">}</span>
+                
+                <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_sr_params</span><span class="p">)</span>
+                
+                <span class="c1"># Prepare fit arguments</span>
+                <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">actual_inputs_numpy</span><span class="p">,</span> <span class="n">active_output</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
+                <span class="n">final_fit_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fit_params</span><span class="p">)</span>  <span class="c1"># Copy to avoid modifying original</span>
+                
+                <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
+                
+                <span class="n">regressors</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
+                
+                <span class="n">best_eq</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;💡Best equation for active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">best_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Store in the format expected by MLP_SR (merge with existing dict)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">|</span> <span class="n">regressors</span>
+        
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❤️ SR on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2"> active dimensions complete.&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">regressors</span></div>
+        
+        <span class="c1"># For backward compatibility, return the regressor or dict of regressors</span>
+        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">regressors</span></div>
 
 
 <div class="viewcode-block" id="Pruning_MLP.switch_to_equation">
@@ -510,16 +617,46 @@
                 
             <span class="n">f</span><span class="p">,</span> <span class="n">vars_sorted</span> <span class="o">=</span> <span class="n">result</span>
             
-            <span class="c1"># Convert variable names to indices</span>
-            <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
-                <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
-                <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
-                    <span class="k">try</span><span class="p">:</span>
-                        <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-                        <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                    <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># Handle variable indices based on whether transformations were used</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_transforms&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># With transformations, variables are named by custom names or transform indices</span>
+                <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
+                    <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">:</span>
+                        <span class="c1"># Find the index based on custom variable names</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">var_str</span><span class="p">)</span>
+                            <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> not found in variable_names for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="k">return</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Variables named as x0, x1, etc. based on transform index</span>
+                        <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
+                            <span class="k">try</span><span class="p">:</span>
+                                <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                                <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+                            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                                <span class="k">return</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Unexpected variable format </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="k">return</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Original behavior for non-transformed variables</span>
+                <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
+                <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
+                    <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                            <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="k">return</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Unexpected variable format </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                         <span class="k">return</span>
             
             <span class="n">equation_funcs</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span>
@@ -542,7 +679,21 @@
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Successfully switched </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2"> to symbolic equations for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_dims</span><span class="p">)</span><span class="si">}</span><span class="s2"> active dimensions:&quot;</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">equation_strs</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Variables: </span><span class="si">{</span><span class="p">[</span><span class="sa">f</span><span class="s1">&#39;x</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">equation_vars</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Display variable names properly</span>
+            <span class="n">var_names_display</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_names&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Use custom variable names</span>
+                <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">equation_vars</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]:</span>
+                    <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">):</span>
+                        <span class="n">var_names_display</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">[</span><span class="n">idx</span><span class="p">])</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">var_names_display</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;transform_</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Use default x0, x1, etc. format</span>
+                <span class="n">var_names_display</span> <span class="o">=</span> <span class="p">[</span><span class="sa">f</span><span class="s1">&#39;x</span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s1">&#39;</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">equation_vars</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]]</span>
+            
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Variables: </span><span class="si">{</span><span class="n">var_names_display</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🎯 Active dimensions </span><span class="si">{</span><span class="n">active_dims</span><span class="si">}</span><span class="s2"> now using symbolic equations.&quot;</span><span class="p">)</span>
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🔒 Inactive dimensions will output zeros.&quot;</span><span class="p">)</span></div>
@@ -588,12 +739,26 @@
                     
                     <span class="c1"># Extract variables needed for this dimension</span>
                     <span class="n">selected_inputs</span> <span class="o">=</span> <span class="p">[]</span>
-                    <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">:</span>
-                        <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-                            <span class="n">selected_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">])</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Variable x</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> not available for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">continue</span>
+                    
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_transforms&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="c1"># Apply transformations and select needed variables</span>
+                        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">):</span>
+                                <span class="n">transformed_var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">[</span><span class="n">idx</span><span class="p">](</span><span class="n">x</span><span class="p">)</span>
+                                <span class="k">if</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                                    <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                                <span class="n">selected_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_var</span><span class="p">)</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Equation for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2"> requires transform </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> but only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2"> transforms available&quot;</span><span class="p">)</span>
+                                <span class="k">continue</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="c1"># Original behavior - extract by column index</span>
+                        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
+                                <span class="n">selected_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">])</span>
+                            <span class="k">else</span><span class="p">:</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Variable x</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> not available for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                                <span class="k">continue</span>
                     
                     <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">selected_inputs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">var_indices</span><span class="p">):</span>
                         <span class="c1"># Convert to numpy for the equation function</span>

@@ -219,10 +219,10 @@ y = x_0^2 +3 \sin(x_4)-4
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.094613
-Epoch [10/20], Avg Loss: 0.063776
-Epoch [15/20], Avg Loss: 0.048936
-Epoch [20/20], Avg Loss: 0.040046
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.103513
+Epoch [10/20], Avg Loss: 0.069692
+Epoch [15/20], Avg Loss: 0.054784
+Epoch [20/20], Avg Loss: 0.043314
 </pre></div>
 </div>
 </div>
@@ -236,7 +236,7 @@ Epoch [20/20], Avg Loss: 0.040046
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/InterpretSR_project/interpretsr_venv/lib/python3.11/site-packages/juliacall/__init__.py:61: UserWarning: torch was imported before juliacall. This may cause a segfault. To avoid this, import juliacall before importing torch. For updates, see https://github.com/pytorch/pytorch/issues/78829.
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/juliacall/__init__.py:61: UserWarning: torch was imported before juliacall. This may cause a segfault. To avoid this, import juliacall before importing torch. For updates, see https://github.com/pytorch/pytorch/issues/78829.
   warnings.warn(
 </pre></div>
 </div>
@@ -253,12 +253,16 @@ To see all the possible parameters, please see the <code class="docutils literal
 <p>In this example, we turn verbosity off because we are in a Jupyter notebook. For best performance, run in IPython, as you can terminate the SR any time.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="o">.</span><span class="n">interpret</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span> 
-                       <span class="n">niterations</span> <span class="o">=</span> <span class="mi">500</span><span class="p">,</span> <span class="c1"># Should set to higher</span>
-                       <span class="n">verbosity</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> 
-                       <span class="n">complexity_of_operators</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;sin&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">},</span> 
-                       <span class="n">complexity_of_constants</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
-                       <span class="n">parsimony</span> <span class="o">=</span> <span class="mf">0.1</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Configure the SR</span>
+
+<span class="n">sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;complexity_of_operators&#39;</span><span class="p">:</span>  <span class="p">{</span><span class="s2">&quot;sin&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">:</span><span class="mi">3</span><span class="p">},</span>
+             <span class="s1">&#39;complexity_of_constants&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> 
+             <span class="s1">&#39;parsimony&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span>
+             <span class="s1">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+             <span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">500</span><span class="p">}</span>
+
+<span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="o">.</span><span class="n">interpret</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span>
+                       <span class="n">sr_params</span> <span class="o">=</span> <span class="n">sr_params</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -266,52 +270,52 @@ To see all the possible parameters, please see the <code class="docutils literal
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>🛠️ Running SR on output dimension 0 of 0
 </pre></div>
 </div>
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/InterpretSR_project/interpretsr_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
   warnings.warn(
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be ((x0 * x0) + -3.918567) + (sin(x4) * 2.8742185).
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be ((sin(x4) * 3.1075206) + -4.0526915) + (x0 * (sin(x4 + 20.25151) * x0)).
 ❤️ SR on Sequential complete.
 </pre></div>
 </div>
 <div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
  	    pick         score                                           equation  \
  	0         0.000000e+00                                                 x4   
- 	1         2.596927e+00                                         -2.2726457   
- 	2         4.073414e-01                                    x4 + -2.7684813   
- 	3         4.770055e-01                             (x4 + x4) + -3.2644153   
- 	4         1.900821e-01                      (x4 + -1.4215928) * 2.4550738   
- 	5         1.122596e+00                       ((x0 + x4) + -3.766932) + x4   
- 	6         1.062448e+00                (x4 * 2.459092) + (x0 + -3.9945967)   
- 	7         2.566310e-01        ((x4 * 2.4604707) + (x0 * x0)) + -3.8280373   
- 	8         4.459062e-08  ((x0 * x0) + (x4 + -3.828038)) + (x4 * 1.4604728)   
- 	9   &gt;&gt;&gt;&gt;  1.072845e+00    ((x0 * x0) + -3.918567) + (sin(x4) * 2.8742185)   
- 	10        5.908252e-02  ((x0 * (x0 * 0.9405975)) + -3.8984792) + (sin(...   
- 	11        1.201339e-02  ((sin(x4) * 2.8734725) + -3.9172218) + (((x0 *...   
- 	12        2.686410e-03  ((((x2 * 0.051761005) + x0) * x0) * 0.9188136)...   
- 	13        2.204982e-02  ((sin(x4) * 2.9311705) + (x0 * (x0 + (x4 * ((x...   
- 	14        9.261696e-02  (sin(x4) * 2.848834) + ((x0 * (x0 * sin((x4 + ...   
- 	15        5.744458e-03  (x0 * ((x0 + -0.017147552) * sin((x0 + x4) + 0...   
- 	16        6.804990e-03  (sin(x4) * 2.9278073) + ((((((x4 * (x4 * x4)) ...   
+ 	1         2.589440e+00                                         -2.3372025   
+ 	2         3.962054e-01                                    x4 + -2.8320389   
+ 	3         4.909863e-01                             (x4 + -3.3268287) + x4   
+ 	4         2.943301e-01                      (x4 * 2.5722113) + -3.6099672   
+ 	5         7.500944e-01                       ((x0 + x4) + x4) + -3.824443   
+ 	6         1.178268e+00                  ((x4 * 2.5593166) + -4.1012) + x0   
+ 	7         1.394943e-01         (x4 * 2.557785) + ((x0 * x0) + -3.9332936)   
+ 	8         2.682228e-01            ((sin(x4) * 2.9906468) + -4.19712) + x0   
+ 	9         2.632322e-01   ((x0 * x0) + -4.0290413) + (sin(x4) * 2.9886153)   
+ 	10        7.668198e-08  inv(inv(((x0 * x0) + -4.0290413) + (sin(x4) * ...   
+ 	11        2.554324e-01  (sin(x0 * x0) + -4.0077133) + (sin(x4) * 2.991...   
+ 	12        9.983039e-03  ((x0 * (sin(x0) + 0.037946302)) + (sin(x4) * 2...   
+ 	13        1.519488e-01  ((x4 + sin(x0 * x0)) + -3.5611627) + sin(x4 + ...   
+ 	14  &gt;&gt;&gt;&gt;  3.531477e-01  ((sin(x4) * 3.1075206) + -4.0526915) + (x0 * (...   
+ 	15        7.956269e-02  sin(((x0 * x0) + -0.6257372) + x4) + (sin(x4 +...   
+ 	16        3.471651e-03  (sin((x0 * x0) + (x4 + -0.61608624)) + (sin((x...   
  	
  	        loss  complexity  
- 	0   7.926341           1  
- 	1   0.590529           2  
- 	2   0.261474           4  
- 	3   0.100718           6  
- 	4   0.083283           7  
- 	5   0.027103           8  
- 	6   0.009367           9  
- 	7   0.005607          11  
- 	8   0.005607          13  
- 	9   0.001918          14  
- 	10  0.001606          17  
- 	11  0.001549          20  
- 	12  0.001541          22  
- 	13  0.001507          23  
- 	14  0.001374          24  
- 	15  0.001351          27  
- 	16  0.001332          29  
+ 	0   8.302468           1  
+ 	1   0.623200           2  
+ 	2   0.282155           4  
+ 	3   0.105687           6  
+ 	4   0.078740           7  
+ 	5   0.037191           8  
+ 	6   0.011448           9  
+ 	7   0.008661          11  
+ 	8   0.006623          12  
+ 	9   0.003912          14  
+ 	10  0.003912          16  
+ 	11  0.003030          17  
+ 	12  0.002941          20  
+ 	13  0.002526          21  
+ 	14  0.001775          22  
+ 	15  0.001514          24  
+ 	16  0.001498          27  
  ]}
 </pre></div>
 </div>
@@ -329,41 +333,41 @@ Outputs from <em>PySR</em> are saved in <code class="docutils literal notranslat
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
 	    pick         score                                           equation  \
 	0         0.000000e+00                                                 x4   
-	1         2.596927e+00                                         -2.2726457   
-	2         4.073414e-01                                    x4 + -2.7684813   
-	3         4.770055e-01                             (x4 + x4) + -3.2644153   
-	4         1.900821e-01                      (x4 + -1.4215928) * 2.4550738   
-	5         1.122596e+00                       ((x0 + x4) + -3.766932) + x4   
-	6         1.062448e+00                (x4 * 2.459092) + (x0 + -3.9945967)   
-	7         2.566310e-01        ((x4 * 2.4604707) + (x0 * x0)) + -3.8280373   
-	8         4.459062e-08  ((x0 * x0) + (x4 + -3.828038)) + (x4 * 1.4604728)   
-	9   &gt;&gt;&gt;&gt;  1.072845e+00    ((x0 * x0) + -3.918567) + (sin(x4) * 2.8742185)   
-	10        5.908252e-02  ((x0 * (x0 * 0.9405975)) + -3.8984792) + (sin(...   
-	11        1.201339e-02  ((sin(x4) * 2.8734725) + -3.9172218) + (((x0 *...   
-	12        2.686410e-03  ((((x2 * 0.051761005) + x0) * x0) * 0.9188136)...   
-	13        2.204982e-02  ((sin(x4) * 2.9311705) + (x0 * (x0 + (x4 * ((x...   
-	14        9.261696e-02  (sin(x4) * 2.848834) + ((x0 * (x0 * sin((x4 + ...   
-	15        5.744458e-03  (x0 * ((x0 + -0.017147552) * sin((x0 + x4) + 0...   
-	16        6.804990e-03  (sin(x4) * 2.9278073) + ((((((x4 * (x4 * x4)) ...   
+	1         2.589440e+00                                         -2.3372025   
+	2         3.962054e-01                                    x4 + -2.8320389   
+	3         4.909863e-01                             (x4 + -3.3268287) + x4   
+	4         2.943301e-01                      (x4 * 2.5722113) + -3.6099672   
+	5         7.500944e-01                       ((x0 + x4) + x4) + -3.824443   
+	6         1.178268e+00                  ((x4 * 2.5593166) + -4.1012) + x0   
+	7         1.394943e-01         (x4 * 2.557785) + ((x0 * x0) + -3.9332936)   
+	8         2.682228e-01            ((sin(x4) * 2.9906468) + -4.19712) + x0   
+	9         2.632322e-01   ((x0 * x0) + -4.0290413) + (sin(x4) * 2.9886153)   
+	10        7.668198e-08  inv(inv(((x0 * x0) + -4.0290413) + (sin(x4) * ...   
+	11        2.554324e-01  (sin(x0 * x0) + -4.0077133) + (sin(x4) * 2.991...   
+	12        9.983039e-03  ((x0 * (sin(x0) + 0.037946302)) + (sin(x4) * 2...   
+	13        1.519488e-01  ((x4 + sin(x0 * x0)) + -3.5611627) + sin(x4 + ...   
+	14  &gt;&gt;&gt;&gt;  3.531477e-01  ((sin(x4) * 3.1075206) + -4.0526915) + (x0 * (...   
+	15        7.956269e-02  sin(((x0 * x0) + -0.6257372) + x4) + (sin(x4 +...   
+	16        3.471651e-03  (sin((x0 * x0) + (x4 + -0.61608624)) + (sin((x...   
 	
 	        loss  complexity  
-	0   7.926341           1  
-	1   0.590529           2  
-	2   0.261474           4  
-	3   0.100718           6  
-	4   0.083283           7  
-	5   0.027103           8  
-	6   0.009367           9  
-	7   0.005607          11  
-	8   0.005607          13  
-	9   0.001918          14  
-	10  0.001606          17  
-	11  0.001549          20  
-	12  0.001541          22  
-	13  0.001507          23  
-	14  0.001374          24  
-	15  0.001351          27  
-	16  0.001332          29  
+	0   8.302468           1  
+	1   0.623200           2  
+	2   0.282155           4  
+	3   0.105687           6  
+	4   0.078740           7  
+	5   0.037191           8  
+	6   0.011448           9  
+	7   0.008661          11  
+	8   0.006623          12  
+	9   0.003912          14  
+	10  0.003912          16  
+	11  0.003030          17  
+	12  0.002941          20  
+	13  0.002526          21  
+	14  0.001775          22  
+	15  0.001514          24  
+	16  0.001498          27  
 ]}
 </pre></div>
 </div>
@@ -382,7 +386,7 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Successfully switched Sequential to symbolic equations for all 1 dimensions:
-   Dimension 0: ((x0 * x0) + -3.918567) + (sin(x4) * 2.8742185)
+   Dimension 0: ((x0 * x0) + -4.0290413) + (sin(x4) * 2.9886153)
    Variables: [&#39;x0&#39;, &#39;x4&#39;]
 🎯 All 1 output dimensions now using symbolic equations.
 </pre></div>
@@ -398,13 +402,13 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.7752],
-        [-2.6276],
-        [-3.6235],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-3.4945],
+        [-2.7125],
+        [-2.9032],
         ...,
-        [-1.2497],
-        [-1.9447],
-        [-3.7815]])
+        [-2.5894],
+        [-3.7545],
+        [-2.1077]])
 </pre></div>
 </div>
 </div>
@@ -434,13 +438,13 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.8287],
-        [-2.6227],
-        [-3.5882],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-3.4598],
+        [-2.7900],
+        [-2.8136],
         ...,
-        [-1.2214],
-        [-1.9201],
-        [-3.7148]])
+        [-2.6042],
+        [-3.6704],
+        [-2.0613]])
 </pre></div>
 </div>
 </div>
