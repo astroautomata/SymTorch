@@ -158,7 +158,7 @@ def test_MLP_SR_interpret():
         input_data = torch.FloatTensor(X_train[:100])  # Use subset for faster testing
         
         # Run interpretation with reduced iterations for testing
-        regressors = trained_model.mlp.interpret(input_data, niterations=50)
+        regressors = trained_model.mlp.interpret(input_data, sr_params={'niterations': 50})
         
         # For single output model, should return dictionary with one entry
         assert regressors is not None, "Regressors should not be None"
@@ -193,7 +193,7 @@ def test_switch_to_equation():
     # Ensure we have a regressor first
     if not hasattr(trained_model.mlp, 'pysr_regressor') or not trained_model.mlp.pysr_regressor:
         input_data = torch.FloatTensor(X_train[:100])
-        trained_model.mlp.interpret(input_data, niterations=50)
+        trained_model.mlp.interpret(input_data, sr_params={'niterations': 50})
     
     try:
         # Test switching to equation
@@ -235,7 +235,7 @@ def test_switch_to_mlp():
     # Ensure we have a regressor first
     if not hasattr(trained_model.mlp, 'pysr_regressor') or trained_model.mlp.pysr_regressor is None:
         input_data = torch.FloatTensor(X_train[:100])
-        trained_model.mlp.interpret(input_data, niterations=50)
+        trained_model.mlp.interpret(input_data, sr_params={'niterations': 50})
     
     # Switch to equation mode first
     trained_model.mlp.switch_to_equation()
@@ -415,7 +415,7 @@ def test_training_after_switch_to_equation():
         # Run interpret on the SR-wrapped MLP component
         print("Running interpretation on SR-wrapped MLP...")
         input_data = torch.FloatTensor(X_train[:100])
-        regressor = dual_model.sr_mlp.interpret(input_data, niterations=30)
+        regressor = dual_model.sr_mlp.interpret(input_data, sr_params={'niterations': 30})
         
         assert regressor is not None, "Interpretation should succeed"
         assert hasattr(dual_model.sr_mlp, 'pysr_regressor'), "Should have regressor stored"
@@ -467,7 +467,7 @@ def test_equation_parameters_fixed_during_training():
         
         # Run interpret and switch to equation
         input_data = torch.FloatTensor(X_train[:100])
-        _ = dual_model.sr_mlp.interpret(input_data, niterations=30)
+        _ = dual_model.sr_mlp.interpret(input_data, sr_params={'niterations': 30})
         dual_model.sr_mlp.switch_to_equation()
         
         # Get equation functions and variables before training (multi-dimensional API)
@@ -530,7 +530,7 @@ def test_gradient_flow_through_other_components():
         
         # Run interpret and switch to equation
         input_data = torch.FloatTensor(X_train[:100])
-        _ = dual_model.sr_mlp.interpret(input_data, niterations=30)
+        _ = dual_model.sr_mlp.interpret(input_data, sr_params={'niterations': 30})
         dual_model.sr_mlp.switch_to_equation()
         
         # Get regular MLP parameters before additional training
@@ -659,7 +659,7 @@ def test_multi_dimensional_interpret_all_outputs():
         
         # Test interpret on all dimensions
         input_data = X_tensor[:150]  # Use subset for faster testing
-        regressors = model.mlp.interpret(input_data, niterations=30)
+        regressors = model.mlp.interpret(input_data, sr_params={'niterations': 30})
         
         # Verify we got a dictionary of regressors
         assert isinstance(regressors, dict), "Should return dictionary of regressors for multi-dim"
@@ -717,7 +717,7 @@ def test_multi_dimensional_interpret_specific_output():
         
         # Test interpret on specific dimension (dimension 1)
         input_data = X_tensor[:150]
-        regressor = model.mlp.interpret(input_data, output_dim=1, niterations=30)
+        regressor = model.mlp.interpret(input_data, output_dim=1, sr_params={'niterations': 30})
         
         # Verify we got a single regressor (not a dictionary)
         assert not isinstance(regressor, dict), "Should return single regressor for specific dimension"
@@ -774,7 +774,7 @@ def test_multi_dimensional_forward_pass_consistency():
         assert output_before.shape == (10, 3), "Output should have correct shape (batch_size, output_dim)"
         
         # Run interpretation
-        model.mlp.interpret(X_tensor[:100], niterations=20)
+        model.mlp.interpret(X_tensor[:100], sr_params={'niterations': 20})
         
         # Test forward pass after interpretation (should still work)
         output_after = model(test_input)
@@ -843,7 +843,7 @@ def test_multi_dimensional_mixed_training():
         initial_loss = loss.item()
         
         # Run interpretation on the MLP_SR component
-        model.sr_mlp.interpret(X_tensor[:100], niterations=20)
+        model.sr_mlp.interpret(X_tensor[:100], sr_params={'niterations': 20})
         
         # Continue training after interpretation
         for epoch in range(10):
@@ -902,7 +902,7 @@ def test_multi_dimensional_switch_to_equation():
         
         # Run interpretation on all dimensions
         input_data = X_tensor[:100]
-        regressors = model.mlp.interpret(input_data, niterations=20)
+        regressors = model.mlp.interpret(input_data, sr_params={'niterations': 20})
         
         assert isinstance(regressors, dict), "Should return dictionary for multi-dim"
         assert len(regressors) == 2, "Should have 2 regressors"
@@ -970,8 +970,8 @@ def test_multi_dimensional_switch_to_equation_missing_dims():
         
         # Run interpretation on only 2 out of 3 dimensions
         input_data = X_tensor[:75]
-        model.mlp.interpret(input_data, output_dim=0, niterations=15)
-        model.mlp.interpret(input_data, output_dim=1, niterations=15)
+        model.mlp.interpret(input_data, output_dim=0, sr_params={'niterations': 15})
+        model.mlp.interpret(input_data, output_dim=1, sr_params={'niterations': 15})
         
         # Manually remove one dimension to simulate missing scenario
         if 2 in model.mlp.pysr_regressor:
@@ -1023,8 +1023,8 @@ def test_variable_transformations_basic():
             input_data, 
             output_dim=0,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=30
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 30}
         )
         
         # Verify regressor was created
@@ -1068,7 +1068,7 @@ def test_variable_transformations_without_names():
             input_data, 
             output_dim=0,
             variable_transforms=variable_transforms,
-            niterations=30
+            sr_params={'niterations': 30}
         )
         
         # Verify regressor was created
@@ -1112,8 +1112,8 @@ def test_variable_transformations_switch_to_equation():
             input_data, 
             output_dim=0,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=30
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 30}
         )
         
         # Switch to equation mode
@@ -1160,8 +1160,8 @@ def test_variable_transformations_error_handling():
             trained_model.mlp.interpret(
                 input_data, 
                 variable_transforms=variable_transforms,
-                variable_names=variable_names,
-                niterations=10
+                fit_params={'variable_names': variable_names},
+                sr_params={'niterations': 10}
             )
         
         # Test transform that causes an error
@@ -1174,7 +1174,7 @@ def test_variable_transformations_error_handling():
             trained_model.mlp.interpret(
                 input_data,
                 variable_transforms=variable_transforms,
-                niterations=10
+                sr_params={'niterations': 10}
             )
         
         print("✅ Variable transformations error handling test passed")
@@ -1223,8 +1223,8 @@ def test_variable_transformations_multi_dimensional():
         regressors = model.mlp.interpret(
             input_data,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=20
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 20}
         )
         
         # Verify results
@@ -1274,7 +1274,7 @@ def test_save_path_parameter():
             input_data,
             output_dim=0,
             save_path=custom_save_path,
-            niterations=20
+            sr_params={'niterations': 20}
         )
         
         # Verify regressor was created

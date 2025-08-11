@@ -12,7 +12,7 @@ import time
 import sympy
 from sympy import lambdify
 import numpy as np
-from typing import List, Callable, Optional, Union
+from typing import List, Callable, Optional, Union, Dict, Any
 
 class MLP_SR(nn.Module):
     """
@@ -161,9 +161,9 @@ class MLP_SR(nn.Module):
 
     def interpret(self, inputs, output_dim: int = None, parent_model=None, 
                  variable_transforms: Optional[List[Callable]] = None,
-                 variable_names: Optional[List[str]] = None, 
                  save_path: str = None,
-                 **kwargs):
+                 sr_params: Optional[Dict[str, Any]] = None,
+                 fit_params: Optional[Dict[str, Any]] = None):
         """
         Discover symbolic expressions that approximate the MLP's behavior.
         
@@ -178,34 +178,37 @@ class MLP_SR(nn.Module):
             variable_transforms (List[Callable], optional): List of functions to transform input variables.
                                                            Each function should take the full input tensor and return
                                                            a transformed tensor. Example: [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]
-            variable_names (List[str], optional): Custom names for the transformed variables.
-                                                If provided, must match the length of variable_transforms.
-                                                Example: ["x0_minus_x1", "x2_squared"]
             save_path (str, optional): Custom base directory for PySR outputs.
                                      If None, uses default "SR_output/" directory.
                                      Example: "/custom/output/path"
-            **kwargs: Parameters passed to PySRRegressor. Defaults:
+            sr_params (Dict[str, Any], optional): Parameters passed to PySRRegressor. Defaults:
                 - binary_operators (list): ["+", "*"]
                 - unary_operators (list): ["inv(x) = 1/x", "sin", "exp"]
                 - niterations (int): 400
                 - output_directory (str): "{save_path}/{mlp_name}" or "SR_output/{mlp_name}" # Where PySR outputs are stored
-                - run_id (str): "{timestamp}" # Where PySR outputs of a specific run 
-                are stored
-            To see more information on the possible inputs to the PySRRegressor, please see
-            the PySR documentation.
+                - run_id (str): "{timestamp}" # Where PySR outputs of a specific run are stored
+                To see more information on the possible inputs to the PySRRegressor, please see
+                the PySR documentation.
+            fit_params (Dict[str, Any], optional): Parameters passed to the regressor.fit() method. Defaults:
+                - variable_names (List[str]): Custom names for variables if variable_transforms is used.
+                                             If provided, must match the length of variable_transforms.
+                                             Example: ["x0_minus_x1", "x2_squared"]
                 
         Returns:
             PySRRegressor: Fitted symbolic regression model
             
         Example:
             >>> # Basic usage
-            >>> regressor = model.interpret(train_inputs, niterations=1000)
+            >>> regressor = model.interpret(train_inputs, 
+            ...                            sr_params={'niterations': 1000})
             >>> print(regressor.get_best()['equation'])
             
             >>> # With variable transformations
             >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]
             >>> names = ["x0_minus_x1", "x2_squared", "sin_x3"]
-            >>> regressor = model.interpret(train_inputs, variable_transforms=transforms, variable_names=names)
+            >>> regressor = model.interpret(train_inputs, 
+            ...                            variable_transforms=transforms, 
+            ...                            fit_params={'variable_names': names})
         """
 
         # Extract inputs and outputs at this layer level
@@ -243,6 +246,12 @@ class MLP_SR(nn.Module):
             with torch.no_grad():
                 output = self.InterpretSR_MLP(inputs)
 
+        # Extract fit parameters
+        if fit_params is None:
+            fit_params = {}
+        
+        variable_names = fit_params.get('variable_names', None)
+        
         # Apply variable transformations if provided
         if variable_transforms is not None:
             # Validate inputs
@@ -283,6 +292,10 @@ class MLP_SR(nn.Module):
         self.output_dims = output_dims # Save this 
 
         pysr_regressors = {}
+        
+        # Extract sr_params with defaults
+        if sr_params is None:
+            sr_params = {}
 
         if not output_dim:
 
@@ -296,7 +309,7 @@ class MLP_SR(nn.Module):
                 if save_path is not None:
                     output_name = f"{save_path}/{self.mlp_name}"
                 
-                default_params = {
+                default_sr_params = {
                     "binary_operators": ["+", "*"],
                     "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
                     "extra_sympy_mappings": {"inv": lambda x: 1/x},
@@ -307,13 +320,14 @@ class MLP_SR(nn.Module):
                 }
                 
                 
-                params = {**default_params, **kwargs}
-                regressor = PySRRegressor(**params)
+                final_sr_params = {**default_sr_params, **sr_params}
+                regressor = PySRRegressor(**final_sr_params)
 
-                if variable_names is not None:
-                    regressor.fit(actual_inputs_numpy, output.detach()[:, dim].cpu().numpy(), variable_names=variable_names)
-                else:
-                    regressor.fit(actual_inputs_numpy, output.detach()[:, dim].cpu().numpy())
+                # Prepare fit arguments
+                fit_args = [actual_inputs_numpy, output.detach()[:, dim].cpu().numpy()]
+                final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+                
+                regressor.fit(*fit_args, **final_fit_params)
 
                 pysr_regressors[dim] = regressor
 
@@ -329,7 +343,7 @@ class MLP_SR(nn.Module):
             if save_path is not None:
                 output_name = f"{save_path}/{self.mlp_name}"
             
-            default_params = {
+            default_sr_params = {
                 "binary_operators": ["+", "*"],
                 "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
                 "extra_sympy_mappings": {"inv": lambda x: 1/x},
@@ -339,13 +353,14 @@ class MLP_SR(nn.Module):
                 "run_id": run_id
             }
                 
-            params = {**default_params, **kwargs}
-            regressor = PySRRegressor(**params)
+            final_sr_params = {**default_sr_params, **sr_params}
+            regressor = PySRRegressor(**final_sr_params)
 
-            if variable_names is not None:
-                regressor.fit(actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy(), variable_names=variable_names)
-            else:
-                regressor.fit(actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy())
+            # Prepare fit arguments
+            fit_args = [actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy()]
+            final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+            
+            regressor.fit(*fit_args, **final_fit_params)
             pysr_regressors[output_dim] = regressor
 
             print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")

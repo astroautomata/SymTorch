@@ -270,7 +270,7 @@ def test_pruned_interpret():
     
     # Run interpret - should only work on active dimensions
     input_data = X_train_tensor[:100]
-    regressors = model.f_net.interpret(input_data, parent_model=model, niterations=20)
+    regressors = model.f_net.interpret(input_data, parent_model=model, sr_params={'niterations': 20})
     
     # Should return dictionary with entries only for active dimensions
     assert isinstance(regressors, dict)
@@ -305,7 +305,7 @@ def test_pruned_switch_to_equation():
     
     # Run interpret
     input_data = X_train_tensor[:50]
-    regressors = model.f_net.interpret(input_data, parent_model=model, niterations=15)
+    regressors = model.f_net.interpret(input_data, parent_model=model, sr_params={'niterations': 15})
     
     active_dims = model.f_net.get_active_dimensions()
     assert len(regressors) == len(active_dims)
@@ -366,7 +366,7 @@ def test_pruned_forward_equation_vs_mlp_consistency():
     assert torch.allclose(mlp_output[:, inactive_mask], torch.zeros(5, inactive_mask.sum()))
     
     # Run interpret and switch to equation
-    model.f_net.interpret(X_train_tensor[:40], parent_model=model, niterations=10)
+    model.f_net.interpret(X_train_tensor[:40], parent_model=model, sr_params={'niterations': 10})
     model.f_net.switch_to_equation()
     
     # Get forward pass in equation mode
@@ -446,7 +446,7 @@ def test_no_active_dimensions_edge_case():
     
     # interpret should return empty dict
     input_data = X_train_tensor[:20]
-    regressors = pruning_mlp.interpret(input_data, niterations=5)
+    regressors = pruning_mlp.interpret(input_data, sr_params={'niterations': 5})
     assert regressors == {}
     
     # switch_to_equation should handle gracefully
@@ -627,7 +627,7 @@ def test_middle_mlp_interpret_and_switch():
     
     # Run interpret on the middle MLP - should work with parent_model
     input_data = X_train_tensor[:60]
-    regressors = model.middle_mlp.interpret(input_data, parent_model=model, niterations=15)
+    regressors = model.middle_mlp.interpret(input_data, parent_model=model, sr_params={'niterations': 15})
     
     # Should have regressors for active dimensions only
     assert isinstance(regressors, dict)
@@ -715,8 +715,8 @@ def test_pruning_variable_transformations_basic():
             input_data,
             parent_model=model,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=20
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 20}
         )
         
         # Should return dictionary with entries only for active dimensions
@@ -780,8 +780,8 @@ def test_pruning_variable_transformations_switch_to_equation():
             input_data,
             parent_model=model,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=15
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 15}
         )
         
         assert len(regressors) == 3
@@ -861,8 +861,8 @@ def test_pruning_variable_transformations_specific_dimension():
             parent_model=model,
             output_dim=target_dim,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=15
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 15}
         )
         
         # Should return single regressor (not a dictionary)
@@ -915,8 +915,8 @@ def test_pruning_variable_transformations_error_handling():
                 input_data,
                 parent_model=model,
                 variable_transforms=variable_transforms,
-                variable_names=variable_names,
-                niterations=10
+                fit_params={'variable_names': variable_names},
+                sr_params={'niterations': 10}
             )
         
         # Test transform that causes an error
@@ -930,7 +930,7 @@ def test_pruning_variable_transformations_error_handling():
                 input_data,
                 parent_model=model,
                 variable_transforms=variable_transforms,
-                niterations=10
+                sr_params={'niterations': 10}
             )
         
         print("✅ Pruning variable transformations error handling test passed")
@@ -969,7 +969,7 @@ def test_pruning_save_path_parameter():
             input_data,
             parent_model=model,
             save_path=custom_save_path,
-            niterations=15
+            sr_params={'niterations': 15}
         )
         
         # Verify regressors were created
@@ -1029,8 +1029,8 @@ def test_pruning_variable_transformations_inactive_dimension_request():
             parent_model=model,
             output_dim=inactive_dim,
             variable_transforms=variable_transforms,
-            variable_names=variable_names,
-            niterations=10
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 10}
         )
         
         # Should return empty dict for inactive dimension

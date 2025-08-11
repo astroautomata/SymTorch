@@ -247,9 +247,9 @@ class Pruning_MLP(MLP_SR):
 
     def interpret(self, inputs, output_dim: int = None, parent_model=None, 
                  variable_transforms: Optional[List[Callable]] = None,
-                 variable_names: Optional[List[str]] = None, 
                  save_path: str = None,
-                 **kwargs):
+                 sr_params: Optional[Dict[str, Any]] = None,
+                 fit_params: Optional[Dict[str, Any]] = None):
         """
         Discover symbolic expressions for active (non-pruned) dimensions only.
         
@@ -265,32 +265,36 @@ class Pruning_MLP(MLP_SR):
             variable_transforms (List[Callable], optional): List of functions to transform input variables.
                                                            Each function should take the full input tensor and return
                                                            a transformed tensor. Example: [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]
-            variable_names (List[str], optional): Custom names for the transformed variables.
-                                                If provided, must match the length of variable_transforms.
-                                                Example: ["x0_minus_x1", "x2_squared"]
             save_path (str, optional): Custom base directory for PySR outputs.
                                      If None, uses default "SR_output/" directory.
                                      Example: "/custom/output/path"
-            **kwargs: Parameters passed to PySRRegressor. Inherits same defaults as MLP_SR:
+            sr_params (Dict[str, Any], optional): Parameters passed to PySRRegressor. Inherits same defaults as MLP_SR:
                 - binary_operators (list): ["+", "*"]
                 - unary_operators (list): ["inv(x) = 1/x", "sin", "exp"]
                 - niterations (int): 400
                 - output_directory (str): "{save_path}/{mlp_name}" or "SR_output/{mlp_name}"
                 - run_id (str): "dim{dim_idx}_{timestamp}"
+            fit_params (Dict[str, Any], optional): Parameters passed to the regressor.fit() method. Defaults:
+                - variable_names (List[str]): Custom names for variables if variable_transforms is used.
+                                             If provided, must match the length of variable_transforms.
+                                             Example: ["x0_minus_x1", "x2_squared"]
                 
         Returns:
             dict: Dictionary mapping active dimension indices to fitted PySRRegressor objects
             
         Example:
             >>> # Basic usage
-            >>> regressors = pruned_mlp.interpret(train_data, niterations=1000)
+            >>> regressors = pruned_mlp.interpret(train_data, 
+            ...                                  sr_params={'niterations': 1000})
             >>> for dim_idx, regressor in regressors.items():
             ...     print(f"Dimension {dim_idx}: {regressor.get_best()['equation']}")
             
             >>> # With variable transformations
             >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]
             >>> names = ["x0_minus_x1", "x2_squared", "sin_x3"]
-            >>> regressors = pruned_mlp.interpret(train_data, variable_transforms=transforms, variable_names=names)
+            >>> regressors = pruned_mlp.interpret(train_data, 
+            ...                                  variable_transforms=transforms, 
+            ...                                  fit_params={'variable_names': names})
         """
         active_dims = self.get_active_dimensions()
         if not active_dims:
@@ -334,6 +338,12 @@ class Pruning_MLP(MLP_SR):
                 full_output = self.InterpretSR_MLP(inputs)
                 active_output = full_output[:, self.pruning_mask]
 
+        # Extract fit parameters
+        if fit_params is None:
+            fit_params = {}
+        
+        variable_names = fit_params.get('variable_names', None)
+        
         # Apply variable transformations if provided
         if variable_transforms is not None:
             # Validate inputs
@@ -370,12 +380,16 @@ class Pruning_MLP(MLP_SR):
 
         timestamp = int(time.time())
         
+        # Extract sr_params with defaults
+        if sr_params is None:
+            sr_params = {}
+        
         # Use same default parameters as MLP_SR
         output_name = f"SR_output/{self.mlp_name}"
         if save_path is not None:
             output_name = f"{save_path}/{self.mlp_name}"
         
-        default_params = {
+        default_sr_params = {
             "binary_operators": ["+", "*"],
             "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
             "extra_sympy_mappings": {"inv": lambda x: 1/x},
@@ -383,7 +397,6 @@ class Pruning_MLP(MLP_SR):
             "complexity_of_operators": {"sin": 3, "exp": 3},
             "output_directory": output_name,
         }
-        default_params.update(kwargs)
 
         # Set output_dims for compatibility
         self.output_dims = self.initial_dim
@@ -405,17 +418,18 @@ class Pruning_MLP(MLP_SR):
             print(f"🛠️ Running SR on active output dimension {output_dim}.")
             
             run_id = f"dim{output_dim}_{timestamp}"
-            params = {**default_params, "run_id": run_id}
+            final_sr_params = {**default_sr_params, **sr_params, "run_id": run_id}
             
-            regressor = PySRRegressor(**params)
+            regressor = PySRRegressor(**final_sr_params)
             
             # Find the index of this dimension in the active output
             dim_index = active_dims.index(output_dim)
             
-            if variable_names is not None:
-                regressor.fit(actual_inputs_numpy, active_output[:, dim_index].detach().cpu().numpy(), variable_names=variable_names)
-            else:
-                regressor.fit(actual_inputs_numpy, active_output[:, dim_index].detach().cpu().numpy())
+            # Prepare fit arguments
+            fit_args = [actual_inputs_numpy, active_output[:, dim_index].detach().cpu().numpy()]
+            final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+            
+            regressor.fit(*fit_args, **final_fit_params)
             
             regressors[output_dim] = regressor
             
@@ -428,14 +442,15 @@ class Pruning_MLP(MLP_SR):
                 print(f"🛠️ Running SR on active dimension {dim_idx} ({i+1}/{len(active_dims)})")
                 
                 run_id = f"dim{dim_idx}_{timestamp}"
-                params = {**default_params, "run_id": run_id}
+                final_sr_params = {**default_sr_params, **sr_params, "run_id": run_id}
                 
-                regressor = PySRRegressor(**params)
+                regressor = PySRRegressor(**final_sr_params)
                 
-                if variable_names is not None:
-                    regressor.fit(actual_inputs_numpy, active_output[:, i].detach().cpu().numpy(), variable_names=variable_names)
-                else:
-                    regressor.fit(actual_inputs_numpy, active_output[:, i].detach().cpu().numpy())
+                # Prepare fit arguments
+                fit_args = [actual_inputs_numpy, active_output[:, i].detach().cpu().numpy()]
+                final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+                
+                regressor.fit(*fit_args, **final_fit_params)
                 
                 regressors[dim_idx] = regressor
                 
