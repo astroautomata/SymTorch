@@ -5,7 +5,26 @@
    "id": "2f935234",
    "metadata": {},
    "source": [
-    "# SymTorch Toolkit: Pruning"
+    "# Pruning MLPs"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "c079a023",
+   "metadata": {},
+   "source": [
+    "In this demo we will show you how to: \n",
+    "* Wrap a PyTorch model with the `Pruning_MLP` class\n",
+    "* Set up a pruning schedule and train the pruning MLP\n",
+    "* Perform symbolic regression on a pruned MLP"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "127b5f78",
+   "metadata": {},
+   "source": [
+    "## Pruning Background"
    ]
   },
   {
@@ -59,7 +78,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 18,
+   "execution_count": 1,
    "id": "adc61e0e",
    "metadata": {},
    "outputs": [],
@@ -129,7 +148,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 19,
+   "execution_count": 2,
    "id": "5f363579",
    "metadata": {},
    "outputs": [],
@@ -166,17 +185,25 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 20,
+   "execution_count": 3,
    "id": "8028b74a",
    "metadata": {},
-   "outputs": [],
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Detected IPython. Loading juliacall extension. See https://juliapy.github.io/PythonCall.jl/stable/compat/#IPython\n"
+     ]
+    }
+   ],
    "source": [
-    "from symtorch.toolkit import Pruning_MLP"
+    "from symtorch import Pruning_MLP"
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": 21,
+   "execution_count": 4,
    "id": "2023b11b",
    "metadata": {},
    "outputs": [],
@@ -199,7 +226,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 22,
+   "execution_count": 5,
    "id": "e9c0007a",
    "metadata": {},
    "outputs": [],
@@ -213,7 +240,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 23,
+   "execution_count": 6,
    "id": "f495823a",
    "metadata": {},
    "outputs": [],
@@ -283,7 +310,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 24,
+   "execution_count": 7,
    "id": "add838bc",
    "metadata": {},
    "outputs": [
@@ -292,16 +319,16 @@
      "output_type": "stream",
      "text": [
       "Starting training...\n",
-      "Epoch [10/100], Avg Loss: 0.002198, Active dims: 30\n",
-      "Epoch [20/100], Avg Loss: 0.002274, Active dims: 26\n",
-      "Epoch [30/100], Avg Loss: 0.002090, Active dims: 20\n",
-      "Epoch [40/100], Avg Loss: 0.002076, Active dims: 14\n",
-      "Epoch [50/100], Avg Loss: 0.001993, Active dims: 8\n",
-      "Epoch [60/100], Avg Loss: 0.001769, Active dims: 3\n",
-      "Epoch [70/100], Avg Loss: 0.001759, Active dims: 2\n",
-      "Epoch [80/100], Avg Loss: 0.001764, Active dims: 2\n",
-      "Epoch [90/100], Avg Loss: 0.001679, Active dims: 2\n",
-      "Epoch [100/100], Avg Loss: 0.001725, Active dims: 2\n",
+      "Epoch [10/100], Avg Loss: 0.002634, Active dims: 30\n",
+      "Epoch [20/100], Avg Loss: 0.002262, Active dims: 26\n",
+      "Epoch [30/100], Avg Loss: 0.002287, Active dims: 20\n",
+      "Epoch [40/100], Avg Loss: 0.002101, Active dims: 14\n",
+      "Epoch [50/100], Avg Loss: 0.001869, Active dims: 8\n",
+      "Epoch [60/100], Avg Loss: 0.001745, Active dims: 3\n",
+      "Epoch [70/100], Avg Loss: 0.001758, Active dims: 2\n",
+      "Epoch [80/100], Avg Loss: 0.001797, Active dims: 2\n",
+      "Epoch [90/100], Avg Loss: 0.001820, Active dims: 2\n",
+      "Epoch [100/100], Avg Loss: 0.001689, Active dims: 2\n",
       "Training completed!\n"
      ]
     }
@@ -324,7 +351,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 25,
+   "execution_count": 8,
    "id": "63359981",
    "metadata": {},
    "outputs": [
@@ -372,12 +399,12 @@
    "id": "05200922",
    "metadata": {},
    "source": [
-    "The `.interpret` function only takes into account the active (non-masked) dimensions. "
+    "The `.distill` function only takes into account the active (non-masked) dimensions."
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": 26,
+   "execution_count": 9,
    "id": "d637d376",
    "metadata": {},
    "outputs": [
@@ -387,7 +414,7 @@
      "text": [
       "\n",
       "Running symbolic regression on pruned f...\n",
-      "🛠️ Running SR on active dimension 14 (1/2)\n"
+      "🛠️ Running SR on active dimension 6 (1/2)\n"
      ]
     },
     {
@@ -402,8 +429,8 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "💡Best equation for active dimension 14: (((x0 * x0) * 7.5547247) + ((x4 + -4.353448) * x4)) + 0.13191643\n",
-      "🛠️ Running SR on active dimension 21 (2/2)\n"
+      "💡Best equation for active dimension 6: (x0 * ((x0 * 7.7608647) + 0.2976528)) + ((sin(x4) * -4.277788) + 0.08879602)\n",
+      "🛠️ Running SR on active dimension 30 (2/2)\n"
      ]
     },
     {
@@ -418,86 +445,98 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "💡Best equation for active dimension 21: ((x0 * (7.4687605 * x0)) + 0.20520784) + (x4 * (x4 + ((x0 * 0.3946669) + -4.620561)))\n",
+      "💡Best equation for active dimension 30: ((sin(x4) * 3.9845026) + -0.17296898) + (x0 * ((x0 * -8.416115) + (x4 * 0.458543)))\n",
       "❤️ SR on f_net active dimensions complete.\n"
      ]
     },
     {
      "data": {
       "text/plain": [
-       "{14: PySRRegressor.equations_ = [\n",
-       " \t    pick     score                                           equation  \\\n",
-       " \t0         0.000000                                                 x0   \n",
-       " \t1         0.120210                                            x0 + x0   \n",
-       " \t2         0.108252                                     x0 * 3.0985763   \n",
-       " \t3         0.217647                               x0 * (x0 * 4.722332)   \n",
-       " \t4         0.577434                         (x0 * 7.58398) + -2.981448   \n",
-       " \t5         0.404400                (x4 * -4.459847) + (x0 * 6.4239435)   \n",
-       " \t6         2.206886          (x4 * -3.3917015) + (x0 * (x0 * 7.52803))   \n",
-       " \t7         0.124388  ((x0 * 7.6507854) * x0) + (x4 * (x4 + -4.202662))   \n",
-       " \t8         0.480635   ((x0 * 7.6147075) * x0) + (sin(x4) * -3.8002071)   \n",
-       " \t9   >>>>  0.240691  (((x0 * x0) * 7.5547247) + ((x4 + -4.353448) *...   \n",
-       " \t10        0.069246  (((x0 * x0) * 7.5546346) + (sin(x4) * -3.91798...   \n",
-       " \t11        0.020631  ((((x0 + -0.019358773) * 7.6945095) * x0) + (s...   \n",
-       " \t12        0.001911  (sin(x4) * -3.8902493) + ((((x4 * -0.006431333...   \n",
-       " \t13        0.000993  (sin(x4) * -3.9180102) + ((((sin(inv(x3)) * 0....   \n",
+       "{6: PySRRegressor.equations_ = [\n",
+       " \t    pick         score                                           equation  \\\n",
+       " \t0         0.000000e+00                                                 x0   \n",
+       " \t1         1.148194e-01                                            x0 + x0   \n",
+       " \t2         1.271427e-01                                     x0 * 3.2849653   \n",
+       " \t3         2.345212e-01                          inv(inv(x0) + -0.8688543)   \n",
+       " \t4         5.343127e-01                       (x0 * 8.063941) + -3.1791587   \n",
+       " \t5         4.663378e-01                (x0 * 6.900445) + (x4 * -4.8166494)   \n",
+       " \t6         2.113907e+00          (x4 * -3.653175) + ((x0 * x0) * 8.049369)   \n",
+       " \t7         8.123289e-02      (sin(x4) * -4.088221) + ((x0 * 8.13758) * x0)   \n",
+       " \t8         2.161893e-01  x0 + (((x0 * 7.092151) * x0) + (x4 * (x4 + -4....   \n",
+       " \t9         5.076185e-01  (((x0 * x0) * 8.042379) + ((x4 + -4.6605554) *...   \n",
+       " \t10        4.154584e-02  ((x0 * x0) * 8.0415535) + ((sin(x4) + -0.03354...   \n",
+       " \t11        6.472069e-08  (((x0 * inv(inv(x0))) * 8.041551) + (sin(x4) *...   \n",
+       " \t12  >>>>  1.648806e-01  (x0 * ((x0 * 7.7608647) + 0.2976528)) + ((sin(...   \n",
+       " \t13        8.078139e-02  ((sin(x4) * -4.25507) + (x3 * 0.10091582)) + (...   \n",
+       " \t14        1.518269e-03  (sin(x4) * -4.2544355) + ((((x0 + -0.07688601)...   \n",
+       " \t15        6.710315e-02  (((sin(x4) * -4.2783914) + (x3 * 0.07972249)) ...   \n",
        " \t\n",
        " \t        loss  complexity  \n",
-       " \t0   4.954660           1  \n",
-       " \t1   3.895841           3  \n",
-       " \t2   3.496134           4  \n",
-       " \t3   2.262258           6  \n",
-       " \t4   1.269890           7  \n",
-       " \t5   0.565599           9  \n",
-       " \t6   0.006849          11  \n",
-       " \t7   0.005341          13  \n",
-       " \t8   0.003303          14  \n",
-       " \t9   0.002041          16  \n",
-       " \t10  0.001904          17  \n",
-       " \t11  0.001790          20  \n",
-       " \t12  0.001773          25  \n",
-       " \t13  0.001766          29  \n",
+       " \t0   5.755526           1  \n",
+       " \t1   4.574611           3  \n",
+       " \t2   4.028439           4  \n",
+       " \t3   2.520196           6  \n",
+       " \t4   1.477016           7  \n",
+       " \t5   0.581205           9  \n",
+       " \t6   0.008476          11  \n",
+       " \t7   0.006643          14  \n",
+       " \t8   0.005352          15  \n",
+       " \t9   0.003221          16  \n",
+       " \t10  0.003090          17  \n",
+       " \t11  0.003090          19  \n",
+       " \t12  0.002620          20  \n",
+       " \t13  0.002230          22  \n",
+       " \t14  0.002223          24  \n",
+       " \t15  0.002079          25  \n",
        " ],\n",
-       " 21: PySRRegressor.equations_ = [\n",
+       " 30: PySRRegressor.equations_ = [\n",
        " \t    pick     score                                           equation  \\\n",
-       " \t0         0.000000                                                 x0   \n",
-       " \t1         0.119658                                            x0 + x0   \n",
-       " \t2         0.113770                                     x0 * 3.1433377   \n",
-       " \t3         0.238844                         inv(inv(x0) + -0.85897857)   \n",
-       " \t4         0.548127                     (x0 + -0.39360297) * 7.7071385   \n",
-       " \t5         0.425561               (x4 + (x0 * -1.437306)) * -4.5444355   \n",
-       " \t6         2.140434         (x4 * -3.4486156) + (x0 * (x0 * 7.634561))   \n",
-       " \t7         0.017396  ((x4 + -4.259581) * x4) + ((x0 * x0) * 7.7573137)   \n",
-       " \t8         0.369410   (sin(x4) * -3.8630505) + ((x0 * 7.7219963) * x0)   \n",
-       " \t9         0.198738  ((x0 * 7.6525273) * x0) + ((x4 + -4.3914957) *...   \n",
-       " \t10        0.076456  (((x0 + 0.05651807) * x0) * 7.283718) + (sin(x...   \n",
-       " \t11        0.029108  (((x0 * 7.406846) * (x0 + 0.035212904)) + 0.05...   \n",
-       " \t12  >>>>  0.312828  ((x0 * (7.4687605 * x0)) + 0.20520784) + (x4 *...   \n",
-       " \t13        0.014617  (((((x0 * 0.3931664) + (x4 * 0.8729146)) + -4....   \n",
-       " \t14        0.008696  ((x4 * (((sin(x0) * 0.44614813) + -4.5031695) ...   \n",
-       " \t15        0.000016  ((x0 * 7.4778647) * x0) + (((((sin(x0) * 0.445...   \n",
+       " \t0         0.000000                                                 x4   \n",
+       " \t1         0.216649                                         -1.0053014   \n",
+       " \t2         0.301529                                    x0 * -3.5791383   \n",
+       " \t3         0.023528                               inv(x0 + -1.1379426)   \n",
+       " \t4         0.442987                             x0 * (x0 * -5.3691025)   \n",
+       " \t5         0.473870                        (x0 * -8.190969) + 3.067833   \n",
+       " \t6         0.192947                       ((x0 * -6.202196) * x0) + x4   \n",
+       " \t7         0.732085               ((x0 * -1.5106912) + x4) * 4.7091055   \n",
+       " \t8         0.269098               (x4 + x4) + (x0 * (x0 * -7.0352945))   \n",
+       " \t9         3.592479         ((x0 * x0) * -8.289148) + (x4 * 3.5051167)   \n",
+       " \t10        0.067453  ((x0 * x0) * -8.643189) + (x4 * (x0 + 3.1848803))   \n",
+       " \t11        0.092275  (x4 * 3.6391747) + ((x0 * (x0 * -8.2041645)) +...   \n",
+       " \t12        0.229331  (x0 * (x0 * (x4 + -8.746835))) + (sin(x4) * 3....   \n",
+       " \t13        0.257579  ((sin(x4) * 4.2511096) + ((x0 * x0) * -8.20132...   \n",
+       " \t14        0.065088  (x0 * ((x0 * -8.23074) + -0.44418868)) + (sin(...   \n",
+       " \t15  >>>>  0.108796  ((sin(x4) * 3.9845026) + -0.17296898) + (x0 * ...   \n",
+       " \t16        0.000002  (((x0 * (x0 * -8.416535)) + ((x0 * 0.45921513)...   \n",
+       " \t17        0.004325  (x0 * ((x0 * -8.431358) + (sin(x4) * 0.5344693...   \n",
+       " \t18        0.040500  (((x0 * ((((x4 * -1.8388528) + x3) * -0.224555...   \n",
+       " \t19        0.005379  ((x0 * x0) * ((((x4 * -1.8433444) + sin(x3)) *...   \n",
        " \t\n",
        " \t        loss  complexity  \n",
-       " \t0   5.113975           1  \n",
-       " \t1   4.025549           3  \n",
-       " \t2   3.592653           4  \n",
-       " \t3   2.228221           6  \n",
-       " \t4   1.287982           7  \n",
-       " \t5   0.549885           9  \n",
-       " \t6   0.007605          11  \n",
-       " \t7   0.007345          13  \n",
-       " \t8   0.005077          14  \n",
-       " \t9   0.003412          16  \n",
-       " \t10  0.003160          17  \n",
-       " \t11  0.002896          20  \n",
-       " \t12  0.002118          21  \n",
-       " \t13  0.002027          24  \n",
-       " \t14  0.001975          27  \n",
-       " \t15  0.001975          30  \n",
+       " \t0   8.849294           1  \n",
+       " \t1   7.125564           2  \n",
+       " \t2   3.898655           4  \n",
+       " \t3   3.807996           5  \n",
+       " \t4   2.445173           6  \n",
+       " \t5   1.522336           7  \n",
+       " \t6   1.255205           8  \n",
+       " \t7   0.603635           9  \n",
+       " \t8   0.461218          10  \n",
+       " \t9   0.012697          11  \n",
+       " \t10  0.011095          13  \n",
+       " \t11  0.010117          14  \n",
+       " \t12  0.006395          16  \n",
+       " \t13  0.004943          17  \n",
+       " \t14  0.004340          19  \n",
+       " \t15  0.003131          22  \n",
+       " \t16  0.003131          24  \n",
+       " \t17  0.003118          25  \n",
+       " \t18  0.002875          27  \n",
+       " \t19  0.002829          30  \n",
        " ]}"
       ]
      },
-     "execution_count": 26,
+     "execution_count": 9,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -512,7 +551,7 @@
     "             'verbosity': 0, \n",
     "             'niterations': 100}\n",
     "\n",
-    "model.f_net.interpret(torch.FloatTensor(X_train), \n",
+    "model.f_net.distill(torch.FloatTensor(X_train), \n",
     "                       sr_params=sr_params)"
    ]
   },
@@ -535,7 +574,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 27,
+   "execution_count": 10,
    "id": "f36f3941",
    "metadata": {},
    "outputs": [
@@ -558,7 +597,7 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "💡Best equation for output 0 found to be ((x21 * 0.1557652) + ((x14 * 0.17477809) + -0.036710262)) + x9.\n",
+      "💡Best equation for output 0 found to be ((x6 * 0.15878753) + ((x4 + -0.1508674) * x30)) + -0.054746866.\n",
       "❤️ SR on g_net complete.\n"
      ]
     },
@@ -566,42 +605,38 @@
      "data": {
       "text/plain": [
        "{0: PySRRegressor.equations_ = [\n",
-       " \t   pick     score                                           equation  \\\n",
-       " \t0        0.000000                                                x30   \n",
-       " \t1        0.074982                                         0.22818063   \n",
-       " \t2        3.121909                                   x21 * 0.32376546   \n",
-       " \t3        0.031973                           (x21 + x14) * 0.16303135   \n",
-       " \t4        2.639139                  (x14 * 0.33272672) + -0.037012566   \n",
-       " \t5        2.803448          ((x21 + x14) * 0.16520411) + -0.036689695   \n",
-       " \t6        0.000005   (((x14 + x26) + x21) * 0.16520411) + -0.03668978   \n",
-       " \t7        7.970508  ((x21 * 0.15593661) + (x14 * 0.17460456)) + -0...   \n",
-       " \t8  >>>>  5.869194  ((x21 * 0.1557652) + ((x14 * 0.17477809) + -0....   \n",
-       " \t9        0.010534  ((x21 * 0.1557652) + (x14 * 0.17477809)) + (-0...   \n",
+       " \t   pick         score                                           equation  \\\n",
+       " \t0        0.000000e+00                                                x13   \n",
+       " \t1        7.502494e-02                                          0.2288776   \n",
+       " \t2        3.282677e+00                                    x6 * 0.30864543   \n",
+       " \t3        5.280330e-08                              (x6 * 0.3086454) + x8   \n",
+       " \t4        2.166498e+00                   (x6 * 0.31196678) + -0.030368205   \n",
+       " \t5        2.765098e-08            ((x6 + -0.09734457) * 0.31196684) + x17   \n",
+       " \t6        8.271199e+00  ((x30 * -0.15086766) + -0.054746903) + (x6 * 0...   \n",
+       " \t7  >>>>  3.989052e-01  ((x6 * 0.15878753) + ((x4 + -0.1508674) * x30)...   \n",
        " \t\n",
        " \t           loss  complexity  \n",
-       " \t0  7.208842e-01           1  \n",
-       " \t1  6.688075e-01           2  \n",
-       " \t2  1.299108e-03           4  \n",
-       " \t3  1.218635e-03           6  \n",
-       " \t4  8.703832e-05           7  \n",
-       " \t5  3.196437e-07           9  \n",
-       " \t6  3.196407e-07          11  \n",
-       " \t7  1.104370e-10          12  \n",
-       " \t8  8.814494e-16          14  \n",
-       " \t9  8.450810e-16          18  \n",
+       " \t0  7.247515e-01           1  \n",
+       " \t1  6.723667e-01           2  \n",
+       " \t2  9.469105e-04           4  \n",
+       " \t3  9.469104e-04           6  \n",
+       " \t4  1.084952e-04           7  \n",
+       " \t5  1.084952e-04           9  \n",
+       " \t6  1.815527e-15          12  \n",
+       " \t7  8.175571e-16          14  \n",
        " ]}"
       ]
      },
-     "execution_count": 27,
+     "execution_count": 10,
      "metadata": {},
      "output_type": "execute_result"
     }
    ],
    "source": [
-    "from symtorch.mlp_sr import MLP_SR\n",
+    "from symtorch import MLP_SR\n",
     "\n",
     "model.g_net = MLP_SR(model.g_net, mlp_name='g_net')\n",
-    "model.g_net.interpret(torch.FloatTensor(X_train), \n",
+    "model.g_net.distill(torch.FloatTensor(X_train), \n",
     "                     parent_model=model, # Pass in the parent_model because g_net is an intermediate layer\n",
     "                     sr_params = sr_params)"
    ]
@@ -624,7 +659,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 43,
+   "execution_count": 17,
    "id": "abef72c8",
    "metadata": {},
    "outputs": [
@@ -633,22 +668,22 @@
      "output_type": "stream",
      "text": [
       "✅ Successfully switched f_net to symbolic equations for 2 active dimensions:\n",
-      "   Dimension 14: ((x0 * 7.6147075) * x0) + (sin(x4) * -3.8002071)\n",
+      "   Dimension 6: (x0 * ((x0 * 7.7608647) + 0.2976528)) + ((sin(x4) * -4.277788) + 0.08879602)\n",
       "   Variables: ['x0', 'x4']\n",
-      "   Dimension 21: (sin(x4) * -3.8630505) + ((x0 * 7.7219963) * x0)\n",
+      "   Dimension 30: ((sin(x4) * 3.9845026) + -0.17296898) + (x0 * ((x0 * -8.416115) + (x4 * 0.458543)))\n",
       "   Variables: ['x0', 'x4']\n",
-      "🎯 Active dimensions [14, 21] now using symbolic equations.\n",
+      "🎯 Active dimensions [6, 30] now using symbolic equations.\n",
       "🔒 Inactive dimensions will output zeros.\n"
      ]
     }
    ],
    "source": [
-    "model.f_net.switch_to_equation([14, 14]) "
+    "model.f_net.switch_to_equation() "
    ]
   },
   {
    "cell_type": "code",
-   "execution_count": 29,
+   "execution_count": 18,
    "id": "49460cc6",
    "metadata": {},
    "outputs": [
@@ -657,8 +692,8 @@
      "output_type": "stream",
      "text": [
       "✅ Successfully switched g_net to symbolic equations for all 1 dimensions:\n",
-      "   Dimension 0: ((x21 * 0.1557652) + ((x14 * 0.17477809) + -0.036710262)) + x9\n",
-      "   Variables: ['x14', 'x21', 'x9']\n",
+      "   Dimension 0: ((x6 * 0.15878753) + ((x4 + -0.1508674) * x30)) + -0.054746866\n",
+      "   Variables: ['x30', 'x4', 'x6']\n",
       "🎯 All 1 output dimensions now using symbolic equations.\n"
      ]
     }
@@ -677,23 +712,23 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 30,
+   "execution_count": 19,
    "id": "e526154f",
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "tensor([[ 0.0810],\n",
-       "        [-0.3789],\n",
-       "        [ 0.1505],\n",
+       "tensor([[-0.8045],\n",
+       "        [ 1.6867],\n",
+       "        [-0.6418],\n",
        "        ...,\n",
-       "        [ 0.0327],\n",
-       "        [ 0.9648],\n",
-       "        [ 0.5353]])"
+       "        [ 1.1081],\n",
+       "        [ 2.4498],\n",
+       "        [-0.1047]])"
       ]
      },
-     "execution_count": 30,
+     "execution_count": 19,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -713,7 +748,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 31,
+   "execution_count": 20,
    "id": "34291a48",
    "metadata": {},
    "outputs": [
@@ -733,23 +768,23 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 32,
+   "execution_count": 21,
    "id": "79e43dc0",
    "metadata": {},
    "outputs": [
     {
      "data": {
       "text/plain": [
-       "tensor([[ 0.0959],\n",
-       "        [-0.3941],\n",
-       "        [ 0.1288],\n",
+       "tensor([[-0.8138],\n",
+       "        [ 1.6825],\n",
+       "        [-0.6388],\n",
        "        ...,\n",
-       "        [ 0.0259],\n",
-       "        [ 0.9748],\n",
-       "        [ 0.5269]])"
+       "        [ 1.1276],\n",
+       "        [ 2.4231],\n",
+       "        [-0.0940]])"
       ]
      },
-     "execution_count": 32,
+     "execution_count": 21,
      "metadata": {},
      "output_type": "execute_result"
     }
@@ -763,7 +798,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": 33,
+   "execution_count": null,
    "id": "0e258b2c",
    "metadata": {},
    "outputs": [],

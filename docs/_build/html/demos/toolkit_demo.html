@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SymTorch Toolkit: Pruning &mdash; SymTorch 1.0.0 documentation</title>
+  <title>Pruning MLPs &mdash; SymTorch 1.0.4 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
@@ -14,7 +14,7 @@
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../_static/documentation_options.js?v=71272d9f"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
@@ -51,7 +51,8 @@
 <p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">SymTorch Toolkit: Pruning</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Pruning MLPs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#pruning-background">Pruning Background</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#wrapping-a-pytorch-model">Wrapping a PyTorch model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#training-our-model-and-dynamically-reducing-dimensionality">Training our model and dynamically reducing dimensionality</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#interpret-the-mlp">Interpret the MLP</a></li>
@@ -75,7 +76,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">SymTorch Toolkit: Pruning</li>
+      <li class="breadcrumb-item active">Pruning MLPs</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/demos/toolkit_demo.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
@@ -85,13 +86,22 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section class="tex2jax_ignore mathjax_ignore" id="symtorch-toolkit-pruning">
-<h1>SymTorch Toolkit: Pruning<a class="headerlink" href="#symtorch-toolkit-pruning" title="Link to this heading"></a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="pruning-mlps">
+<h1>Pruning MLPs<a class="headerlink" href="#pruning-mlps" title="Link to this heading"></a></h1>
+<p>In this demo we will show you how to:</p>
+<ul class="simple">
+<li><p>Wrap a PyTorch model with the <code class="docutils literal notranslate"><span class="pre">Pruning_MLP</span></code> class</p></li>
+<li><p>Set up a pruning schedule and train the pruning MLP</p></li>
+<li><p>Perform symbolic regression on a pruned MLP</p></li>
+</ul>
+<section id="pruning-background">
+<h2>Pruning Background<a class="headerlink" href="#pruning-background" title="Link to this heading"></a></h2>
 <p>For interpretability purposes, it is good to reduce the dimensionality of deep learning models. High-dimensional representations often entangle multiple features, making it difficult to extract clear, human-understandable relationships. By encouraging a sparse representation, we encourage the network to compress information into a smaller set of meaningful components. This may also make symbolic regression possible on these models.</p>
 <p>The SymTorch pruning class allows you to dynamically reduce the output dimensionality of MLPs by zero-masking the unimportant dimensions.</p>
 <p><strong>Important dimensions</strong>: The dimensions that the model uses the most in predicting the output. These would vary most with differences in the input. Hence we choose the important dimensions as the ones with the highest standard deviation across the datapoints.</p>
 <p>We pass some input data through the model (usually a subset of the validation set) and analyse the outputs of the MLP. We choose the output dimensions that have the highest standard deviation across the datapoints, as shown below.</p>
-<img src="../_static/choosing_important_dims.png" width="450" height="300"><section id="wrapping-a-pytorch-model">
+<img src="../_static/choosing_important_dims.png" width="450" height="300"></section>
+<section id="wrapping-a-pytorch-model">
 <h2>Wrapping a PyTorch model<a class="headerlink" href="#wrapping-a-pytorch-model" title="Link to this heading"></a></h2>
 <p>Create a simple PyTorch model.</p>
 <div class="cell docutils container">
@@ -183,7 +193,12 @@ g(\mathbf{f}) = 2.5f_0 -1.3f_1
 <p>We need to set up the pruning model.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch.toolkit</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pruning_MLP</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">Pruning_MLP</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Detected IPython. Loading juliacall extension. See https://juliapy.github.io/PythonCall.jl/stable/compat/#IPython
 </pre></div>
 </div>
 </div>
@@ -293,16 +308,16 @@ g(\mathbf{f}) = 2.5f_0 -1.3f_1
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Starting training...
-Epoch [10/100], Avg Loss: 0.002198, Active dims: 30
-Epoch [20/100], Avg Loss: 0.002274, Active dims: 26
-Epoch [30/100], Avg Loss: 0.002090, Active dims: 20
-Epoch [40/100], Avg Loss: 0.002076, Active dims: 14
-Epoch [50/100], Avg Loss: 0.001993, Active dims: 8
-Epoch [60/100], Avg Loss: 0.001769, Active dims: 3
-Epoch [70/100], Avg Loss: 0.001759, Active dims: 2
-Epoch [80/100], Avg Loss: 0.001764, Active dims: 2
-Epoch [90/100], Avg Loss: 0.001679, Active dims: 2
-Epoch [100/100], Avg Loss: 0.001725, Active dims: 2
+Epoch [10/100], Avg Loss: 0.002634, Active dims: 30
+Epoch [20/100], Avg Loss: 0.002262, Active dims: 26
+Epoch [30/100], Avg Loss: 0.002287, Active dims: 20
+Epoch [40/100], Avg Loss: 0.002101, Active dims: 14
+Epoch [50/100], Avg Loss: 0.001869, Active dims: 8
+Epoch [60/100], Avg Loss: 0.001745, Active dims: 3
+Epoch [70/100], Avg Loss: 0.001758, Active dims: 2
+Epoch [80/100], Avg Loss: 0.001797, Active dims: 2
+Epoch [90/100], Avg Loss: 0.001820, Active dims: 2
+Epoch [100/100], Avg Loss: 0.001689, Active dims: 2
 Training completed!
 </pre></div>
 </div>
@@ -329,7 +344,7 @@ Training completed!
 In the above image, the pruning finishes at epoch 75 and we prune 100 dimensions to 2 dimensions.</section>
 <section id="interpret-the-mlp">
 <h2>Interpret the MLP<a class="headerlink" href="#interpret-the-mlp" title="Link to this heading"></a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">.interpret</span></code> function only takes into account the active (non-masked) dimensions.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">.distill</span></code> function only takes into account the active (non-masked) dimensions.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Running symbolic regression on pruned f...&quot;</span><span class="p">)</span>
@@ -341,101 +356,113 @@ In the above image, the pruning finishes at epoch 75 and we prune 100 dimensions
              <span class="s1">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> 
              <span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">100</span><span class="p">}</span>
 
-<span class="n">model</span><span class="o">.</span><span class="n">f_net</span><span class="o">.</span><span class="n">interpret</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span> 
+<span class="n">model</span><span class="o">.</span><span class="n">f_net</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span> 
                        <span class="n">sr_params</span><span class="o">=</span><span class="n">sr_params</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Running symbolic regression on pruned f...
-🛠️ Running SR on active dimension 14 (1/2)
+🛠️ Running SR on active dimension 6 (1/2)
 </pre></div>
 </div>
 <div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
   warnings.warn(
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for active dimension 14: (((x0 * x0) * 7.5547247) + ((x4 + -4.353448) * x4)) + 0.13191643
-🛠️ Running SR on active dimension 21 (2/2)
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for active dimension 6: (x0 * ((x0 * 7.7608647) + 0.2976528)) + ((sin(x4) * -4.277788) + 0.08879602)
+🛠️ Running SR on active dimension 30 (2/2)
 </pre></div>
 </div>
 <div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
   warnings.warn(
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for active dimension 21: ((x0 * (7.4687605 * x0)) + 0.20520784) + (x4 * (x4 + ((x0 * 0.3946669) + -4.620561)))
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for active dimension 30: ((sin(x4) * 3.9845026) + -0.17296898) + (x0 * ((x0 * -8.416115) + (x4 * 0.458543)))
 ❤️ SR on f_net active dimensions complete.
 </pre></div>
 </div>
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{14: PySRRegressor.equations_ = [
- 	    pick     score                                           equation  \
- 	0         0.000000                                                 x0   
- 	1         0.120210                                            x0 + x0   
- 	2         0.108252                                     x0 * 3.0985763   
- 	3         0.217647                               x0 * (x0 * 4.722332)   
- 	4         0.577434                         (x0 * 7.58398) + -2.981448   
- 	5         0.404400                (x4 * -4.459847) + (x0 * 6.4239435)   
- 	6         2.206886          (x4 * -3.3917015) + (x0 * (x0 * 7.52803))   
- 	7         0.124388  ((x0 * 7.6507854) * x0) + (x4 * (x4 + -4.202662))   
- 	8         0.480635   ((x0 * 7.6147075) * x0) + (sin(x4) * -3.8002071)   
- 	9   &gt;&gt;&gt;&gt;  0.240691  (((x0 * x0) * 7.5547247) + ((x4 + -4.353448) *...   
- 	10        0.069246  (((x0 * x0) * 7.5546346) + (sin(x4) * -3.91798...   
- 	11        0.020631  ((((x0 + -0.019358773) * 7.6945095) * x0) + (s...   
- 	12        0.001911  (sin(x4) * -3.8902493) + ((((x4 * -0.006431333...   
- 	13        0.000993  (sin(x4) * -3.9180102) + ((((sin(inv(x3)) * 0....   
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{6: PySRRegressor.equations_ = [
+ 	    pick         score                                           equation  \
+ 	0         0.000000e+00                                                 x0   
+ 	1         1.148194e-01                                            x0 + x0   
+ 	2         1.271427e-01                                     x0 * 3.2849653   
+ 	3         2.345212e-01                          inv(inv(x0) + -0.8688543)   
+ 	4         5.343127e-01                       (x0 * 8.063941) + -3.1791587   
+ 	5         4.663378e-01                (x0 * 6.900445) + (x4 * -4.8166494)   
+ 	6         2.113907e+00          (x4 * -3.653175) + ((x0 * x0) * 8.049369)   
+ 	7         8.123289e-02      (sin(x4) * -4.088221) + ((x0 * 8.13758) * x0)   
+ 	8         2.161893e-01  x0 + (((x0 * 7.092151) * x0) + (x4 * (x4 + -4....   
+ 	9         5.076185e-01  (((x0 * x0) * 8.042379) + ((x4 + -4.6605554) *...   
+ 	10        4.154584e-02  ((x0 * x0) * 8.0415535) + ((sin(x4) + -0.03354...   
+ 	11        6.472069e-08  (((x0 * inv(inv(x0))) * 8.041551) + (sin(x4) *...   
+ 	12  &gt;&gt;&gt;&gt;  1.648806e-01  (x0 * ((x0 * 7.7608647) + 0.2976528)) + ((sin(...   
+ 	13        8.078139e-02  ((sin(x4) * -4.25507) + (x3 * 0.10091582)) + (...   
+ 	14        1.518269e-03  (sin(x4) * -4.2544355) + ((((x0 + -0.07688601)...   
+ 	15        6.710315e-02  (((sin(x4) * -4.2783914) + (x3 * 0.07972249)) ...   
  	
  	        loss  complexity  
- 	0   4.954660           1  
- 	1   3.895841           3  
- 	2   3.496134           4  
- 	3   2.262258           6  
- 	4   1.269890           7  
- 	5   0.565599           9  
- 	6   0.006849          11  
- 	7   0.005341          13  
- 	8   0.003303          14  
- 	9   0.002041          16  
- 	10  0.001904          17  
- 	11  0.001790          20  
- 	12  0.001773          25  
- 	13  0.001766          29  
+ 	0   5.755526           1  
+ 	1   4.574611           3  
+ 	2   4.028439           4  
+ 	3   2.520196           6  
+ 	4   1.477016           7  
+ 	5   0.581205           9  
+ 	6   0.008476          11  
+ 	7   0.006643          14  
+ 	8   0.005352          15  
+ 	9   0.003221          16  
+ 	10  0.003090          17  
+ 	11  0.003090          19  
+ 	12  0.002620          20  
+ 	13  0.002230          22  
+ 	14  0.002223          24  
+ 	15  0.002079          25  
  ],
- 21: PySRRegressor.equations_ = [
+ 30: PySRRegressor.equations_ = [
  	    pick     score                                           equation  \
- 	0         0.000000                                                 x0   
- 	1         0.119658                                            x0 + x0   
- 	2         0.113770                                     x0 * 3.1433377   
- 	3         0.238844                         inv(inv(x0) + -0.85897857)   
- 	4         0.548127                     (x0 + -0.39360297) * 7.7071385   
- 	5         0.425561               (x4 + (x0 * -1.437306)) * -4.5444355   
- 	6         2.140434         (x4 * -3.4486156) + (x0 * (x0 * 7.634561))   
- 	7         0.017396  ((x4 + -4.259581) * x4) + ((x0 * x0) * 7.7573137)   
- 	8         0.369410   (sin(x4) * -3.8630505) + ((x0 * 7.7219963) * x0)   
- 	9         0.198738  ((x0 * 7.6525273) * x0) + ((x4 + -4.3914957) *...   
- 	10        0.076456  (((x0 + 0.05651807) * x0) * 7.283718) + (sin(x...   
- 	11        0.029108  (((x0 * 7.406846) * (x0 + 0.035212904)) + 0.05...   
- 	12  &gt;&gt;&gt;&gt;  0.312828  ((x0 * (7.4687605 * x0)) + 0.20520784) + (x4 *...   
- 	13        0.014617  (((((x0 * 0.3931664) + (x4 * 0.8729146)) + -4....   
- 	14        0.008696  ((x4 * (((sin(x0) * 0.44614813) + -4.5031695) ...   
- 	15        0.000016  ((x0 * 7.4778647) * x0) + (((((sin(x0) * 0.445...   
+ 	0         0.000000                                                 x4   
+ 	1         0.216649                                         -1.0053014   
+ 	2         0.301529                                    x0 * -3.5791383   
+ 	3         0.023528                               inv(x0 + -1.1379426)   
+ 	4         0.442987                             x0 * (x0 * -5.3691025)   
+ 	5         0.473870                        (x0 * -8.190969) + 3.067833   
+ 	6         0.192947                       ((x0 * -6.202196) * x0) + x4   
+ 	7         0.732085               ((x0 * -1.5106912) + x4) * 4.7091055   
+ 	8         0.269098               (x4 + x4) + (x0 * (x0 * -7.0352945))   
+ 	9         3.592479         ((x0 * x0) * -8.289148) + (x4 * 3.5051167)   
+ 	10        0.067453  ((x0 * x0) * -8.643189) + (x4 * (x0 + 3.1848803))   
+ 	11        0.092275  (x4 * 3.6391747) + ((x0 * (x0 * -8.2041645)) +...   
+ 	12        0.229331  (x0 * (x0 * (x4 + -8.746835))) + (sin(x4) * 3....   
+ 	13        0.257579  ((sin(x4) * 4.2511096) + ((x0 * x0) * -8.20132...   
+ 	14        0.065088  (x0 * ((x0 * -8.23074) + -0.44418868)) + (sin(...   
+ 	15  &gt;&gt;&gt;&gt;  0.108796  ((sin(x4) * 3.9845026) + -0.17296898) + (x0 * ...   
+ 	16        0.000002  (((x0 * (x0 * -8.416535)) + ((x0 * 0.45921513)...   
+ 	17        0.004325  (x0 * ((x0 * -8.431358) + (sin(x4) * 0.5344693...   
+ 	18        0.040500  (((x0 * ((((x4 * -1.8388528) + x3) * -0.224555...   
+ 	19        0.005379  ((x0 * x0) * ((((x4 * -1.8433444) + sin(x3)) *...   
  	
  	        loss  complexity  
- 	0   5.113975           1  
- 	1   4.025549           3  
- 	2   3.592653           4  
- 	3   2.228221           6  
- 	4   1.287982           7  
- 	5   0.549885           9  
- 	6   0.007605          11  
- 	7   0.007345          13  
- 	8   0.005077          14  
- 	9   0.003412          16  
- 	10  0.003160          17  
- 	11  0.002896          20  
- 	12  0.002118          21  
- 	13  0.002027          24  
- 	14  0.001975          27  
- 	15  0.001975          30  
+ 	0   8.849294           1  
+ 	1   7.125564           2  
+ 	2   3.898655           4  
+ 	3   3.807996           5  
+ 	4   2.445173           6  
+ 	5   1.522336           7  
+ 	6   1.255205           8  
+ 	7   0.603635           9  
+ 	8   0.461218          10  
+ 	9   0.012697          11  
+ 	10  0.011095          13  
+ 	11  0.010117          14  
+ 	12  0.006395          16  
+ 	13  0.004943          17  
+ 	14  0.004340          19  
+ 	15  0.003131          22  
+ 	16  0.003131          24  
+ 	17  0.003118          25  
+ 	18  0.002875          27  
+ 	19  0.002829          30  
  ]}
 </pre></div>
 </div>
@@ -446,10 +473,10 @@ In the above image, the pruning finishes at epoch 75 and we prune 100 dimensions
 Because <code class="docutils literal notranslate"><span class="pre">g_net</span></code> is an intermediate layer of the MLP, we need to pass in the <code class="docutils literal notranslate"><span class="pre">parent_model</span></code> (the whole model) to get the correct inputs to <code class="docutils literal notranslate"><span class="pre">g_net</span></code> for symbolic regression.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch.mlp_sr</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
 
 <span class="n">model</span><span class="o">.</span><span class="n">g_net</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">g_net</span><span class="p">,</span> <span class="n">mlp_name</span><span class="o">=</span><span class="s1">&#39;g_net&#39;</span><span class="p">)</span>
-<span class="n">model</span><span class="o">.</span><span class="n">g_net</span><span class="o">.</span><span class="n">interpret</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span> 
+<span class="n">model</span><span class="o">.</span><span class="n">g_net</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span> 
                      <span class="n">parent_model</span><span class="o">=</span><span class="n">model</span><span class="p">,</span> <span class="c1"># Pass in the parent_model because g_net is an intermediate layer</span>
                      <span class="n">sr_params</span> <span class="o">=</span> <span class="n">sr_params</span><span class="p">)</span>
 </pre></div>
@@ -463,34 +490,30 @@ Because <code class="docutils literal notranslate"><span class="pre">g_net</span
   warnings.warn(
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be ((x21 * 0.1557652) + ((x14 * 0.17477809) + -0.036710262)) + x9.
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be ((x6 * 0.15878753) + ((x4 + -0.1508674) * x30)) + -0.054746866.
 ❤️ SR on g_net complete.
 </pre></div>
 </div>
 <div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
- 	   pick     score                                           equation  \
- 	0        0.000000                                                x30   
- 	1        0.074982                                         0.22818063   
- 	2        3.121909                                   x21 * 0.32376546   
- 	3        0.031973                           (x21 + x14) * 0.16303135   
- 	4        2.639139                  (x14 * 0.33272672) + -0.037012566   
- 	5        2.803448          ((x21 + x14) * 0.16520411) + -0.036689695   
- 	6        0.000005   (((x14 + x26) + x21) * 0.16520411) + -0.03668978   
- 	7        7.970508  ((x21 * 0.15593661) + (x14 * 0.17460456)) + -0...   
- 	8  &gt;&gt;&gt;&gt;  5.869194  ((x21 * 0.1557652) + ((x14 * 0.17477809) + -0....   
- 	9        0.010534  ((x21 * 0.1557652) + (x14 * 0.17477809)) + (-0...   
+ 	   pick         score                                           equation  \
+ 	0        0.000000e+00                                                x13   
+ 	1        7.502494e-02                                          0.2288776   
+ 	2        3.282677e+00                                    x6 * 0.30864543   
+ 	3        5.280330e-08                              (x6 * 0.3086454) + x8   
+ 	4        2.166498e+00                   (x6 * 0.31196678) + -0.030368205   
+ 	5        2.765098e-08            ((x6 + -0.09734457) * 0.31196684) + x17   
+ 	6        8.271199e+00  ((x30 * -0.15086766) + -0.054746903) + (x6 * 0...   
+ 	7  &gt;&gt;&gt;&gt;  3.989052e-01  ((x6 * 0.15878753) + ((x4 + -0.1508674) * x30)...   
  	
  	           loss  complexity  
- 	0  7.208842e-01           1  
- 	1  6.688075e-01           2  
- 	2  1.299108e-03           4  
- 	3  1.218635e-03           6  
- 	4  8.703832e-05           7  
- 	5  3.196437e-07           9  
- 	6  3.196407e-07          11  
- 	7  1.104370e-10          12  
- 	8  8.814494e-16          14  
- 	9  8.450810e-16          18  
+ 	0  7.247515e-01           1  
+ 	1  6.723667e-01           2  
+ 	2  9.469105e-04           4  
+ 	3  9.469104e-04           6  
+ 	4  1.084952e-04           7  
+ 	5  1.084952e-04           9  
+ 	6  1.815527e-15          12  
+ 	7  8.175571e-16          14  
  ]}
 </pre></div>
 </div>
@@ -502,17 +525,17 @@ Because <code class="docutils literal notranslate"><span class="pre">g_net</span
 <h2>Switch to Using the Equation Instead in the Forwards Pass<a class="headerlink" href="#switch-to-using-the-equation-instead-in-the-forwards-pass" title="Link to this heading"></a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">f_net</span><span class="o">.</span><span class="n">switch_to_equation</span><span class="p">([</span><span class="mi">14</span><span class="p">,</span> <span class="mi">14</span><span class="p">])</span> 
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">model</span><span class="o">.</span><span class="n">f_net</span><span class="o">.</span><span class="n">switch_to_equation</span><span class="p">()</span> 
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Successfully switched f_net to symbolic equations for 2 active dimensions:
-   Dimension 14: ((x0 * 7.6147075) * x0) + (sin(x4) * -3.8002071)
+   Dimension 6: (x0 * ((x0 * 7.7608647) + 0.2976528)) + ((sin(x4) * -4.277788) + 0.08879602)
    Variables: [&#39;x0&#39;, &#39;x4&#39;]
-   Dimension 21: (sin(x4) * -3.8630505) + ((x0 * 7.7219963) * x0)
+   Dimension 30: ((sin(x4) * 3.9845026) + -0.17296898) + (x0 * ((x0 * -8.416115) + (x4 * 0.458543)))
    Variables: [&#39;x0&#39;, &#39;x4&#39;]
-🎯 Active dimensions [14, 21] now using symbolic equations.
+🎯 Active dimensions [6, 30] now using symbolic equations.
 🔒 Inactive dimensions will output zeros.
 </pre></div>
 </div>
@@ -526,8 +549,8 @@ Because <code class="docutils literal notranslate"><span class="pre">g_net</span
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Successfully switched g_net to symbolic equations for all 1 dimensions:
-   Dimension 0: ((x21 * 0.1557652) + ((x14 * 0.17477809) + -0.036710262)) + x9
-   Variables: [&#39;x14&#39;, &#39;x21&#39;, &#39;x9&#39;]
+   Dimension 0: ((x6 * 0.15878753) + ((x4 + -0.1508674) * x30)) + -0.054746866
+   Variables: [&#39;x30&#39;, &#39;x4&#39;, &#39;x6&#39;]
 🎯 All 1 output dimensions now using symbolic equations.
 </pre></div>
 </div>
@@ -542,13 +565,13 @@ Because <code class="docutils literal notranslate"><span class="pre">g_net</span
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[ 0.0810],
-        [-0.3789],
-        [ 0.1505],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-0.8045],
+        [ 1.6867],
+        [-0.6418],
         ...,
-        [ 0.0327],
-        [ 0.9648],
-        [ 0.5353]])
+        [ 1.1081],
+        [ 2.4498],
+        [-0.1047]])
 </pre></div>
 </div>
 </div>
@@ -580,13 +603,13 @@ Because <code class="docutils literal notranslate"><span class="pre">g_net</span
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[ 0.0959],
-        [-0.3941],
-        [ 0.1288],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-0.8138],
+        [ 1.6825],
+        [-0.6388],
         ...,
-        [ 0.0259],
-        [ 0.9748],
-        [ 0.5269]])
+        [ 1.1276],
+        [ 2.4231],
+        [-0.0940]])
 </pre></div>
 </div>
 </div>

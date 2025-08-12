@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>symtorch.toolkit &mdash; SymTorch 1.0.0 documentation</title>
+  <title>symtorch.toolkit &mdash; SymTorch 1.0.4 documentation</title>
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
@@ -13,7 +13,7 @@
   
       <script src="../../_static/jquery.js?v=5d32c60e"></script>
       <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../../_static/documentation_options.js?v=8d563738"></script>
+      <script src="../../_static/documentation_options.js?v=71272d9f"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -47,7 +47,7 @@
 <p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../demos/toolkit_demo.html">SymTorch Toolkit: Pruning</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../demos/toolkit_demo.html">Pruning MLPs</a></li>
 </ul>
 
         </div>
@@ -76,6 +76,9 @@
              
   <h1>Source code for symtorch.toolkit</h1><div class="highlight"><pre>
 <span></span><span class="c1">#Interpretability toolkit </span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+<span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;torch was imported before juliacall&quot;</span><span class="p">)</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
@@ -148,7 +151,7 @@
 <span class="sd">        ...     model.f_net.prune(epoch, validation_data)  # Prune based on importance</span>
 <span class="sd">        &gt;&gt;&gt; </span>
 <span class="sd">        &gt;&gt;&gt; # Apply symbolic regression to active dimensions only</span>
-<span class="sd">        &gt;&gt;&gt; regressor = model.f_net.interpret(train_inputs)</span>
+<span class="sd">        &gt;&gt;&gt; regressor = model.f_net.distill(train_inputs)</span>
 <span class="sd">        &gt;&gt;&gt; </span>
 <span class="sd">        &gt;&gt;&gt; # Switch to using symbolic equations for active dimensions</span>
 <span class="sd">        &gt;&gt;&gt; model.f_net.switch_to_equation()</span>
@@ -336,9 +339,9 @@
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.interpret">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.interpret">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">interpret</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+<div class="viewcode-block" id="Pruning_MLP.distill">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.distill">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">distill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
                  <span class="n">variable_transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">sr_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -346,7 +349,7 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Discover symbolic expressions for active (non-pruned) dimensions only.</span>
 <span class="sd">        </span>
-<span class="sd">        Overrides MLP_SR&#39;s interpret method to focus symbolic regression on dimensions</span>
+<span class="sd">        Overrides MLP_SR&#39;s distill method to focus symbolic regression on dimensions</span>
 <span class="sd">        that survived the pruning process, ignoring inactive/masked dimensions.</span>
 <span class="sd">        </span>
 <span class="sd">        Args:</span>
@@ -377,7 +380,7 @@
 <span class="sd">            </span>
 <span class="sd">        Example:</span>
 <span class="sd">            &gt;&gt;&gt; # Basic usage</span>
-<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.interpret(train_data, </span>
+<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.distill(train_data, </span>
 <span class="sd">            ...                                  sr_params={&#39;niterations&#39;: 1000})</span>
 <span class="sd">            &gt;&gt;&gt; for dim_idx, regressor in regressors.items():</span>
 <span class="sd">            ...     print(f&quot;Dimension {dim_idx}: {regressor.get_best()[&#39;equation&#39;]}&quot;)</span>
@@ -385,7 +388,7 @@
 <span class="sd">            &gt;&gt;&gt; # With variable transformations</span>
 <span class="sd">            &gt;&gt;&gt; transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]</span>
 <span class="sd">            &gt;&gt;&gt; names = [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;, &quot;sin_x3&quot;]</span>
-<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.interpret(train_data, </span>
+<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.distill(train_data, </span>
 <span class="sd">            ...                                  variable_transforms=transforms, </span>
 <span class="sd">            ...                                  fit_params={&#39;variable_names&#39;: names})</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -583,7 +586,7 @@
 <span class="sd">            &gt;&gt;&gt; pruned_mlp.switch_to_equation(complexity=[5, 7])  # Use complexity 5 for first active dim, 7 for second</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pysr_regressor&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;❗No equations found. You need to first run .interpret.&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;❗No equations found. You need to first run .distill.&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         
         <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
@@ -783,6 +786,88 @@
             
             <span class="c1"># Apply pruning mask to ensure inactive dimensions are zero</span>
             <span class="k">return</span> <span class="n">output</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span></div>
+
+
+<div class="viewcode-block" id="Pruning_MLP.get_importance">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.get_importance">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get ordered list of output dimensions from most to least important.</span>
+<span class="sd">        </span>
+<span class="sd">        For Pruning_MLP, this considers only currently active (non-pruned) dimensions.</span>
+<span class="sd">        Evaluates importance by computing standard deviation across sample data,</span>
+<span class="sd">        with higher standard deviation indicating higher importance.</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            sample_data (torch.Tensor): Sample input data to evaluate dimension importance.</span>
+<span class="sd">                                       Typically a subset of validation data.</span>
+<span class="sd">            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.</span>
+<span class="sd">                                              If provided, will trace intermediate activations to get</span>
+<span class="sd">                                              the actual outputs at this layer level for importance evaluation.</span>
+<span class="sd">                                              </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            dict: Dictionary with keys:</span>
+<span class="sd">                - &#39;importance&#39;: List of dimension indices ordered from most important to least important.</span>
+<span class="sd">                               Only includes currently active (non-pruned) dimensions.</span>
+<span class="sd">                - &#39;std&#39;: List of standard deviation values corresponding to the ordered active dimensions</span>
+<span class="sd">            </span>
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; result = model.f_net.get_importance(validation_data)</span>
+<span class="sd">            &gt;&gt;&gt; print(f&quot;Most important active dimension: {result[&#39;importance&#39;][0]} (std: {result[&#39;std&#39;][0]})&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; print(f&quot;Least important active dimension: {result[&#39;importance&#39;][-1]} (std: {result[&#39;std&#39;][-1]})&quot;)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+            <span class="c1"># Extract outputs at this layer level for importance evaluation</span>
+            <span class="k">if</span> <span class="n">parent_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Use forward hooks to capture outputs at this specific layer</span>
+                <span class="n">layer_outputs</span> <span class="o">=</span> <span class="p">[]</span>
+                
+                <span class="k">def</span><span class="w"> </span><span class="nf">hook_fn</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">module</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">:</span>
+                        <span class="n">layer_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">clone</span><span class="p">())</span>
+                
+                <span class="c1"># Register forward hook</span>
+                <span class="n">hook</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span>
+                
+                <span class="c1"># Run parent model to capture intermediate activations</span>
+                <span class="n">parent_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+                <span class="n">_</span> <span class="o">=</span> <span class="n">parent_model</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
+                
+                <span class="c1"># Remove hook</span>
+                <span class="n">hook</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+                
+                <span class="c1"># Use captured intermediate data</span>
+                <span class="k">if</span> <span class="n">layer_outputs</span><span class="p">:</span>
+                    <span class="n">output_array</span> <span class="o">=</span> <span class="n">layer_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to capture intermediate activations. Ensure parent_model contains this Pruning_MLP instance.&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Original behavior - use MLP directly</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+                <span class="n">output_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
+
+            <span class="c1"># Calculate importance for all dimensions</span>
+            <span class="n">output_importance</span> <span class="o">=</span> <span class="n">output_array</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+            
+            <span class="c1"># Filter to only active dimensions</span>
+            <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">active_dims</span><span class="p">:</span>
+                <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+            
+            <span class="c1"># Get importance values for active dimensions only</span>
+            <span class="n">active_importance</span> <span class="o">=</span> <span class="n">output_importance</span><span class="p">[</span><span class="n">active_dims</span><span class="p">]</span>
+            
+            <span class="c1"># Sort active dimensions by importance (descending order)</span>
+            <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">active_importance</span><span class="p">,</span> <span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            
+            <span class="c1"># Map back to original dimension indices and get corresponding std values</span>
+            <span class="n">importance_order</span> <span class="o">=</span> <span class="p">[</span><span class="n">active_dims</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sorted_indices</span><span class="o">.</span><span class="n">tolist</span><span class="p">()]</span>
+            <span class="n">std_values</span> <span class="o">=</span> <span class="n">active_importance</span><span class="p">[</span><span class="n">sorted_indices</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="n">importance_order</span><span class="p">,</span>
+                <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="n">std_values</span>
+            <span class="p">}</span></div>
 </div>
 
 </pre></div>
