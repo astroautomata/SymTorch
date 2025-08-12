@@ -56,6 +56,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#interpret-the-mlp">Interpret the MLP</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#switch-to-using-the-equation-instead-in-the-forwards-pass">Switch to Using the Equation Instead in the Forwards Pass</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#switch-to-using-the-mlp-in-the-forwards-pass">Switch to Using the MLP in the Forwards Pass</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#saving-and-loading-the-models">Saving and loading the models</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolkit_demo.html">Pruning MLPs</a></li>
@@ -93,6 +94,7 @@
 <li><p>Perform symbolic regresson on the MLP with the <code class="docutils literal notranslate"><span class="pre">distill</span></code> method</p></li>
 <li><p>Switch the MLP to an equation in the forward pass of the model with the <code class="docutils literal notranslate"><span class="pre">switch_to_equation</span></code> method</p></li>
 <li><p>Switch back to the MLP with the <code class="docutils literal notranslate"><span class="pre">switch_to_MLP</span></code> method</p></li>
+<li><p>Loading a SymTorch model with the <code class="docutils literal notranslate"><span class="pre">load_model</span></code> method</p></li>
 </ul>
 <section id="wrapping-a-pytorch-model">
 <h2>Wrapping a PyTorch model<a class="headerlink" href="#wrapping-a-pytorch-model" title="Link to this heading"></a></h2>
@@ -226,10 +228,10 @@ y = x_0^2 +3 \sin(x_4)-4
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.073434
-Epoch [10/20], Avg Loss: 0.053065
-Epoch [15/20], Avg Loss: 0.042182
-Epoch [20/20], Avg Loss: 0.035459
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.090837
+Epoch [10/20], Avg Loss: 0.063189
+Epoch [15/20], Avg Loss: 0.052076
+Epoch [20/20], Avg Loss: 0.041570
 </pre></div>
 </div>
 </div>
@@ -239,6 +241,11 @@ Epoch [20/20], Avg Loss: 0.035459
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
 <span class="n">model</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="p">,</span> <span class="n">mlp_name</span> <span class="o">=</span> <span class="s1">&#39;Sequential&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Detected IPython. Loading juliacall extension. See https://juliapy.github.io/PythonCall.jl/stable/compat/#IPython
 </pre></div>
 </div>
 </div>
@@ -274,42 +281,44 @@ To see all the possible parameters, please see the <code class="docutils literal
   warnings.warn(
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be (sin(x0 * x0) + -3.9160948) + (sin(x4) * 2.7672863).
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432214).
 ❤️ SR on Sequential complete.
 </pre></div>
 </div>
 <div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
  	    pick         score                                           equation  \
  	0         0.000000e+00                                                 x4   
- 	1         2.721272e+00                                         -2.3407037   
- 	2         4.214388e-01                                    x4 + -2.8381717   
- 	3         4.685426e-01                             (x4 + x4) + -3.3356333   
- 	4         1.191554e-01                       (x4 + -1.4930925) * 2.350959   
- 	5         1.376663e+00                      (x0 + x4) + (x4 + -3.8348954)   
- 	6         7.879721e-01               ((x4 * 2.3659413) + -4.0169363) + x0   
- 	7         1.743718e-01        ((x4 * 2.3639326) + -3.8495965) + (x0 * x0)   
- 	8         2.638426e-01           ((sin(x4) * 2.770242) + -4.1069636) + x0   
- 	9         3.600058e-01   (x0 * x0) + ((sin(x4) * 2.7674358) + -3.9393387)   
- 	10  &gt;&gt;&gt;&gt;  1.106949e-01  (sin(x0 * x0) + -3.9160948) + (sin(x4) * 2.767...   
- 	11        7.007036e-02  (sin(x4 * 1.1536617) * 2.5276008) + (sin(x0 * ...   
- 	12        8.000152e-07  inv(inv((sin(x4 * 1.1535343) * 2.5277557) + (s...   
- 	13        7.642055e-02  ((sin(x4 * 1.1563481) * 2.5240502) + (x0 * sin...   
+ 	1         2.693680e+00                                         -2.2729003   
+ 	2         4.305627e-01                                    x4 + -2.7745965   
+ 	3         4.866128e-01                              x4 + (x4 + -3.276266)   
+ 	4         1.181860e-01                      (x4 * 2.3365693) + -3.4451187   
+ 	5         1.428903e+00                      x0 + ((x4 + x4) + -3.7737725)   
+ 	6         8.013156e-01                ((x4 * 2.3453188) + x0) + -3.947015   
+ 	7         2.012037e-01         (x4 * 2.343591) + ((x0 * x0) + -3.7779894)   
+ 	8         1.672051e-01           (x0 + -4.034988) + (sin(x4) * 2.7433662)   
+ 	9         4.156152e-01    (sin(x4) * 2.741074) + ((x0 * x0) + -3.8657725)   
+ 	10  &gt;&gt;&gt;&gt;  1.677344e-01  sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432...   
+ 	11        4.104815e-08  inv(inv((sin(x0 * x0) + (sin(x4) * 2.740518)) ...   
+ 	12        1.012104e-01  ((sin(x4) + (((x0 * 0.26781264) + 0.06732551) ...   
+ 	13        4.542017e-08  inv(inv(((sin(x4) + (((x0 * 0.26781264) + 0.06...   
+ 	14        2.835841e-03  inv(inv(((((x0 * 0.27710882) * x0) + sin((x0 *...   
  	
  	        loss  complexity  
- 	0   8.290013           1  
- 	1   0.545408           2  
- 	2   0.234782           4  
- 	3   0.091980           6  
- 	4   0.081648           7  
- 	5   0.020610           8  
- 	6   0.009373           9  
- 	7   0.006613          11  
- 	8   0.005079          12  
- 	9   0.002472          14  
- 	10  0.001774          17  
- 	11  0.001437          20  
- 	12  0.001437          22  
- 	13  0.001332          23  
+ 	0   7.924852           1  
+ 	1   0.535971           2  
+ 	2   0.226547           4  
+ 	3   0.085604           6  
+ 	4   0.076061           7  
+ 	5   0.018222           8  
+ 	6   0.008177           9  
+ 	7   0.005468          11  
+ 	8   0.004626          12  
+ 	9   0.002015          14  
+ 	10  0.001218          17  
+ 	11  0.001218          19  
+ 	12  0.001101          20  
+ 	13  0.001101          22  
+ 	14  0.001095          24  
  ]}
 </pre></div>
 </div>
@@ -327,35 +336,37 @@ Outputs from <em>PySR</em> are saved in <code class="docutils literal notranslat
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
 	    pick         score                                           equation  \
 	0         0.000000e+00                                                 x4   
-	1         2.721272e+00                                         -2.3407037   
-	2         4.214388e-01                                    x4 + -2.8381717   
-	3         4.685426e-01                             (x4 + x4) + -3.3356333   
-	4         1.191554e-01                       (x4 + -1.4930925) * 2.350959   
-	5         1.376663e+00                      (x0 + x4) + (x4 + -3.8348954)   
-	6         7.879721e-01               ((x4 * 2.3659413) + -4.0169363) + x0   
-	7         1.743718e-01        ((x4 * 2.3639326) + -3.8495965) + (x0 * x0)   
-	8         2.638426e-01           ((sin(x4) * 2.770242) + -4.1069636) + x0   
-	9         3.600058e-01   (x0 * x0) + ((sin(x4) * 2.7674358) + -3.9393387)   
-	10  &gt;&gt;&gt;&gt;  1.106949e-01  (sin(x0 * x0) + -3.9160948) + (sin(x4) * 2.767...   
-	11        7.007036e-02  (sin(x4 * 1.1536617) * 2.5276008) + (sin(x0 * ...   
-	12        8.000152e-07  inv(inv((sin(x4 * 1.1535343) * 2.5277557) + (s...   
-	13        7.642055e-02  ((sin(x4 * 1.1563481) * 2.5240502) + (x0 * sin...   
+	1         2.693680e+00                                         -2.2729003   
+	2         4.305627e-01                                    x4 + -2.7745965   
+	3         4.866128e-01                              x4 + (x4 + -3.276266)   
+	4         1.181860e-01                      (x4 * 2.3365693) + -3.4451187   
+	5         1.428903e+00                      x0 + ((x4 + x4) + -3.7737725)   
+	6         8.013156e-01                ((x4 * 2.3453188) + x0) + -3.947015   
+	7         2.012037e-01         (x4 * 2.343591) + ((x0 * x0) + -3.7779894)   
+	8         1.672051e-01           (x0 + -4.034988) + (sin(x4) * 2.7433662)   
+	9         4.156152e-01    (sin(x4) * 2.741074) + ((x0 * x0) + -3.8657725)   
+	10  &gt;&gt;&gt;&gt;  1.677344e-01  sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432...   
+	11        4.104815e-08  inv(inv((sin(x0 * x0) + (sin(x4) * 2.740518)) ...   
+	12        1.012104e-01  ((sin(x4) + (((x0 * 0.26781264) + 0.06732551) ...   
+	13        4.542017e-08  inv(inv(((sin(x4) + (((x0 * 0.26781264) + 0.06...   
+	14        2.835841e-03  inv(inv(((((x0 * 0.27710882) * x0) + sin((x0 *...   
 	
 	        loss  complexity  
-	0   8.290013           1  
-	1   0.545408           2  
-	2   0.234782           4  
-	3   0.091980           6  
-	4   0.081648           7  
-	5   0.020610           8  
-	6   0.009373           9  
-	7   0.006613          11  
-	8   0.005079          12  
-	9   0.002472          14  
-	10  0.001774          17  
-	11  0.001437          20  
-	12  0.001437          22  
-	13  0.001332          23  
+	0   7.924852           1  
+	1   0.535971           2  
+	2   0.226547           4  
+	3   0.085604           6  
+	4   0.076061           7  
+	5   0.018222           8  
+	6   0.008177           9  
+	7   0.005468          11  
+	8   0.004626          12  
+	9   0.002015          14  
+	10  0.001218          17  
+	11  0.001218          19  
+	12  0.001101          20  
+	13  0.001101          22  
+	14  0.001095          24  
 ]}
 </pre></div>
 </div>
@@ -374,7 +385,7 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Successfully switched Sequential to symbolic equations for all 1 dimensions:
-   Dimension 0: (x0 * x0) + ((sin(x4) * 2.7674358) + -3.9393387)
+   Dimension 0: (sin(x4) * 2.741074) + ((x0 * x0) + -3.8657725)
    Variables: [&#39;x0&#39;, &#39;x4&#39;]
 🎯 All 1 output dimensions now using symbolic equations.
 </pre></div>
@@ -390,13 +401,13 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.9064],
-        [-2.0674],
-        [-1.7499],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.2651],
+        [-2.4022],
+        [-1.0710],
         ...,
-        [-1.7663],
-        [-2.5468],
-        [-3.3291]])
+        [-2.6542],
+        [-2.5095],
+        [-1.8382]])
 </pre></div>
 </div>
 </div>
@@ -426,13 +437,13 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.9956],
-        [-2.0082],
-        [-1.7034],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.2492],
+        [-2.3460],
+        [-1.0507],
         ...,
-        [-1.7170],
-        [-2.5529],
-        [-3.3298]])
+        [-2.6601],
+        [-2.5197],
+        [-1.8332]])
 </pre></div>
 </div>
 </div>
@@ -449,14 +460,67 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 </div>
+</section>
+<section id="saving-and-loading-the-models">
+<h2>Saving and loading the models<a class="headerlink" href="#saving-and-loading-the-models" title="Link to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="s1">&#39;symtorch_data&#39;</span><span class="p">,</span> <span class="n">exist_ok</span> <span class="o">=</span> <span class="kc">True</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="o">.</span><span class="n">save_model</span><span class="p">(</span><span class="s1">&#39;symtorch_data/symtorch_model&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Saved PyTorch model state to symtorch_data/symtorch_model_pytorch.pth
+✅ Saved model metadata to symtorch_data/symtorch_model_metadata.pkl
+✅ Saved regressor for dimension 0 to symtorch_data/symtorch_model_regressor_dim0.pkl
+✅ Saved 1 PySR regressors
+🎯 Model save complete. Created 3 files with base name: symtorch_data/symtorch_model
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:1270: UserWarning: `extra_sympy_mappings` cannot be pickled and will be removed from the serialized instance. When loading the model, please redefine `extra_sympy_mappings` at runtime.
+  warnings.warn(warn_msg)
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[&#39;symtorch_data/symtorch_model_pytorch.pth&#39;,
+ &#39;symtorch_data/symtorch_model_metadata.pkl&#39;,
+ &#39;symtorch_data/symtorch_model_regressor_dim0.pkl&#39;]
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">loaded_model</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="s1">&#39;symtorch_data/symtorch_model&#39;</span><span class="p">)</span>
+<span class="n">loaded_model</span><span class="o">.</span><span class="n">switch_to_equation</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>📂 Loading MLP_SR model: Sequential
+✅ Loaded regressor for dimension 0
+✅ Loaded 1 PySR regressors
+🎯 Model loading complete: Sequential
+✅ Successfully switched Sequential to symbolic equations for all 1 dimensions:
+   Dimension 0: sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432214)
+   Variables: [&#39;x0&#39;, &#39;x4&#39;]
+🎯 All 1 output dimensions now using symbolic equations.
+</pre></div>
+</div>
+</div>
+</div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clean up </span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;SR_output&#39;</span><span class="p">):</span>
     <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s1">&#39;SR_output&#39;</span><span class="p">)</span>
-<span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;model_weights.pth&#39;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;model_weights.pth&#39;</span><span class="p">)</span>
+
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;symtorch_data&#39;</span><span class="p">):</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s1">&#39;symtorch_data&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>

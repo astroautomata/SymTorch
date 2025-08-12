@@ -85,6 +85,8 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">math</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pysr</span><span class="w"> </span><span class="kn">import</span> <span class="n">PySRRegressor</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.mlp_sr</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
@@ -868,6 +870,233 @@
                 <span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="n">importance_order</span><span class="p">,</span>
                 <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="n">std_values</span>
             <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="Pruning_MLP.save_model">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.save_model">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">save_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">save_pytorch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">save_regressors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Save the Pruning_MLP model including PyTorch weights, PySR regressors, and pruning state.</span>
+<span class="sd">        </span>
+<span class="sd">        Extends MLP_SR&#39;s save functionality to include pruning-specific information:</span>
+<span class="sd">        - PyTorch model state dict (if save_pytorch=True)</span>
+<span class="sd">        - All fitted PySR regressors for active dimensions (if save_regressors=True)</span>
+<span class="sd">        - Model metadata and configuration</span>
+<span class="sd">        - Pruning mask and dimension information</span>
+<span class="sd">        - Pruning schedule and current state</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            save_path (str): Base path for saving (without extension)</span>
+<span class="sd">            save_pytorch (bool, optional): Whether to save PyTorch model state. Defaults to True.</span>
+<span class="sd">            save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.</span>
+<span class="sd">            </span>
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; model.f_net = Pruning_MLP(model.f_net, initial_dim=32, target_dim=2, mlp_name=&quot;f_net&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; # ... train, prune, and run distill ...</span>
+<span class="sd">            &gt;&gt;&gt; model.f_net.save_model(&quot;./saved_models/pruned_model&quot;)</span>
+<span class="sd">            </span>
+<span class="sd">        Note:</span>
+<span class="sd">            This creates multiple files with pruning-specific metadata:</span>
+<span class="sd">            - {save_path}_pytorch.pth: PyTorch model state</span>
+<span class="sd">            - {save_path}_metadata.pkl: Model configuration, pruning state, and metadata</span>
+<span class="sd">            - {save_path}_regressor_dim{i}.pkl: PySR regressors (only for active dimensions)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span> <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span> <span class="k">else</span> <span class="s1">&#39;.&#39;</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        
+        <span class="n">saved_files</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="c1"># Save PyTorch model state</span>
+        <span class="k">if</span> <span class="n">save_pytorch</span><span class="p">:</span>
+            <span class="n">pytorch_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">_pytorch.pth&quot;</span>
+            <span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="n">pytorch_path</span><span class="p">)</span>
+            <span class="n">saved_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pytorch_path</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Saved PyTorch model state to </span><span class="si">{</span><span class="n">pytorch_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Save enhanced metadata for Pruning_MLP</span>
+        <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;mlp_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="p">,</span>
+            <span class="s1">&#39;output_dims&#39;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;output_dims&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="s1">&#39;variable_transforms_available&#39;</span><span class="p">:</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_transforms&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;variable_names&#39;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_names&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
+            <span class="s1">&#39;using_equation&#39;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_using_equation&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">),</span>
+            <span class="s1">&#39;class_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="vm">__class__</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+            <span class="s1">&#39;equation_vars&#39;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_equation_vars&#39;</span><span class="p">,</span> <span class="p">{}),</span>
+            <span class="s1">&#39;regressor_dimensions&#39;</span><span class="p">:</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pysr_regressor&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="p">[],</span>
+            <span class="c1"># Pruning-specific metadata</span>
+            <span class="s1">&#39;initial_dim&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_dim</span><span class="p">,</span>
+            <span class="s1">&#39;current_dim&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span><span class="p">,</span>
+            <span class="s1">&#39;target_dim&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">target_dim</span><span class="p">,</span>
+            <span class="s1">&#39;pruning_mask&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pruning_mask&#39;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s1">&#39;pruning_schedule&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_schedule</span><span class="p">,</span>
+            <span class="s1">&#39;active_dimensions&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
+        <span class="p">}</span>
+        
+        <span class="n">metadata_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">_metadata.pkl&quot;</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">metadata</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+        <span class="n">saved_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Saved pruning model metadata to </span><span class="si">{</span><span class="n">metadata_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Save PySR regressors (only for active dimensions)</span>
+        <span class="k">if</span> <span class="n">save_regressors</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pysr_regressor&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">:</span>
+            <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
+            <span class="n">regressor_files</span> <span class="o">=</span> <span class="p">[]</span>
+            
+            <span class="k">for</span> <span class="n">dim</span><span class="p">,</span> <span class="n">regressor</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>  <span class="c1"># Only save regressors for active dimensions</span>
+                    <span class="n">regressor_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">_regressor_dim</span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">.pkl&quot;</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="c1"># Use PySR&#39;s built-in pickling support</span>
+                        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">regressor_path</span><span class="p">,</span> <span class="s1">&#39;wb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                            <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">regressor</span><span class="p">,</span> <span class="n">f</span><span class="p">)</span>
+                        <span class="n">regressor_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regressor_path</span><span class="p">)</span>
+                        <span class="n">saved_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regressor_path</span><span class="p">)</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Saved regressor for active dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">regressor_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not save regressor for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;ℹ️ Skipping inactive dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> regressor&quot;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="n">regressor_files</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Saved </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">regressor_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> PySR regressors for active dimensions&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">save_regressors</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ℹ️ No PySR regressors found to save&quot;</span><span class="p">)</span>
+        
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🎯 Pruning model save complete. Created </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">saved_files</span><span class="p">)</span><span class="si">}</span><span class="s2"> files with base name: </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📊 Saved state: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_dim</span><span class="si">}</span><span class="s2"> active dimensions&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">saved_files</span></div>
+
+
+<div class="viewcode-block" id="Pruning_MLP.load_model">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.load_model">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">load_model</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mlp_architecture</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;cpu&#39;</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Load a previously saved Pruning_MLP model with all components.</span>
+<span class="sd">        </span>
+<span class="sd">        Reconstructs the complete Pruning_MLP instance including:</span>
+<span class="sd">        - PyTorch model weights (requires architecture)</span>
+<span class="sd">        - All fitted PySR regressors for active dimensions</span>
+<span class="sd">        - Model metadata and configuration</span>
+<span class="sd">        - Pruning mask and dimension state</span>
+<span class="sd">        - Pruning schedule</span>
+<span class="sd">        </span>
+<span class="sd">        Args:</span>
+<span class="sd">            save_path (str): Base path used during saving (without extension)</span>
+<span class="sd">            mlp_architecture (nn.Module, optional): PyTorch model architecture to load weights into.</span>
+<span class="sd">                                                   If None, only metadata and regressors are loaded.</span>
+<span class="sd">            device (str, optional): Device to load tensors to (&#39;cpu&#39;, &#39;cuda&#39;, etc.). Defaults to &#39;cpu&#39;.</span>
+<span class="sd">            </span>
+<span class="sd">        Returns:</span>
+<span class="sd">            Pruning_MLP: Reconstructed Pruning_MLP instance with loaded components</span>
+<span class="sd">            </span>
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; # Create same architecture as original</span>
+<span class="sd">            &gt;&gt;&gt; mlp = nn.Sequential(nn.Linear(5, 32), nn.ReLU(), nn.Linear(32, 32))</span>
+<span class="sd">            &gt;&gt;&gt; loaded_model = Pruning_MLP.load_model(&quot;./saved_models/pruned_model&quot;, mlp)</span>
+<span class="sd">            &gt;&gt;&gt; # Model ready to use with pruning state and equations</span>
+<span class="sd">            &gt;&gt;&gt; loaded_model.switch_to_equation()</span>
+<span class="sd">            </span>
+<span class="sd">        Note:</span>
+<span class="sd">            The mlp_architecture must match the original architecture exactly for weight loading.</span>
+<span class="sd">            Pruning state and active dimensions are automatically restored.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Load metadata first</span>
+        <span class="n">metadata_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">_metadata.pkl&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Metadata file not found: </span><span class="si">{</span><span class="n">metadata_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+            <span class="n">metadata</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+        
+        <span class="c1"># Verify this is a Pruning_MLP save</span>
+        <span class="k">if</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;class_name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;Pruning_MLP&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected Pruning_MLP save file, found </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;class_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📂 Loading Pruning_MLP model: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;mlp_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Extract pruning dimensions</span>
+        <span class="n">initial_dim</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;initial_dim&#39;</span><span class="p">]</span>
+        <span class="n">current_dim</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;current_dim&#39;</span><span class="p">]</span>
+        <span class="n">target_dim</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;target_dim&#39;</span><span class="p">]</span>
+        
+        <span class="k">if</span> <span class="n">mlp_architecture</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;mlp_architecture is required when loading Pruning_MLP&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Create Pruning_MLP instance</span>
+        <span class="n">instance</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">mlp_architecture</span><span class="p">,</span> 
+                      <span class="n">initial_dim</span><span class="o">=</span><span class="n">initial_dim</span><span class="p">,</span> 
+                      <span class="n">target_dim</span><span class="o">=</span><span class="n">target_dim</span><span class="p">,</span>
+                      <span class="n">mlp_name</span><span class="o">=</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;mlp_name&#39;</span><span class="p">])</span>
+        
+        <span class="c1"># Load PyTorch weights if available</span>
+        <span class="n">pytorch_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">_pytorch.pth&quot;</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">pytorch_path</span><span class="p">):</span>
+            <span class="n">state_dict</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">pytorch_path</span><span class="p">,</span> <span class="n">map_location</span><span class="o">=</span><span class="n">device</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">instance</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">state_dict</span><span class="p">)</span>
+            <span class="n">instance</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>  <span class="c1"># Ensure model is in eval mode after loading</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Loaded PyTorch weights from </span><span class="si">{</span><span class="n">pytorch_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ PyTorch weights file not found: </span><span class="si">{</span><span class="n">pytorch_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Restore pruning state</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">current_dim</span> <span class="o">=</span> <span class="n">current_dim</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">pruning_schedule</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;pruning_schedule&#39;</span><span class="p">)</span>
+        
+        <span class="c1"># Restore pruning mask</span>
+        <span class="k">if</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;pruning_mask&#39;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">pruning_mask</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;pruning_mask&#39;</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">bool</span><span class="p">)</span>
+            <span class="n">instance</span><span class="o">.</span><span class="n">pruning_mask</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">pruning_mask</span><span class="o">.</span><span class="n">data</span>
+        
+        <span class="c1"># Restore general metadata</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">output_dims</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;output_dims&#39;</span><span class="p">)</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;variable_names&#39;</span><span class="p">)</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">_using_equation</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;using_equation&#39;</span><span class="p">,</span> <span class="kc">False</span><span class="p">)</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">_equation_vars</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;equation_vars&#39;</span><span class="p">,</span> <span class="p">{})</span>
+        
+        <span class="c1"># Load PySR regressors</span>
+        <span class="n">regressor_dims</span> <span class="o">=</span> <span class="n">metadata</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;regressor_dimensions&#39;</span><span class="p">,</span> <span class="p">[])</span>
+        <span class="n">instance</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">equation_funcs</span> <span class="o">=</span> <span class="p">{}</span>
+        
+        <span class="n">loaded_regressors</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">regressor_dims</span><span class="p">:</span>
+            <span class="n">regressor_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">_regressor_dim</span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">.pkl&quot;</span>
+            <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">regressor_path</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">regressor_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                        <span class="n">regressor</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                    <span class="n">instance</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
+                    
+                    <span class="c1"># Rebuild equation function if model was using equations</span>
+                    <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">_using_equation</span> <span class="ow">and</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">instance</span><span class="o">.</span><span class="n">_equation_vars</span><span class="p">:</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">_get_equation</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="n">result</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                            <span class="n">equation_funcs</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                    
+                    <span class="n">loaded_regressors</span> <span class="o">+=</span> <span class="mi">1</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Loaded regressor for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not load regressor for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Regressor file not found for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">regressor_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">loaded_regressors</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Loaded </span><span class="si">{</span><span class="n">loaded_regressors</span><span class="si">}</span><span class="s2"> PySR regressors&quot;</span><span class="p">)</span>
+            
+            <span class="c1"># Restore equation functions if model was using equations</span>
+            <span class="k">if</span> <span class="n">instance</span><span class="o">.</span><span class="n">_using_equation</span> <span class="ow">and</span> <span class="n">equation_funcs</span><span class="p">:</span>
+                <span class="n">instance</span><span class="o">.</span><span class="n">_equation_funcs</span> <span class="o">=</span> <span class="n">equation_funcs</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Restored symbolic equation functions for </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">equation_funcs</span><span class="p">)</span><span class="si">}</span><span class="s2"> dimensions&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;ℹ️ No PySR regressors found to load&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Display loaded state</span>
+        <span class="n">active_dims</span> <span class="o">=</span> <span class="n">instance</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📊 Loaded pruning state: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_dims</span><span class="p">)</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">initial_dim</span><span class="si">}</span><span class="s2"> active dimensions: </span><span class="si">{</span><span class="n">active_dims</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🎯 Pruning model loading complete: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;mlp_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">instance</span></div>
 </div>
 
 </pre></div>
