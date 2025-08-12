@@ -926,6 +926,7 @@ class Pruning_MLP(MLP_SR):
         if os.path.exists(pytorch_path):
             state_dict = torch.load(pytorch_path, map_location=device, weights_only=True)
             instance.InterpretSR_MLP.load_state_dict(state_dict)
+            instance.InterpretSR_MLP.eval()  # Ensure model is in eval mode after loading
             print(f"✅ Loaded PyTorch weights from {pytorch_path}")
         else:
             print(f"⚠️ PyTorch weights file not found: {pytorch_path}")

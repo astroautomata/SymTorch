@@ -141,8 +141,32 @@ class MLP_SR(nn.Module):
                 # Convert to numpy for the equation function
                 numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
                 
-                # Evaluate the equation for this dimension
-                result = equation_func(*numpy_inputs)
+                try:
+                    # Evaluate the equation for this dimension
+                    result = equation_func(*numpy_inputs)
+                except Exception as e:
+                    # Handle argument mismatch cases
+                    import inspect
+                    sig = inspect.signature(equation_func)
+                    expected_args = len(sig.parameters)
+                    provided_args = len(numpy_inputs)
+                    
+                    if provided_args > expected_args and expected_args > 0:
+                        # Too many arguments provided - use only what's needed
+                        result = equation_func(*numpy_inputs[:expected_args])
+                    elif provided_args < expected_args:
+                        # Too few arguments provided - pad with zeros or use available input columns
+                        padded_inputs = numpy_inputs.copy()
+                        for i in range(provided_args, expected_args):
+                            if i < x.shape[1]:  # Use additional input columns if available
+                                padded_inputs.append(x[:, i].detach().cpu().numpy())
+                            else:
+                                # Pad with zeros if no more input columns
+                                padded_inputs.append(numpy_inputs[0] * 0)  # Same shape as first input, filled with zeros
+                        result = equation_func(*padded_inputs)
+                    else:
+                        # Same number of arguments but still failing - re-raise
+                        raise e
                 
                 # Convert back to torch tensor with same device/dtype as input
                 result_tensor = torch.tensor(result, dtype=x.dtype, device=x.device)
@@ -418,8 +442,12 @@ class MLP_SR(nn.Module):
             expr = matching_rows["sympy_format"].values[0]
 
         vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
-        f = lambdify(vars_sorted, expr, "numpy")
-        return f, vars_sorted
+        try:
+            f = lambdify(vars_sorted, expr, "numpy")
+            return f, vars_sorted
+        except Exception as e:
+            print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
+            return None
 
     def switch_to_equation(self, complexity: list = None):
         """
@@ -578,12 +606,10 @@ class MLP_SR(nn.Module):
             >>> # ... do some analysis ...
             >>> model.switch_to_mlp()       # Switch back to neural network
         """
+        self._using_equation = False
         if hasattr(self, '_original_mlp'):
             self.InterpretSR_MLP = self._original_mlp
-            self._using_equation = False
-            print(f"✅ Switched {self.mlp_name} back to MLP")
-        else:
-            print("❗ No original MLP stored to switch back to")
+        print(f"✅ Switched {self.mlp_name} back to MLP")
 
     def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
         """
@@ -732,6 +758,7 @@ class MLP_SR(nn.Module):
         if os.path.exists(pytorch_path) and mlp_architecture is not None:
             state_dict = torch.load(pytorch_path, map_location=device, weights_only=True)
             instance.InterpretSR_MLP.load_state_dict(state_dict)
+            instance.InterpretSR_MLP.eval()  # Ensure model is in eval mode after loading
             print(f"✅ Loaded PyTorch weights from {pytorch_path}")
         elif mlp_architecture is not None:
             print(f"⚠️ PyTorch weights file not found: {pytorch_path}")
@@ -758,9 +785,14 @@ class MLP_SR(nn.Module):
                     
                     # Rebuild equation function if model was using equations
                     if instance._using_equation and dim in instance._equation_vars:
-                        result = instance._get_equation(dim)
-                        if result is not None:
-                            equation_funcs[dim] = result[0]
+                        try:
+                            result = instance._get_equation(dim)
+                            if result is not None:
+                                equation_funcs[dim] = result[0]
+                        except Exception as e:
+                            print(f"⚠️ Warning: Could not rebuild equation for dimension {dim}: {e}")
+                            # Don't use equations for this dimension if we can't rebuild it
+                            pass
                     
                     loaded_regressors += 1
                     print(f"✅ Loaded regressor for dimension {dim}")
@@ -774,8 +806,20 @@ class MLP_SR(nn.Module):
             
             # Restore equation functions if model was using equations
             if instance._using_equation and equation_funcs:
-                instance._equation_funcs = equation_funcs
-                print(f"✅ Restored symbolic equation functions for {len(equation_funcs)} dimensions")
+                # Check if we have equation functions for all required dimensions
+                required_dims = set(instance._equation_vars.keys())
+                available_dims = set(equation_funcs.keys())
+                
+                if required_dims == available_dims:
+                    instance._equation_funcs = equation_funcs
+                    print(f"✅ Restored symbolic equation functions for {len(equation_funcs)} dimensions")
+                else:
+                    missing_dims = required_dims - available_dims
+                    print(f"⚠️ Could not restore equations for dimensions {missing_dims}, switching to MLP mode")
+                    instance._using_equation = False
+            elif instance._using_equation:
+                print("⚠️ Model was saved in equation mode but no equations could be restored, switching to MLP mode")
+                instance._using_equation = False
         else:
             print("ℹ️ No PySR regressors found to load")
         
