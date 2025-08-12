@@ -39,7 +39,7 @@ def test_MLP_SR_wrapper():
                 self.mlp = MLP_SR(mlp, mlp_name = "Sequential")
         model = SimpleModel(input_dim=5, output_dim=1)
         assert hasattr(model.mlp, 'InterpretSR_MLP'), "MLP_SR should have InterpretSR_MLP attribute"
-        assert hasattr(model.mlp, 'interpret'), "MLP_SR should have interpret method"
+        assert hasattr(model.mlp, 'distill'), "MLP_SR should have distill method"
     except Exception as e:
         pytest.fail(f"MLP_SR wrapper failed with error: {e}.")
 
@@ -145,20 +145,20 @@ def test_training_MLP_SR_model():
         pytest.fail(f"MLP_SR model training failed with error {e}.")
 
 
-def test_MLP_SR_interpret():
+def test_MLP_SR_distill():
     """
-    Test that the interpret method works on a trained MLP_SR model.
+    Test that the distill method works on a trained MLP_SR model.
     """
     global trained_model
     if trained_model is None:
         pytest.skip("No trained model available - training test may have failed")
         
     try:
-        # Create input data for interpretation
+        # Create input data for distillation
         input_data = torch.FloatTensor(X_train[:100])  # Use subset for faster testing
         
-        # Run interpretation with reduced iterations for testing
-        regressors = trained_model.mlp.interpret(input_data, sr_params={'niterations': 50})
+        # Run distillation with reduced iterations for testing
+        regressors = trained_model.mlp.distill(input_data, sr_params={'niterations': 50})
         
         # For single output model, should return dictionary with one entry
         assert regressors is not None, "Regressors should not be None"
@@ -176,7 +176,7 @@ def test_MLP_SR_interpret():
         assert trained_model.mlp.pysr_regressor[0] is regressor, "Stored regressor should match returned regressor"
         
     except Exception as e:
-        pytest.fail(f"MLP_SR interpret method failed with error: {e}")
+        pytest.fail(f"MLP_SR distill method failed with error: {e}")
     finally:
         # Clean up SR output directory
         cleanup_sr_outputs()
@@ -193,7 +193,7 @@ def test_switch_to_equation():
     # Ensure we have a regressor first
     if not hasattr(trained_model.mlp, 'pysr_regressor') or not trained_model.mlp.pysr_regressor:
         input_data = torch.FloatTensor(X_train[:100])
-        trained_model.mlp.interpret(input_data, sr_params={'niterations': 50})
+        trained_model.mlp.distill(input_data, sr_params={'niterations': 50})
     
     try:
         # Test switching to equation
@@ -235,7 +235,7 @@ def test_switch_to_mlp():
     # Ensure we have a regressor first
     if not hasattr(trained_model.mlp, 'pysr_regressor') or trained_model.mlp.pysr_regressor is None:
         input_data = torch.FloatTensor(X_train[:100])
-        trained_model.mlp.interpret(input_data, sr_params={'niterations': 50})
+        trained_model.mlp.distill(input_data, sr_params={'niterations': 50})
     
     # Switch to equation mode first
     trained_model.mlp.switch_to_equation()
@@ -412,10 +412,10 @@ def test_training_after_switch_to_equation():
         print("Training dual model initially...")
         dual_model, _ = train_model(dual_model, dataloader, optimizer, criterion, epochs=10)
         
-        # Run interpret on the SR-wrapped MLP component
-        print("Running interpretation on SR-wrapped MLP...")
+        # Run distill on the SR-wrapped MLP component
+        print("Running distillation on SR-wrapped MLP...")
         input_data = torch.FloatTensor(X_train[:100])
-        regressor = dual_model.sr_mlp.interpret(input_data, sr_params={'niterations': 30})
+        regressor = dual_model.sr_mlp.distill(input_data, sr_params={'niterations': 30})
         
         assert regressor is not None, "Interpretation should succeed"
         assert hasattr(dual_model.sr_mlp, 'pysr_regressor'), "Should have regressor stored"
@@ -465,9 +465,9 @@ def test_equation_parameters_fixed_during_training():
         # Train initially
         dual_model, _ = train_model(dual_model, dataloader, optimizer, criterion, epochs=5)
         
-        # Run interpret and switch to equation
+        # Run distill and switch to equation
         input_data = torch.FloatTensor(X_train[:100])
-        _ = dual_model.sr_mlp.interpret(input_data, sr_params={'niterations': 30})
+        _ = dual_model.sr_mlp.distill(input_data, sr_params={'niterations': 30})
         dual_model.sr_mlp.switch_to_equation()
         
         # Get equation functions and variables before training (multi-dimensional API)
@@ -528,9 +528,9 @@ def test_gradient_flow_through_other_components():
         # Train initially
         dual_model, _ = train_model(dual_model, dataloader, optimizer, criterion, epochs=5)
         
-        # Run interpret and switch to equation
+        # Run distill and switch to equation
         input_data = torch.FloatTensor(X_train[:100])
-        _ = dual_model.sr_mlp.interpret(input_data, sr_params={'niterations': 30})
+        _ = dual_model.sr_mlp.distill(input_data, sr_params={'niterations': 30})
         dual_model.sr_mlp.switch_to_equation()
         
         # Get regular MLP parameters before additional training
@@ -632,9 +632,9 @@ def create_multi_output_synthetic_data(n_samples=500, input_dim=4, output_dim=3)
     return x, y
 
 
-def test_multi_dimensional_interpret_all_outputs():
+def test_multi_dimensional_distill_all_outputs():
     """
-    Test that interpret() works correctly when applied to all output dimensions.
+    Test that distill() works correctly when applied to all output dimensions.
     """
     try:
         # Create multi-output data
@@ -657,9 +657,9 @@ def test_multi_dimensional_interpret_all_outputs():
             loss.backward()
             optimizer.step()
         
-        # Test interpret on all dimensions
+        # Test distill on all dimensions
         input_data = X_tensor[:150]  # Use subset for faster testing
-        regressors = model.mlp.interpret(input_data, sr_params={'niterations': 30})
+        regressors = model.mlp.distill(input_data, sr_params={'niterations': 30})
         
         # Verify we got a dictionary of regressors
         assert isinstance(regressors, dict), "Should return dictionary of regressors for multi-dim"
@@ -682,17 +682,17 @@ def test_multi_dimensional_interpret_all_outputs():
         for dim in [0, 1, 2]:
             assert dim in model.mlp.pysr_regressor, f"MLP_SR should store regressor for dimension {dim}"
         
-        print("✅ Multi-dimensional interpret (all outputs) test passed")
+        print("✅ Multi-dimensional distill (all outputs) test passed")
         
     except Exception as e:
-        pytest.fail(f"Multi-dimensional interpret (all outputs) failed with error: {e}")
+        pytest.fail(f"Multi-dimensional distill (all outputs) failed with error: {e}")
     finally:
         cleanup_sr_outputs()
 
 
-def test_multi_dimensional_interpret_specific_output():
+def test_multi_dimensional_distill_specific_output():
     """
-    Test that interpret() works correctly when applied to a specific output dimension.
+    Test that distill() works correctly when applied to a specific output dimension.
     """
     try:
         # Create multi-output data
@@ -715,9 +715,9 @@ def test_multi_dimensional_interpret_specific_output():
             loss.backward()
             optimizer.step()
         
-        # Test interpret on specific dimension (dimension 1)
+        # Test distill on specific dimension (dimension 1)
         input_data = X_tensor[:150]
-        regressor = model.mlp.interpret(input_data, output_dim=1, sr_params={'niterations': 30})
+        regressor = model.mlp.distill(input_data, output_dim=1, sr_params={'niterations': 30})
         
         # Verify we got a single regressor (not a dictionary)
         assert not isinstance(regressor, dict), "Should return single regressor for specific dimension"
@@ -735,10 +735,10 @@ def test_multi_dimensional_interpret_specific_output():
         assert 1 in model.mlp.pysr_regressor, "MLP_SR should store regressor for dimension 1"
         assert model.mlp.pysr_regressor[1] is regressor, "Stored regressor should match returned regressor"
         
-        print("✅ Multi-dimensional interpret (specific output) test passed")
+        print("✅ Multi-dimensional distill (specific output) test passed")
         
     except Exception as e:
-        pytest.fail(f"Multi-dimensional interpret (specific output) failed with error: {e}")
+        pytest.fail(f"Multi-dimensional distill (specific output) failed with error: {e}")
     finally:
         cleanup_sr_outputs()
 
@@ -768,22 +768,22 @@ def test_multi_dimensional_forward_pass_consistency():
             loss.backward()
             optimizer.step()
         
-        # Test forward pass before interpretation
+        # Test forward pass before distillation
         test_input = X_tensor[:10]
         output_before = model(test_input).clone().detach()
         assert output_before.shape == (10, 3), "Output should have correct shape (batch_size, output_dim)"
         
-        # Run interpretation
-        model.mlp.interpret(X_tensor[:100], sr_params={'niterations': 20})
+        # Run distillation
+        model.mlp.distill(X_tensor[:100], sr_params={'niterations': 20})
         
-        # Test forward pass after interpretation (should still work)
+        # Test forward pass after distillation (should still work)
         output_after = model(test_input)
-        assert output_after.shape == (10, 3), "Output should maintain correct shape after interpretation"
+        assert output_after.shape == (10, 3), "Output should maintain correct shape after distillation"
         
-        # Outputs should be very similar (model weights shouldn't change during interpretation)
+        # Outputs should be very similar (model weights shouldn't change during distillation)
         diff = torch.abs(output_before - output_after)
         max_diff = torch.max(diff)
-        assert max_diff < 1e-5, f"Forward pass should be consistent before/after interpretation (max diff: {max_diff})"
+        assert max_diff < 1e-5, f"Forward pass should be consistent before/after distillation (max diff: {max_diff})"
         
         print("✅ Multi-dimensional forward pass consistency test passed")
         
@@ -842,10 +842,10 @@ def test_multi_dimensional_mixed_training():
         
         initial_loss = loss.item()
         
-        # Run interpretation on the MLP_SR component
-        model.sr_mlp.interpret(X_tensor[:100], sr_params={'niterations': 20})
+        # Run distillation on the MLP_SR component
+        model.sr_mlp.distill(X_tensor[:100], sr_params={'niterations': 20})
         
-        # Continue training after interpretation
+        # Continue training after distillation
         for epoch in range(10):
             optimizer.zero_grad()
             pred = model(X_tensor)
@@ -900,9 +900,9 @@ def test_multi_dimensional_switch_to_equation():
             loss.backward()
             optimizer.step()
         
-        # Run interpretation on all dimensions
+        # Run distillation on all dimensions
         input_data = X_tensor[:100]
-        regressors = model.mlp.interpret(input_data, sr_params={'niterations': 20})
+        regressors = model.mlp.distill(input_data, sr_params={'niterations': 20})
         
         assert isinstance(regressors, dict), "Should return dictionary for multi-dim"
         assert len(regressors) == 2, "Should have 2 regressors"
@@ -968,10 +968,10 @@ def test_multi_dimensional_switch_to_equation_missing_dims():
             loss.backward()
             optimizer.step()
         
-        # Run interpretation on only 2 out of 3 dimensions
+        # Run distillation on only 2 out of 3 dimensions
         input_data = X_tensor[:75]
-        model.mlp.interpret(input_data, output_dim=0, sr_params={'niterations': 15})
-        model.mlp.interpret(input_data, output_dim=1, sr_params={'niterations': 15})
+        model.mlp.distill(input_data, output_dim=0, sr_params={'niterations': 15})
+        model.mlp.distill(input_data, output_dim=1, sr_params={'niterations': 15})
         
         # Manually remove one dimension to simulate missing scenario
         if 2 in model.mlp.pysr_regressor:
@@ -1018,8 +1018,8 @@ def test_variable_transformations_basic():
         
         variable_names = ["x0_plus_x1", "x2_times_x3", "x4_squared"]
         
-        # Run interpretation with transformations
-        regressor = trained_model.mlp.interpret(
+        # Run distillation with transformations
+        regressor = trained_model.mlp.distill(
             input_data, 
             output_dim=0,
             variable_transforms=variable_transforms,
@@ -1063,8 +1063,8 @@ def test_variable_transformations_without_names():
             lambda x: torch.sin(x[:, 2]), # sine transformation
         ]
         
-        # Run interpretation with transformations (no variable_names provided)
-        regressor = trained_model.mlp.interpret(
+        # Run distillation with transformations (no variable_names provided)
+        regressor = trained_model.mlp.distill(
             input_data, 
             output_dim=0,
             variable_transforms=variable_transforms,
@@ -1107,8 +1107,8 @@ def test_variable_transformations_switch_to_equation():
         ]
         variable_names = ["sum_01", "x2"]
         
-        # Run interpretation with transformations
-        trained_model.mlp.interpret(
+        # Run distillation with transformations
+        trained_model.mlp.distill(
             input_data, 
             output_dim=0,
             variable_transforms=variable_transforms,
@@ -1157,7 +1157,7 @@ def test_variable_transformations_error_handling():
         variable_names = ["only_one_name"]  # Length mismatch
         
         with pytest.raises(ValueError, match="Length of variable_names"):
-            trained_model.mlp.interpret(
+            trained_model.mlp.distill(
                 input_data, 
                 variable_transforms=variable_transforms,
                 fit_params={'variable_names': variable_names},
@@ -1171,7 +1171,7 @@ def test_variable_transformations_error_handling():
         variable_transforms = [bad_transform]
         
         with pytest.raises(ValueError, match="Error applying transformation"):
-            trained_model.mlp.interpret(
+            trained_model.mlp.distill(
                 input_data,
                 variable_transforms=variable_transforms,
                 sr_params={'niterations': 10}
@@ -1218,9 +1218,9 @@ def test_variable_transformations_multi_dimensional():
         ]
         variable_names = ["sum_01", "product_23", "x0_squared"]
         
-        # Test interpret with transformations on all dimensions
+        # Test distill with transformations on all dimensions
         input_data = X_tensor[:100]
-        regressors = model.mlp.interpret(
+        regressors = model.mlp.distill(
             input_data,
             variable_transforms=variable_transforms,
             fit_params={'variable_names': variable_names},
@@ -1269,8 +1269,8 @@ def test_save_path_parameter():
         # Define custom save path
         custom_save_path = "custom_test_output"
         
-        # Run interpretation with custom save path
-        regressor = trained_model.mlp.interpret(
+        # Run distillation with custom save path
+        regressor = trained_model.mlp.distill(
             input_data,
             output_dim=0,
             save_path=custom_save_path,

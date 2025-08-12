@@ -1,5 +1,8 @@
 #Interpretability toolkit 
 
+import warnings
+warnings.filterwarnings("ignore", message="torch was imported before juliacall")
+
 import torch
 import torch.nn as nn
 import math
@@ -69,7 +72,7 @@ class Pruning_MLP(MLP_SR):
         ...     model.f_net.prune(epoch, validation_data)  # Prune based on importance
         >>> 
         >>> # Apply symbolic regression to active dimensions only
-        >>> regressor = model.f_net.interpret(train_inputs)
+        >>> regressor = model.f_net.distill(train_inputs)
         >>> 
         >>> # Switch to using symbolic equations for active dimensions
         >>> model.f_net.switch_to_equation()
@@ -245,7 +248,7 @@ class Pruning_MLP(MLP_SR):
         """
         return torch.where(self.pruning_mask)[0].tolist()
 
-    def interpret(self, inputs, output_dim: int = None, parent_model=None, 
+    def distill(self, inputs, output_dim: int = None, parent_model=None, 
                  variable_transforms: Optional[List[Callable]] = None,
                  save_path: str = None,
                  sr_params: Optional[Dict[str, Any]] = None,
@@ -253,7 +256,7 @@ class Pruning_MLP(MLP_SR):
         """
         Discover symbolic expressions for active (non-pruned) dimensions only.
         
-        Overrides MLP_SR's interpret method to focus symbolic regression on dimensions
+        Overrides MLP_SR's distill method to focus symbolic regression on dimensions
         that survived the pruning process, ignoring inactive/masked dimensions.
         
         Args:
@@ -284,7 +287,7 @@ class Pruning_MLP(MLP_SR):
             
         Example:
             >>> # Basic usage
-            >>> regressors = pruned_mlp.interpret(train_data, 
+            >>> regressors = pruned_mlp.distill(train_data, 
             ...                                  sr_params={'niterations': 1000})
             >>> for dim_idx, regressor in regressors.items():
             ...     print(f"Dimension {dim_idx}: {regressor.get_best()['equation']}")
@@ -292,7 +295,7 @@ class Pruning_MLP(MLP_SR):
             >>> # With variable transformations
             >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]
             >>> names = ["x0_minus_x1", "x2_squared", "sin_x3"]
-            >>> regressors = pruned_mlp.interpret(train_data, 
+            >>> regressors = pruned_mlp.distill(train_data, 
             ...                                  variable_transforms=transforms, 
             ...                                  fit_params={'variable_names': names})
         """
@@ -487,7 +490,7 @@ class Pruning_MLP(MLP_SR):
             >>> pruned_mlp.switch_to_equation(complexity=[5, 7])  # Use complexity 5 for first active dim, 7 for second
         """
         if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
-            print("❗No equations found. You need to first run .interpret.")
+            print("❗No equations found. You need to first run .distill.")
             return
         
         active_dims = self.get_active_dimensions()

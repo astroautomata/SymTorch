@@ -4,7 +4,8 @@ InterpretSR MLP_SR Module
 This module provides a wrapper for PyTorch MLP models that adds symbolic regression
 capabilities using PySR (Python Symbolic Regression).
 """
-
+import warnings
+warnings.filterwarnings("ignore", message="torch was imported before juliacall")
 from pysr import *
 import torch 
 import torch.nn as nn
@@ -60,7 +61,7 @@ class MLP_SR(nn.Module):
         >>> # Wrap the mlp with the MLP_SR wrapper
         >>> model.mlp = MLP_SR(model.mlp, mlp_name = "Sequential") # Wrap the mlp 
         >>> # Apply symbolic regression to the inputs and outputs of the MLP
-        >>> regressor = model.mlp.interpret(inputs)
+        >>> regressor = model.mlp.distill(inputs)
         >>> 
         >>> # Switch to using the symbolic equation instead of the MLP in the forwards 
             pass of your deep learning model
@@ -159,7 +160,7 @@ class MLP_SR(nn.Module):
         else:
             return self.InterpretSR_MLP(x)
 
-    def interpret(self, inputs, output_dim: int = None, parent_model=None, 
+    def distill(self, inputs, output_dim: int = None, parent_model=None, 
                  variable_transforms: Optional[List[Callable]] = None,
                  save_path: str = None,
                  sr_params: Optional[Dict[str, Any]] = None,
@@ -199,14 +200,14 @@ class MLP_SR(nn.Module):
             
         Example:
             >>> # Basic usage
-            >>> regressor = model.interpret(train_inputs, 
+            >>> regressor = model.distill(train_inputs, 
             ...                            sr_params={'niterations': 1000})
             >>> print(regressor.get_best()['equation'])
             
             >>> # With variable transformations
             >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]
             >>> names = ["x0_minus_x1", "x2_squared", "sin_x3"]
-            >>> regressor = model.interpret(train_inputs, 
+            >>> regressor = model.distill(train_inputs, 
             ...                            variable_transforms=transforms, 
             ...                            fit_params={'variable_names': names})
         """
@@ -395,10 +396,10 @@ class MLP_SR(nn.Module):
             This is an internal method. Use switch_to_equation() for public API.
         """
         if not hasattr(self, 'pysr_regressor') or self.pysr_regressor is None:
-            print("❗No equations found for this MLP yet. You need to first run .interpret to find the best equation to fit this MLP.")
+            print("❗No equations found for this MLP yet. You need to first run .distill to find the best equation to fit this MLP.")
             return None
         if dim not in self.pysr_regressor:
-            print(f"❗No equation found for output dimension {dim}. You need to first run .interpret.")
+            print(f"❗No equation found for output dimension {dim}. You need to first run .distill.")
             return None
 
         regressor = self.pysr_regressor[dim]
@@ -435,11 +436,11 @@ class MLP_SR(nn.Module):
 
         """
         if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
-            print("❗No equations found for this MLP yet. You need to first run .interpret.")
+            print("❗No equations found for this MLP yet. You need to first run .distill.")
             return
         
         if not hasattr(self, 'output_dims'):
-            print("❗No output dimension information found. You need to first run .interpret.")
+            print("❗No output dimension information found. You need to first run .distill.")
             return
         
         # Check that we have equations for all output dimensions
@@ -449,7 +450,7 @@ class MLP_SR(nn.Module):
                 missing_dims.append(dim)
         
         if missing_dims:
-            print(f"❗Missing equations for dimensions {missing_dims}. You need to run .interpret on all output dimensions first.")
+            print(f"❗Missing equations for dimensions {missing_dims}. You need to run .distill on all output dimensions first.")
             print(f"Available dimensions: {list(self.pysr_regressor.keys())}")
             print(f"Required dimensions: {list(range(self.output_dims))}")
             return

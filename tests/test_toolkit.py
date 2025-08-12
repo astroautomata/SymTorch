@@ -90,7 +90,7 @@ def test_pruning_mlp_initialization():
     assert pruning_mlp.mlp_name == "test_mlp"
     assert pruning_mlp.pruning_mask.sum().item() == 32  # All dimensions initially active
     assert hasattr(pruning_mlp, 'InterpretSR_MLP')  # Inherited from MLP_SR
-    assert hasattr(pruning_mlp, 'interpret')  # Inherited from MLP_SR
+    assert hasattr(pruning_mlp, 'distill')  # Inherited from MLP_SR
 
 
 def test_pruning_schedule_cosine():
@@ -247,8 +247,8 @@ def test_pruned_forward_pass():
     assert not torch.allclose(active_outputs, torch.zeros_like(active_outputs)), "Active dimensions should have non-zero outputs"
 
 
-def test_pruned_interpret():
-    """Test that interpret works only on active dimensions."""
+def test_pruned_distill():
+    """Test that distill works only on active dimensions."""
     # Create and train a model
     model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=12)
     model.f_net = Pruning_MLP(model.f_net, initial_dim=12, target_dim=4, mlp_name="f_net")
@@ -268,9 +268,9 @@ def test_pruned_interpret():
     active_dims = model.f_net.get_active_dimensions()
     assert len(active_dims) == 4
     
-    # Run interpret - should only work on active dimensions
+    # Run distill - should only work on active dimensions
     input_data = X_train_tensor[:100]
-    regressors = model.f_net.interpret(input_data, parent_model=model, sr_params={'niterations': 20})
+    regressors = model.f_net.distill(input_data, parent_model=model, sr_params={'niterations': 20})
     
     # Should return dictionary with entries only for active dimensions
     assert isinstance(regressors, dict)
@@ -303,9 +303,9 @@ def test_pruned_switch_to_equation():
     sample_data = X_train_tensor[:30]
     model.f_net.prune(5, sample_data, parent_model=model)
     
-    # Run interpret
+    # Run distill
     input_data = X_train_tensor[:50]
-    regressors = model.f_net.interpret(input_data, parent_model=model, sr_params={'niterations': 15})
+    regressors = model.f_net.distill(input_data, parent_model=model, sr_params={'niterations': 15})
     
     active_dims = model.f_net.get_active_dimensions()
     assert len(regressors) == len(active_dims)
@@ -365,8 +365,8 @@ def test_pruned_forward_equation_vs_mlp_consistency():
     inactive_mask = ~model.f_net.pruning_mask
     assert torch.allclose(mlp_output[:, inactive_mask], torch.zeros(5, inactive_mask.sum()))
     
-    # Run interpret and switch to equation
-    model.f_net.interpret(X_train_tensor[:40], parent_model=model, sr_params={'niterations': 10})
+    # Run distill and switch to equation
+    model.f_net.distill(X_train_tensor[:40], parent_model=model, sr_params={'niterations': 10})
     model.f_net.switch_to_equation()
     
     # Get forward pass in equation mode
@@ -444,9 +444,9 @@ def test_no_active_dimensions_edge_case():
     active_dims = pruning_mlp.get_active_dimensions()
     assert active_dims == []
     
-    # interpret should return empty dict
+    # distill should return empty dict
     input_data = X_train_tensor[:20]
-    regressors = pruning_mlp.interpret(input_data, sr_params={'niterations': 5})
+    regressors = pruning_mlp.distill(input_data, sr_params={'niterations': 5})
     assert regressors == {}
     
     # switch_to_equation should handle gracefully
@@ -600,8 +600,8 @@ def test_pruning_mlp_in_middle_of_model():
     assert not torch.allclose(active_outputs, torch.zeros_like(active_outputs))
 
 
-def test_middle_mlp_interpret_and_switch():
-    """Test interpret and equation switching for middle MLP in composite model."""
+def test_middle_mlp_distill_and_switch():
+    """Test distill and equation switching for middle MLP in composite model."""
     # Create model with middle MLP
     model = CompositeModelWithMiddleMLP(input_dim=5, output_dim=1, 
                                        encoder_dim=10, middle_dim=16, decoder_dim=8)
@@ -625,9 +625,9 @@ def test_middle_mlp_interpret_and_switch():
     active_dims = model.middle_mlp.get_active_dimensions()
     assert len(active_dims) == 4
     
-    # Run interpret on the middle MLP - should work with parent_model
+    # Run distill on the middle MLP - should work with parent_model
     input_data = X_train_tensor[:60]
-    regressors = model.middle_mlp.interpret(input_data, parent_model=model, sr_params={'niterations': 15})
+    regressors = model.middle_mlp.distill(input_data, parent_model=model, sr_params={'niterations': 15})
     
     # Should have regressors for active dimensions only
     assert isinstance(regressors, dict)
@@ -709,9 +709,9 @@ def test_pruning_variable_transformations_basic():
         ]
         variable_names = ["x0_plus_x1", "x2_times_x3", "x4_squared"]
         
-        # Run interpretation with transformations
+        # Run distillation with transformations
         input_data = X_train_tensor[:80]
-        regressors = model.f_net.interpret(
+        regressors = model.f_net.distill(
             input_data,
             parent_model=model,
             variable_transforms=variable_transforms,
@@ -774,9 +774,9 @@ def test_pruning_variable_transformations_switch_to_equation():
         ]
         variable_names = ["sum_01", "x2"]
         
-        # Run interpretation with transformations
+        # Run distillation with transformations
         input_data = X_train_tensor[:50]
-        regressors = model.f_net.interpret(
+        regressors = model.f_net.distill(
             input_data,
             parent_model=model,
             variable_transforms=variable_transforms,
@@ -852,11 +852,11 @@ def test_pruning_variable_transformations_specific_dimension():
         ]
         variable_names = ["x0_minus_x1", "sin_x2", "x3_times_x4"]
         
-        # Run interpretation with transformations on specific active dimension
+        # Run distillation with transformations on specific active dimension
         input_data = X_train_tensor[:60]
         target_dim = active_dims[1]  # Pick one active dimension
         
-        regressor = model.f_net.interpret(
+        regressor = model.f_net.distill(
             input_data,
             parent_model=model,
             output_dim=target_dim,
@@ -911,7 +911,7 @@ def test_pruning_variable_transformations_error_handling():
         variable_names = ["only_one_name"]  # Length mismatch
         
         with pytest.raises(ValueError, match="Length of variable_names"):
-            model.f_net.interpret(
+            model.f_net.distill(
                 input_data,
                 parent_model=model,
                 variable_transforms=variable_transforms,
@@ -926,7 +926,7 @@ def test_pruning_variable_transformations_error_handling():
         variable_transforms = [bad_transform]
         
         with pytest.raises(ValueError, match="Error applying transformation"):
-            model.f_net.interpret(
+            model.f_net.distill(
                 input_data,
                 parent_model=model,
                 variable_transforms=variable_transforms,
@@ -963,9 +963,9 @@ def test_pruning_save_path_parameter():
         # Define custom save path
         custom_save_path = "custom_pruning_output"
         
-        # Run interpretation with custom save path
+        # Run distillation with custom save path
         input_data = X_train_tensor[:50]
-        regressors = model.f_net.interpret(
+        regressors = model.f_net.distill(
             input_data,
             parent_model=model,
             save_path=custom_save_path,
@@ -1022,9 +1022,9 @@ def test_pruning_variable_transformations_inactive_dimension_request():
         variable_transforms = [lambda x: x[:, 0], lambda x: x[:, 1]]
         variable_names = ["x0", "x1"]
         
-        # Try to run interpretation on inactive dimension
+        # Try to run distillation on inactive dimension
         input_data = X_train_tensor[:40]
-        result = model.f_net.interpret(
+        result = model.f_net.distill(
             input_data,
             parent_model=model,
             output_dim=inactive_dim,
