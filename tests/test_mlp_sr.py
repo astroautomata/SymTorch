@@ -1295,6 +1295,205 @@ def test_save_path_parameter():
         cleanup_sr_outputs()
 
 
+def test_get_importance_basic():
+    """
+    Test basic get_importance functionality with MLP_SR.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        # Create sample data for importance evaluation
+        sample_data = torch.FloatTensor(X_train[:100])
+        
+        # Test get_importance method
+        result = trained_model.mlp.get_importance(sample_data)
+        
+        # Verify output format
+        assert isinstance(result, dict), "Should return a dictionary"
+        assert 'importance' in result, "Should have 'importance' key"
+        assert 'std' in result, "Should have 'std' key"
+        
+        importance_order = result['importance']
+        std_values = result['std']
+        
+        assert isinstance(importance_order, list), "importance should be a list"
+        assert isinstance(std_values, list), "std should be a list"
+        assert len(importance_order) == 1, "Should have 1 dimension for single-output model"
+        assert len(std_values) == 1, "Should have 1 std value for single-output model"
+        assert importance_order[0] == 0, "Should have dimension 0 for single-output model"
+        assert all(isinstance(dim, int) for dim in importance_order), "All dimensions should be integers"
+        assert all(isinstance(std, float) for std in std_values), "All std values should be floats"
+        assert all(std >= 0 for std in std_values), "All std values should be non-negative"
+        
+        print("✅ Basic get_importance test passed")
+        
+    except Exception as e:
+        pytest.fail(f"get_importance basic test failed with error: {e}")
+
+
+def test_get_importance_multi_dimensional():
+    """
+    Test get_importance with multi-dimensional output model.
+    """
+    try:
+        # Create multi-output data with varying importance levels
+        np.random.seed(123)
+        x_data = np.random.uniform(-1, 1, (200, 4))
+        y_data = np.zeros((200, 3))
+        
+        # Create outputs with different variance levels (different importance)
+        y_data[:, 0] = x_data[:, 0] * 5 + np.random.normal(0, 0.1, 200)  # High variance
+        y_data[:, 1] = x_data[:, 1] * 0.5 + np.random.normal(0, 0.01, 200)  # Low variance  
+        y_data[:, 2] = x_data[:, 2] * 2 + np.random.normal(0, 0.05, 200)  # Medium variance
+        
+        # Create and train model
+        model = MultiOutputModel(input_dim=4, output_dim=3)
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.01)
+        
+        X_tensor = torch.FloatTensor(x_data)
+        y_tensor = torch.FloatTensor(y_data)
+        
+        # Quick training
+        for epoch in range(20):
+            optimizer.zero_grad()
+            pred = model(X_tensor)
+            loss = criterion(pred, y_tensor)
+            loss.backward()
+            optimizer.step()
+        
+        # Test get_importance
+        sample_data = X_tensor[:100]
+        result = model.mlp.get_importance(sample_data)
+        
+        # Verify output format
+        assert isinstance(result, dict), "Should return a dictionary"
+        assert 'importance' in result, "Should have 'importance' key"
+        assert 'std' in result, "Should have 'std' key"
+        
+        importance_order = result['importance']
+        std_values = result['std']
+        
+        assert isinstance(importance_order, list), "importance should be a list"
+        assert isinstance(std_values, list), "std should be a list"
+        assert len(importance_order) == 3, "Should have 3 dimensions for 3-output model"
+        assert len(std_values) == 3, "Should have 3 std values for 3-output model"
+        assert set(importance_order) == {0, 1, 2}, "Should contain all dimensions"
+        assert all(isinstance(dim, int) for dim in importance_order), "All dimensions should be integers"
+        assert all(isinstance(std, float) for std in std_values), "All std values should be floats"
+        assert all(std >= 0 for std in std_values), "All std values should be non-negative"
+        
+        # Check that ordering makes sense (dimension 0 should be most important due to highest variance)
+        assert importance_order[0] == 0, f"Dimension 0 should be most important, got order: {importance_order}"
+        
+        # Check that std values are ordered correctly (descending)
+        assert std_values[0] >= std_values[1] >= std_values[2], f"Std values should be in descending order: {std_values}"
+        
+        print("✅ Multi-dimensional get_importance test passed")
+        
+    except Exception as e:
+        pytest.fail(f"get_importance multi-dimensional test failed with error: {e}")
+
+
+def test_get_importance_with_parent_model():
+    """
+    Test get_importance with parent model for intermediary MLP evaluation.
+    """
+    try:
+        # Create composite model where f_net is wrapped with MLP_SR
+        class CompositeModel(nn.Module):
+            def __init__(self, input_dim, intermediate_dim, output_dim):
+                super(CompositeModel, self).__init__()
+                f_mlp = nn.Sequential(
+                    nn.Linear(input_dim, 64),
+                    nn.ReLU(),
+                    nn.Linear(64, intermediate_dim)
+                )
+                self.f_net = MLP_SR(f_mlp, mlp_name="f_net")
+                self.g_net = nn.Linear(intermediate_dim, output_dim)
+            
+            def forward(self, x):
+                x = self.f_net(x)
+                x = self.g_net(x)
+                return x
+        
+        # Create and train composite model
+        model = CompositeModel(input_dim=5, intermediate_dim=16, output_dim=1)
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(model.parameters(), lr=0.001)
+        
+        dataset = TensorDataset(torch.FloatTensor(X_train), torch.FloatTensor(y_train))
+        dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+        
+        # Train the composite model
+        model, _ = train_model(model, dataloader, optimizer, criterion, epochs=15)
+        
+        # Test get_importance with parent model
+        sample_data = torch.FloatTensor(X_train[:100])
+        result = model.f_net.get_importance(sample_data, parent_model=model)
+        
+        # Verify output format
+        assert isinstance(result, dict), "Should return a dictionary"
+        assert 'importance' in result, "Should have 'importance' key"
+        assert 'std' in result, "Should have 'std' key"
+        
+        importance_order = result['importance']
+        std_values = result['std']
+        
+        assert isinstance(importance_order, list), "importance should be a list"
+        assert isinstance(std_values, list), "std should be a list"
+        assert len(importance_order) == 16, "Should have 16 dimensions for intermediate layer"
+        assert len(std_values) == 16, "Should have 16 std values for intermediate layer"
+        assert set(importance_order) == set(range(16)), "Should contain all 16 dimensions"
+        assert all(isinstance(dim, int) for dim in importance_order), "All dimensions should be integers"
+        assert all(isinstance(std, float) for std in std_values), "All std values should be floats"
+        assert all(std >= 0 for std in std_values), "All std values should be non-negative"
+        
+        # Test without parent model (direct evaluation)
+        result_direct = model.f_net.get_importance(sample_data)
+        
+        # Both should return valid results
+        assert isinstance(result_direct, dict), "Direct evaluation should also return a dictionary"
+        assert len(result_direct['importance']) == 16, "Direct evaluation should have same dimension count"
+        assert len(result_direct['std']) == 16, "Direct evaluation should have same std count"
+        
+        print("✅ get_importance with parent model test passed")
+        
+    except Exception as e:
+        pytest.fail(f"get_importance with parent model test failed with error: {e}")
+
+
+def test_get_importance_consistency():
+    """
+    Test that get_importance returns consistent results for the same input.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        # Create sample data
+        sample_data = torch.FloatTensor(X_train[:50])
+        
+        # Call get_importance multiple times
+        result_1 = trained_model.mlp.get_importance(sample_data)
+        result_2 = trained_model.mlp.get_importance(sample_data)
+        result_3 = trained_model.mlp.get_importance(sample_data)
+        
+        # Results should be identical
+        assert result_1['importance'] == result_2['importance'], "importance lists should be consistent across calls"
+        assert result_2['importance'] == result_3['importance'], "importance lists should be consistent across calls"
+        assert result_1['std'] == result_2['std'], "std lists should be consistent across calls"
+        assert result_2['std'] == result_3['std'], "std lists should be consistent across calls"
+        
+        print("✅ get_importance consistency test passed")
+        
+    except Exception as e:
+        pytest.fail(f"get_importance consistency test failed with error: {e}")
+
+
 def cleanup_sr_outputs():
     """
     Clean up SR output files and directories created during testing.

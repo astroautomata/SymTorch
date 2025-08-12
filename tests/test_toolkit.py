@@ -1044,6 +1044,265 @@ def test_pruning_variable_transformations_inactive_dimension_request():
         cleanup_sr_outputs()
 
 
+def test_get_importance_basic_pruning_mlp():
+    """Test basic get_importance functionality with Pruning_MLP."""
+    # Create a model with multiple dimensions for meaningful importance testing
+    mlp = nn.Sequential(
+        nn.Linear(5, 32),
+        nn.ReLU(),
+        nn.Linear(32, 16)
+    )
+    pruning_mlp = Pruning_MLP(mlp, initial_dim=16, target_dim=4, mlp_name="test_importance")
+    
+    # No pruning yet, so should return all dimensions in importance order
+    sample_data = X_train_tensor[:100]
+    result = pruning_mlp.get_importance(sample_data)
+    
+    # Verify output format
+    assert isinstance(result, dict), "Should return a dictionary"
+    assert 'importance' in result, "Should have 'importance' key"
+    assert 'std' in result, "Should have 'std' key"
+    
+    importance_order = result['importance']
+    std_values = result['std']
+    
+    assert isinstance(importance_order, list), "importance should be a list"
+    assert isinstance(std_values, list), "std should be a list"
+    assert len(importance_order) == 16, "Should have all 16 initial dimensions"
+    assert len(std_values) == 16, "Should have all 16 std values"
+    assert set(importance_order) == set(range(16)), "Should contain all initial dimensions"
+    assert all(isinstance(dim, int) for dim in importance_order), "All dimensions should be integers"
+    assert all(isinstance(std, float) for std in std_values), "All std values should be floats"
+    assert all(std >= 0 for std in std_values), "All std values should be non-negative"
+    
+    print("✅ Basic get_importance Pruning_MLP test passed")
+
+
+def test_get_importance_after_pruning():
+    """Test get_importance with Pruning_MLP after pruning has occurred."""
+    # Create and train a model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=12)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=12, target_dim=4, mlp_name="f_net")
+    
+    # Train briefly to develop feature importance
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=5)
+    
+    # Set up pruning schedule and prune
+    model.f_net.set_schedule(total_epochs=20, decay_rate='linear', end_epoch_frac=0.5)
+    sample_data = X_train_tensor[:100]
+    model.f_net.prune(10, sample_data, parent_model=model)
+    
+    # Should have 4 active dimensions after pruning
+    active_dims = model.f_net.get_active_dimensions()
+    assert len(active_dims) == 4
+    
+    # Test get_importance after pruning
+    result = model.f_net.get_importance(sample_data, parent_model=model)
+    
+    # Should only return active dimensions
+    assert isinstance(result, dict), "Should return a dictionary"
+    assert 'importance' in result, "Should have 'importance' key"
+    assert 'std' in result, "Should have 'std' key"
+    
+    importance_order = result['importance']
+    std_values = result['std']
+    
+    assert isinstance(importance_order, list), "importance should be a list"
+    assert isinstance(std_values, list), "std should be a list"
+    assert len(importance_order) == 4, "Should have only active dimensions"
+    assert len(std_values) == 4, "Should have only active std values"
+    assert set(importance_order) == set(active_dims), "Should contain only active dimensions"
+    assert all(isinstance(dim, int) for dim in importance_order), "All dimensions should be integers"
+    assert all(isinstance(std, float) for std in std_values), "All std values should be floats"
+    assert all(std >= 0 for std in std_values), "All std values should be non-negative"
+    
+    # Test without parent model too
+    result_direct = model.f_net.get_importance(sample_data)
+    assert len(result_direct['importance']) == 4, "Direct evaluation should also return only active dimensions"
+    assert len(result_direct['std']) == 4, "Direct evaluation should have only active std values"
+    assert set(result_direct['importance']) == set(active_dims), "Direct evaluation should match active dimensions"
+    
+    print("✅ get_importance after pruning test passed")
+
+
+def test_get_importance_with_composite_model():
+    """Test get_importance with Pruning_MLP in a composite model using parent_model."""
+    # Create composite model where the MLP is in the middle
+    model = CompositeModelWithMiddleMLP(input_dim=5, output_dim=1, 
+                                       encoder_dim=12, middle_dim=16, decoder_dim=8)
+    
+    # Wrap middle MLP with Pruning_MLP
+    model.middle_mlp = Pruning_MLP(model.middle_mlp, initial_dim=16, target_dim=6, 
+                                  mlp_name="middle_mlp")
+    
+    # Train briefly
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=5)
+    
+    # Test get_importance with parent model (before pruning)
+    sample_data = X_train_tensor[:80]
+    result = model.middle_mlp.get_importance(sample_data, parent_model=model)
+    
+    # Should return all 16 dimensions before pruning
+    assert isinstance(result, dict), "Should return a dictionary"
+    assert 'importance' in result and 'std' in result, "Should have both keys"
+    importance_order = result['importance']
+    std_values = result['std']
+    assert isinstance(importance_order, list), "importance should be a list"
+    assert isinstance(std_values, list), "std should be a list"
+    assert len(importance_order) == 16, "Should have all dimensions before pruning"
+    assert len(std_values) == 16, "Should have all std values before pruning"
+    assert set(importance_order) == set(range(16)), "Should contain all dimensions"
+    
+    # Set up pruning and prune
+    model.middle_mlp.set_schedule(total_epochs=30, decay_rate='cosine', end_epoch_frac=0.6)
+    model.middle_mlp.prune(18, sample_data, parent_model=model)
+    
+    # Should have fewer active dimensions now
+    active_dims = model.middle_mlp.get_active_dimensions()
+    assert len(active_dims) == 6
+    
+    # Test get_importance after pruning
+    result_after = model.middle_mlp.get_importance(sample_data, parent_model=model)
+    
+    # Should return only active dimensions
+    assert isinstance(result_after, dict), "Should return a dictionary after pruning"
+    assert 'importance' in result_after and 'std' in result_after, "Should have both keys"
+    importance_order_after = result_after['importance']
+    std_values_after = result_after['std']
+    assert len(importance_order_after) == 6, "Should have only active dimensions after pruning"
+    assert len(std_values_after) == 6, "Should have only active std values after pruning"
+    assert set(importance_order_after) == set(active_dims), "Should contain only active dimensions"
+    
+    print("✅ get_importance with composite model test passed")
+
+
+def test_get_importance_no_active_dimensions():
+    """Test get_importance when there are no active dimensions (edge case)."""
+    # Create a Pruning_MLP
+    mlp = nn.Sequential(nn.Linear(5, 8), nn.ReLU(), nn.Linear(8, 8))
+    pruning_mlp = Pruning_MLP(mlp, initial_dim=8, target_dim=2, mlp_name="test_no_active")
+    
+    # Manually set pruning mask to all False (no active dimensions)
+    pruning_mlp.pruning_mask.fill_(False)
+    pruning_mlp.current_dim = 0
+    
+    sample_data = X_train_tensor[:50]
+    result = pruning_mlp.get_importance(sample_data)
+    
+    # Should return empty lists in dictionary
+    assert isinstance(result, dict), "Should return a dictionary"
+    assert 'importance' in result and 'std' in result, "Should have both keys"
+    importance_order = result['importance']
+    std_values = result['std']
+    assert isinstance(importance_order, list), "importance should be a list"
+    assert isinstance(std_values, list), "std should be a list"
+    assert len(importance_order) == 0, "Should return empty importance list when no active dimensions"
+    assert len(std_values) == 0, "Should return empty std list when no active dimensions"
+    
+    print("✅ get_importance no active dimensions test passed")
+
+
+def test_get_importance_consistency_pruning_mlp():
+    """Test that get_importance returns consistent results for Pruning_MLP."""
+    # Create and set up model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=10)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=10, target_dim=3, mlp_name="f_net")
+    
+    # Train briefly
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    # Prune to get active dimensions
+    model.f_net.set_schedule(total_epochs=15, decay_rate='linear', end_epoch_frac=0.5)
+    sample_data = X_train_tensor[:60]
+    model.f_net.prune(8, sample_data, parent_model=model)
+    
+    # Call get_importance multiple times
+    result_1 = model.f_net.get_importance(sample_data, parent_model=model)
+    result_2 = model.f_net.get_importance(sample_data, parent_model=model)
+    result_3 = model.f_net.get_importance(sample_data)  # Without parent model
+    
+    # Results should be consistent
+    assert result_1['importance'] == result_2['importance'], "importance should be consistent with parent model"
+    assert result_1['std'] == result_2['std'], "std should be consistent with parent model"
+    # Without parent model might give different ordering due to different intermediate activations
+    # but should have same set of dimensions
+    assert set(result_1['importance']) == set(result_3['importance']), "Should have same active dimensions"
+    assert len(result_1['importance']) == len(result_3['importance']) == 3, "Should have same number of dimensions"
+    assert len(result_1['std']) == len(result_3['std']) == 3, "Should have same number of std values"
+    
+    print("✅ get_importance consistency Pruning_MLP test passed")
+
+
+def test_get_importance_ordering_makes_sense():
+    """Test that get_importance ordering makes logical sense based on variance."""
+    # Create data where we can control which dimensions have higher variance
+    np.random.seed(456)
+    torch.manual_seed(456)
+    
+    # Create model with controlled output
+    class ControlledOutputModel(nn.Module):
+        def __init__(self, input_dim, output_dim):
+            super(ControlledOutputModel, self).__init__()
+            # Use a simple linear layer so we can control outputs more easily
+            mlp = nn.Linear(input_dim, output_dim)
+            self.f_net = Pruning_MLP(mlp, initial_dim=output_dim, target_dim=3, 
+                                   mlp_name="controlled")
+            
+            # Initialize weights to create predictable variance patterns
+            with torch.no_grad():
+                # Make dimension 0 have high variance, dimension 1 low variance, etc.
+                self.f_net.InterpretSR_MLP.weight[0, :] = torch.tensor([5.0, 0.0, 0.0, 0.0, 0.0])  # High variance
+                self.f_net.InterpretSR_MLP.weight[1, :] = torch.tensor([0.1, 0.0, 0.0, 0.0, 0.0])  # Low variance
+                self.f_net.InterpretSR_MLP.weight[2, :] = torch.tensor([2.0, 0.0, 0.0, 0.0, 0.0])  # Medium variance
+                self.f_net.InterpretSR_MLP.weight[3, :] = torch.tensor([3.0, 0.0, 0.0, 0.0, 0.0])  # Medium-high variance
+                self.f_net.InterpretSR_MLP.bias.fill_(0.0)
+        
+        def forward(self, x):
+            return self.f_net(x)
+    
+    model = ControlledOutputModel(input_dim=5, output_dim=4)
+    
+    # Create test data with varying first input dimension
+    sample_data = torch.randn(100, 5)
+    sample_data[:, 0] = torch.linspace(-2, 2, 100)  # Controlled variance in first input
+    
+    # Test get_importance (before pruning - should have all 4 dimensions)
+    result = model.f_net.get_importance(sample_data)
+    
+    # Verify dictionary format
+    assert isinstance(result, dict), "Should return a dictionary"
+    assert 'importance' in result and 'std' in result, "Should have both keys"
+    importance_order = result['importance']
+    std_values = result['std']
+    
+    # Based on our weight initialization:
+    # dim 0: weight=5.0 -> highest variance
+    # dim 3: weight=3.0 -> second highest 
+    # dim 2: weight=2.0 -> third highest
+    # dim 1: weight=0.1 -> lowest variance
+    expected_order = [0, 3, 2, 1]  # Most to least important
+    
+    assert importance_order == expected_order, f"Expected {expected_order}, got {importance_order}"
+    
+    # Check that std values are ordered correctly (descending)
+    for i in range(len(std_values) - 1):
+        assert std_values[i] >= std_values[i + 1], f"Std values should be in descending order: {std_values}"
+    
+    print("✅ get_importance ordering test passed")
+
+
 def cleanup_sr_outputs():
     """Clean up SR output files and directories created during testing."""
     if os.path.exists('SR_output'):
