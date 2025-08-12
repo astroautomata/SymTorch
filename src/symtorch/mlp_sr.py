@@ -582,3 +582,71 @@ class MLP_SR(nn.Module):
             print(f"✅ Switched {self.mlp_name} back to MLP")
         else:
             print("❗ No original MLP stored to switch back to")
+
+    def get_importance(self, sample_data: torch.Tensor, parent_model=None):
+        """
+        Get ordered list of output dimensions from most to least important.
+        
+        Evaluates importance by computing standard deviation across sample data,
+        with higher standard deviation indicating higher importance.
+        
+        Args:
+            sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
+                                       Typically a subset of validation data.
+            parent_model (nn.Module, optional): The parent model containing this MLP_SR instance.
+                                              If provided, will trace intermediate activations to get
+                                              the actual outputs at this layer level for importance evaluation.
+                                              
+        Returns:
+            dict: Dictionary with keys:
+                - 'importance': List of dimension indices ordered from most important to least important
+                - 'std': List of standard deviation values corresponding to the ordered dimensions
+            
+        Example:
+            >>> result = model.mlp.get_importance(validation_data)
+            >>> print(f"Most important dimension: {result['importance'][0]} (std: {result['std'][0]})")
+            >>> print(f"Least important dimension: {result['importance'][-1]} (std: {result['std'][-1]})")
+        """
+        with torch.no_grad():
+            # Extract outputs at this layer level for importance evaluation
+            if parent_model is not None:
+                # Use forward hooks to capture outputs at this specific layer
+                layer_outputs = []
+                
+                def hook_fn(module, _, output):
+                    if module is self.InterpretSR_MLP:
+                        layer_outputs.append(output.clone())
+                
+                # Register forward hook
+                hook = self.InterpretSR_MLP.register_forward_hook(hook_fn)
+                
+                # Run parent model to capture intermediate activations
+                parent_model.eval()
+                _ = parent_model(sample_data)
+                
+                # Remove hook
+                hook.remove()
+                
+                # Use captured intermediate data
+                if layer_outputs:
+                    output_array = layer_outputs[0]
+                else:
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.")
+            else:
+                # Original behavior - use MLP directly
+                self.InterpretSR_MLP.eval()
+                output_array = self.InterpretSR_MLP(sample_data)
+
+            # Calculate importance based on standard deviation
+            output_importance = output_array.std(dim=0)
+            # Sort from most important to least important (descending order)
+            importance_indices = torch.argsort(output_importance, descending=True)
+            
+            # Get ordered importance values and dimension indices
+            importance_order = importance_indices.tolist()
+            std_values = output_importance[importance_indices].tolist()
+            
+            return {
+                'importance': importance_order,
+                'std': std_values
+            }

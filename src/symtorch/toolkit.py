@@ -687,3 +687,82 @@ class Pruning_MLP(MLP_SR):
             
             # Apply pruning mask to ensure inactive dimensions are zero
             return output * self.pruning_mask
+
+    def get_importance(self, sample_data: torch.Tensor, parent_model=None):
+        """
+        Get ordered list of output dimensions from most to least important.
+        
+        For Pruning_MLP, this considers only currently active (non-pruned) dimensions.
+        Evaluates importance by computing standard deviation across sample data,
+        with higher standard deviation indicating higher importance.
+        
+        Args:
+            sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
+                                       Typically a subset of validation data.
+            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.
+                                              If provided, will trace intermediate activations to get
+                                              the actual outputs at this layer level for importance evaluation.
+                                              
+        Returns:
+            dict: Dictionary with keys:
+                - 'importance': List of dimension indices ordered from most important to least important.
+                               Only includes currently active (non-pruned) dimensions.
+                - 'std': List of standard deviation values corresponding to the ordered active dimensions
+            
+        Example:
+            >>> result = model.f_net.get_importance(validation_data)
+            >>> print(f"Most important active dimension: {result['importance'][0]} (std: {result['std'][0]})")
+            >>> print(f"Least important active dimension: {result['importance'][-1]} (std: {result['std'][-1]})")
+        """
+        with torch.no_grad():
+            # Extract outputs at this layer level for importance evaluation
+            if parent_model is not None:
+                # Use forward hooks to capture outputs at this specific layer
+                layer_outputs = []
+                
+                def hook_fn(module, _, output):
+                    if module is self.InterpretSR_MLP:
+                        layer_outputs.append(output.clone())
+                
+                # Register forward hook
+                hook = self.InterpretSR_MLP.register_forward_hook(hook_fn)
+                
+                # Run parent model to capture intermediate activations
+                parent_model.eval()
+                _ = parent_model(sample_data)
+                
+                # Remove hook
+                hook.remove()
+                
+                # Use captured intermediate data
+                if layer_outputs:
+                    output_array = layer_outputs[0]
+                else:
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this Pruning_MLP instance.")
+            else:
+                # Original behavior - use MLP directly
+                self.InterpretSR_MLP.eval()
+                output_array = self.InterpretSR_MLP(sample_data)
+
+            # Calculate importance for all dimensions
+            output_importance = output_array.std(dim=0)
+            
+            # Filter to only active dimensions
+            active_dims = self.get_active_dimensions()
+            if not active_dims:
+                return {'importance': [], 'std': []}
+            
+            # Get importance values for active dimensions only
+            active_importance = output_importance[active_dims]
+            
+            # Sort active dimensions by importance (descending order)
+            sorted_indices = torch.argsort(active_importance, descending=True)
+            
+            # Map back to original dimension indices and get corresponding std values
+            importance_order = [active_dims[i] for i in sorted_indices.tolist()]
+            std_values = active_importance[sorted_indices].tolist()
+            
+            return {
+                'importance': importance_order,
+                'std': std_values
+            }
