@@ -12,3 +12,6 @@ docs/SR_output
 
 #testing files 
 docs/demos/script.py
+
+#redundant files
+redundant/
