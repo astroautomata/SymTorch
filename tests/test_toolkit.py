@@ -1303,6 +1303,508 @@ def test_get_importance_ordering_makes_sense():
     print("✅ get_importance ordering test passed")
 
 
+def test_save_pruning_model_basic():
+    """
+    Test basic Pruning_MLP model saving functionality.
+    """
+    # Create and train a basic Pruning_MLP model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=8)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=8, target_dim=3, mlp_name="test_save")
+    
+    # Train briefly
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    try:
+        save_path = "test_pruning_save_basic"
+        
+        # Save the model
+        saved_files = model.f_net.save_model(save_path)
+        
+        # Verify files were created
+        assert isinstance(saved_files, list), "Should return list of saved files"
+        assert len(saved_files) > 0, "Should create at least one file"
+        
+        # Check expected files exist
+        expected_pytorch = f"{save_path}_pytorch.pth"
+        expected_metadata = f"{save_path}_metadata.pkl"
+        
+        assert expected_pytorch in saved_files, "Should save PyTorch state dict"
+        assert expected_metadata in saved_files, "Should save metadata"
+        assert os.path.exists(expected_pytorch), "PyTorch file should exist"
+        assert os.path.exists(expected_metadata), "Metadata file should exist"
+        
+        # Load and verify metadata contains Pruning_MLP specific info
+        import pickle
+        with open(expected_metadata, 'rb') as f:
+            metadata = pickle.load(f)
+        
+        assert metadata['class_name'] == 'Pruning_MLP', "Should identify as Pruning_MLP"
+        assert 'initial_dim' in metadata, "Should save initial_dim"
+        assert 'current_dim' in metadata, "Should save current_dim"
+        assert 'target_dim' in metadata, "Should save target_dim"
+        assert 'pruning_mask' in metadata, "Should save pruning_mask"
+        assert metadata['initial_dim'] == 8, "Should preserve initial dimensions"
+        assert metadata['target_dim'] == 3, "Should preserve target dimensions"
+        
+        print("✅ Basic Pruning_MLP save test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP save basic test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_save_basic")
+
+
+def test_save_pruning_model_after_pruning():
+    """
+    Test saving Pruning_MLP model after pruning has occurred.
+    """
+    # Create and train model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=10)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=10, target_dim=4, mlp_name="test_pruned_save")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    # Set up pruning and prune
+    model.f_net.set_schedule(total_epochs=10, decay_rate='linear', end_epoch_frac=0.5)
+    sample_data = X_train_tensor[:50]
+    model.f_net.prune(5, sample_data, parent_model=model)  # Should prune to target_dim=4
+    
+    active_dims = model.f_net.get_active_dimensions()
+    assert len(active_dims) == 4, "Should have 4 active dimensions after pruning"
+    
+    try:
+        save_path = "test_pruning_save_after_prune"
+        
+        # Save the pruned model
+        saved_files = model.f_net.save_model(save_path)
+        
+        # Load metadata and verify pruning state was saved
+        metadata_file = f"{save_path}_metadata.pkl"
+        import pickle
+        with open(metadata_file, 'rb') as f:
+            metadata = pickle.load(f)
+        
+        assert metadata['current_dim'] == 4, "Should save current pruned dimension count"
+        assert metadata['active_dimensions'] == active_dims, "Should save active dimensions"
+        assert len(metadata['pruning_mask']) == 10, "Pruning mask should have initial_dim length"
+        assert sum(metadata['pruning_mask']) == 4, "Pruning mask should have 4 active dimensions"
+        
+        print("✅ Pruning_MLP save after pruning test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP save after pruning test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_save_after_prune")
+
+
+def test_save_pruning_model_with_regressors():
+    """
+    Test saving Pruning_MLP model with symbolic regressors.
+    """
+    # Create and train model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=8)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=8, target_dim=3, mlp_name="test_pruned_regressors")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    # Prune and run symbolic regression
+    model.f_net.set_schedule(total_epochs=10, decay_rate='linear', end_epoch_frac=0.5)
+    sample_data = X_train_tensor[:50]
+    model.f_net.prune(5, sample_data, parent_model=model)
+    
+    # Run distill on active dimensions
+    input_data = X_train_tensor[:40]
+    regressors = model.f_net.distill(input_data, parent_model=model, sr_params={'niterations': 15})
+    
+    active_dims = model.f_net.get_active_dimensions()
+    assert len(regressors) == len(active_dims), "Should have regressors for all active dimensions"
+    
+    try:
+        save_path = "test_pruning_save_with_regressors"
+        
+        # Save model with regressors
+        saved_files = model.f_net.save_model(save_path, save_pytorch=True, save_regressors=True)
+        
+        # Should have PyTorch file, metadata, and regressor files for active dimensions only
+        assert len(saved_files) >= 3, "Should save at least PyTorch, metadata, and regressor files"
+        
+        # Check for regressor files - should only have files for active dimensions
+        regressor_files = [f for f in saved_files if 'regressor_dim' in f]
+        assert len(regressor_files) == len(active_dims), f"Should save {len(active_dims)} regressor files for active dimensions"
+        
+        # Verify each regressor file corresponds to an active dimension
+        saved_dims = []
+        for regressor_file in regressor_files:
+            # Extract dimension number from filename
+            import re
+            match = re.search(r'regressor_dim(\d+)\.pkl', regressor_file)
+            if match:
+                dim = int(match.group(1))
+                saved_dims.append(dim)
+                assert dim in active_dims, f"Regressor file for dimension {dim} should only exist for active dimensions"
+                assert os.path.exists(regressor_file), f"Regressor file should exist: {regressor_file}"
+        
+        assert set(saved_dims) == set(active_dims), "Should save regressors for exactly the active dimensions"
+        
+        print("✅ Pruning_MLP save with regressors test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP save with regressors test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_save_with_regressors")
+
+
+def test_load_pruning_model_basic():
+    """
+    Test basic Pruning_MLP model loading functionality.
+    """
+    # Create and train original model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=6)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=6, target_dim=2, mlp_name="test_load")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    try:
+        save_path = "test_pruning_load_basic"
+        
+        # Save the model
+        model.f_net.save_model(save_path)
+        
+        # Create same architecture for loading
+        original_architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Linear(64, 6)
+        )
+        
+        # Load the model
+        loaded_model = Pruning_MLP.load_model(save_path, original_architecture)
+        
+        # Verify loaded model properties
+        assert isinstance(loaded_model, Pruning_MLP), "Should return Pruning_MLP instance"
+        assert loaded_model.mlp_name == model.f_net.mlp_name, "Should preserve mlp_name"
+        assert loaded_model.initial_dim == 6, "Should preserve initial_dim"
+        assert loaded_model.current_dim == 6, "Should preserve current_dim (no pruning yet)"
+        assert loaded_model.target_dim == 2, "Should preserve target_dim"
+        assert hasattr(loaded_model, 'InterpretSR_MLP'), "Should have wrapped MLP"
+        
+        # Test forward pass works
+        test_input = X_train_tensor[:5]
+        original_output = model.f_net(test_input)
+        loaded_output = loaded_model(test_input)
+        
+        # Outputs should be very similar (within floating point precision)
+        diff = torch.abs(original_output - loaded_output)
+        max_diff = torch.max(diff)
+        assert max_diff < 1e-5, f"Loaded model should produce similar outputs (max diff: {max_diff})"
+        
+        # Test that pruning functionality is preserved
+        sample_data = X_train_tensor[:30]
+        loaded_model.set_schedule(total_epochs=10, decay_rate='linear', end_epoch_frac=0.5)
+        loaded_model.prune(5, sample_data)  # Should prune to target_dim
+        assert loaded_model.current_dim == 2, "Loaded model should support pruning"
+        
+        print("✅ Basic Pruning_MLP load test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP load basic test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_load_basic")
+
+
+def test_load_pruning_model_with_pruning_state():
+    """
+    Test loading Pruning_MLP model that was saved after pruning.
+    """
+    # Create, train, and prune original model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=8)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=8, target_dim=3, mlp_name="test_load_pruned")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    # Prune the model
+    model.f_net.set_schedule(total_epochs=15, decay_rate='linear', end_epoch_frac=0.6)
+    sample_data = X_train_tensor[:50]
+    model.f_net.prune(9, sample_data, parent_model=model)  # Should prune to target_dim=3
+    
+    original_active_dims = model.f_net.get_active_dimensions()
+    original_pruning_mask = model.f_net.pruning_mask.clone()
+    
+    try:
+        save_path = "test_pruning_load_with_state"
+        
+        # Save the pruned model
+        model.f_net.save_model(save_path)
+        
+        # Create architecture for loading
+        architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Linear(64, 8)
+        )
+        
+        # Load the model
+        loaded_model = Pruning_MLP.load_model(save_path, architecture)
+        
+        # Verify pruning state was restored
+        assert loaded_model.current_dim == 3, "Should restore current_dim"
+        assert loaded_model.initial_dim == 8, "Should restore initial_dim"
+        assert loaded_model.target_dim == 3, "Should restore target_dim"
+        
+        loaded_active_dims = loaded_model.get_active_dimensions()
+        assert loaded_active_dims == original_active_dims, "Should restore exact active dimensions"
+        assert torch.equal(loaded_model.pruning_mask, original_pruning_mask), "Should restore exact pruning mask"
+        
+        # Test forward pass respects pruning
+        test_input = X_train_tensor[:5]
+        original_output = model.f_net(test_input)
+        loaded_output = loaded_model(test_input)
+        
+        # Outputs should match
+        diff = torch.abs(original_output - loaded_output)
+        max_diff = torch.max(diff)
+        assert max_diff < 1e-5, f"Pruned outputs should match (max diff: {max_diff})"
+        
+        # Verify inactive dimensions are still zero
+        inactive_mask = ~loaded_model.pruning_mask
+        assert torch.allclose(loaded_output[:, inactive_mask], torch.zeros(5, inactive_mask.sum())), "Inactive dimensions should be zero"
+        
+        print("✅ Pruning_MLP load with pruning state test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP load with pruning state test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_load_with_state")
+
+
+def test_load_pruning_model_with_regressors_and_equations():
+    """
+    Test loading Pruning_MLP model with regressors and equation mode.
+    """
+    # Create, train, prune, and add symbolic regression to original model
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=6)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=6, target_dim=2, mlp_name="test_load_eq")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    # Prune and run symbolic regression
+    model.f_net.set_schedule(total_epochs=10, decay_rate='linear', end_epoch_frac=0.5)
+    sample_data = X_train_tensor[:40]
+    model.f_net.prune(5, sample_data, parent_model=model)
+    
+    input_data = X_train_tensor[:40]
+    model.f_net.distill(input_data, parent_model=model, sr_params={'niterations': 15})
+    
+    # Switch to equation mode
+    model.f_net.switch_to_equation()
+    original_using_equation = model.f_net._using_equation
+    original_active_dims = model.f_net.get_active_dimensions()
+    
+    try:
+        save_path = "test_pruning_load_with_equations"
+        
+        # Save the model
+        model.f_net.save_model(save_path)
+        
+        # Create architecture for loading
+        architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Linear(64, 6)
+        )
+        
+        # Load the model
+        loaded_model = Pruning_MLP.load_model(save_path, architecture)
+        
+        # Verify regressor and equation state loading
+        assert hasattr(loaded_model, 'pysr_regressor'), "Should have regressors"
+        assert len(loaded_model.pysr_regressor) > 0, "Should have loaded regressors"
+        assert loaded_model._using_equation == original_using_equation, "Should restore equation mode"
+        
+        loaded_active_dims = loaded_model.get_active_dimensions()
+        assert loaded_active_dims == original_active_dims, "Should restore active dimensions"
+        
+        # Verify only active dimensions have regressors
+        for dim in loaded_model.pysr_regressor:
+            assert dim in loaded_active_dims, f"Regressor dimension {dim} should be in active dimensions"
+        
+        # Test that loaded model can switch modes
+        if original_using_equation:
+            assert hasattr(loaded_model, '_equation_funcs'), "Should have equation functions"
+            assert len(loaded_model._equation_funcs) == len(loaded_active_dims), "Should have equations for active dims"
+            
+            # Switch back to MLP mode
+            loaded_model.switch_to_mlp()
+            assert not loaded_model._using_equation, "Should switch back to MLP mode"
+            
+            # Switch back to equation mode
+            loaded_model.switch_to_equation()
+            assert loaded_model._using_equation, "Should switch back to equation mode"
+        
+        # Test forward pass works in both modes
+        test_input = X_train_tensor[:3]
+        
+        # Test MLP mode
+        loaded_model.switch_to_mlp()
+        mlp_output = loaded_model(test_input)
+        assert mlp_output.shape == (3, 6), "Should maintain full output shape"
+        
+        # Test equation mode
+        loaded_model.switch_to_equation()
+        eq_output = loaded_model(test_input)
+        assert eq_output.shape == (3, 6), "Should maintain full output shape in equation mode"
+        
+        # Verify inactive dimensions are zero in both modes
+        inactive_mask = ~loaded_model.pruning_mask
+        assert torch.allclose(mlp_output[:, inactive_mask], torch.zeros(3, inactive_mask.sum())), "MLP mode should zero inactive dims"
+        assert torch.allclose(eq_output[:, inactive_mask], torch.zeros(3, inactive_mask.sum())), "Equation mode should zero inactive dims"
+        
+        print("✅ Pruning_MLP load with regressors and equations test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP load with regressors and equations test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_load_with_equations")
+
+
+def test_pruning_save_load_roundtrip():
+    """
+    Test complete save/load roundtrip preserves all Pruning_MLP functionality.
+    """
+    # Create comprehensive test scenario
+    model = SimpleCompositeModel(input_dim=5, output_dim=1, output_dim_f=8)
+    model.f_net = Pruning_MLP(model.f_net, initial_dim=8, target_dim=3, mlp_name="roundtrip_test")
+    
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.01)
+    dataset = TensorDataset(X_train_tensor, y_train_tensor)
+    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    model, _ = train_model(model, dataloader, optimizer, criterion, epochs=3)
+    
+    # Set up complete pruning scenario
+    model.f_net.set_schedule(total_epochs=20, decay_rate='cosine', end_epoch_frac=0.6)
+    sample_data = X_train_tensor[:50]
+    model.f_net.prune(12, sample_data, parent_model=model)  # Should prune to target
+    
+    # Add symbolic regression
+    input_data = X_train_tensor[:50]
+    model.f_net.distill(input_data, parent_model=model, sr_params={'niterations': 20})
+    
+    # Test both modes
+    test_input = X_train_tensor[:5]
+    
+    # Test MLP mode
+    model.f_net.switch_to_mlp()
+    original_mlp_output = model.f_net(test_input).clone().detach()
+    
+    # Test equation mode  
+    model.f_net.switch_to_equation()
+    original_eq_output = model.f_net(test_input).clone().detach()
+    
+    # Store original state
+    original_active_dims = model.f_net.get_active_dimensions()
+    original_pruning_mask = model.f_net.pruning_mask.clone()
+    original_schedule = model.f_net.pruning_schedule.copy() if model.f_net.pruning_schedule else None
+    
+    try:
+        save_path = "test_pruning_roundtrip"
+        
+        # Save complete model
+        model.f_net.save_model(save_path)
+        
+        # Create architecture for loading
+        architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Linear(64, 8)
+        )
+        
+        # Load the model
+        loaded_model = Pruning_MLP.load_model(save_path, architecture)
+        
+        # Verify all state was preserved
+        assert loaded_model.initial_dim == 8, "Should preserve initial_dim"
+        assert loaded_model.current_dim == 3, "Should preserve current_dim"  
+        assert loaded_model.target_dim == 3, "Should preserve target_dim"
+        assert loaded_model.get_active_dimensions() == original_active_dims, "Should preserve active dimensions"
+        assert torch.equal(loaded_model.pruning_mask, original_pruning_mask), "Should preserve pruning mask"
+        assert loaded_model.pruning_schedule == original_schedule, "Should preserve pruning schedule"
+        
+        # Test MLP mode preservation
+        loaded_model.switch_to_mlp()
+        loaded_mlp_output = loaded_model(test_input)
+        mlp_diff = torch.abs(original_mlp_output - loaded_mlp_output)
+        max_mlp_diff = torch.max(mlp_diff)
+        assert max_mlp_diff < 1e-5, f"MLP outputs should match (max diff: {max_mlp_diff})"
+        
+        # Test equation mode preservation
+        loaded_model.switch_to_equation()
+        loaded_eq_output = loaded_model(test_input)
+        eq_diff = torch.abs(original_eq_output - loaded_eq_output)
+        max_eq_diff = torch.max(eq_diff)
+        assert max_eq_diff < 1e-4, f"Equation outputs should be similar (max diff: {max_eq_diff})"
+        
+        # Test that all functionality still works
+        # Test pruning functionality
+        new_schedule_epochs = 10
+        loaded_model.set_schedule(total_epochs=new_schedule_epochs, decay_rate='linear', end_epoch_frac=0.5)
+        assert len(loaded_model.pruning_schedule) == new_schedule_epochs, "Should be able to set new schedule"
+        
+        # Test importance evaluation
+        importance_result = loaded_model.get_importance(sample_data)
+        assert len(importance_result['importance']) == 3, "Should evaluate importance for active dimensions"
+        assert len(importance_result['std']) == 3, "Should have std values for active dimensions"
+        
+        print("✅ Pruning_MLP complete roundtrip test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Pruning_MLP roundtrip test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_pruning_roundtrip")
+
+
+def cleanup_save_test_files(base_name):
+    """Clean up files created during save/load tests."""
+    import glob
+    
+    patterns = [
+        f"{base_name}_*.pth",
+        f"{base_name}_*.pkl",
+        f"{base_name}_regressor_*.pkl"
+    ]
+    
+    for pattern in patterns:
+        for file_path in glob.glob(pattern):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
+
+
 def cleanup_sr_outputs():
     """Clean up SR output files and directories created during testing."""
     if os.path.exists('SR_output'):

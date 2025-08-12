@@ -304,9 +304,13 @@ def test_equation_actually_used_in_forward():
     except Exception as e:
         pytest.fail(f"test_equation_actually_used_in_forward failed with error: {e}")
     finally:
-        # Reset to MLP mode
+        # Reset to MLP mode and clean up manually set equation components
         if hasattr(trained_model.mlp, '_using_equation'):
             trained_model.mlp._using_equation = False
+        if hasattr(trained_model.mlp, '_equation_funcs'):
+            delattr(trained_model.mlp, '_equation_funcs')
+        if hasattr(trained_model.mlp, '_equation_vars'):
+            delattr(trained_model.mlp, '_equation_vars')
 
 
 def test_mlp_actually_used_after_switch_back():
@@ -1492,6 +1496,455 @@ def test_get_importance_consistency():
         
     except Exception as e:
         pytest.fail(f"get_importance consistency test failed with error: {e}")
+
+
+def test_save_model_basic():
+    """
+    Test basic model saving functionality.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        # Create test save path
+        save_path = "test_save_basic"
+        
+        # Save the model
+        saved_files = trained_model.mlp.save_model(save_path)
+        
+        # Verify files were created
+        assert isinstance(saved_files, list), "Should return list of saved files"
+        assert len(saved_files) > 0, "Should create at least one file"
+        
+        # Check expected files exist
+        expected_pytorch = f"{save_path}_pytorch.pth"
+        expected_metadata = f"{save_path}_metadata.pkl"
+        
+        assert expected_pytorch in saved_files, "Should save PyTorch state dict"
+        assert expected_metadata in saved_files, "Should save metadata"
+        assert os.path.exists(expected_pytorch), "PyTorch file should exist"
+        assert os.path.exists(expected_metadata), "Metadata file should exist"
+        
+        print("✅ Basic save model test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Save model basic test failed with error: {e}")
+    finally:
+        # Cleanup
+        cleanup_save_test_files("test_save_basic")
+
+
+def test_save_model_with_regressors():
+    """
+    Test model saving with PySR regressors included.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    # Ensure we have a regressor
+    if not hasattr(trained_model.mlp, 'pysr_regressor') or not trained_model.mlp.pysr_regressor:
+        input_data = torch.FloatTensor(X_train[:50])
+        trained_model.mlp.distill(input_data, sr_params={'niterations': 30})
+    
+    try:
+        save_path = "test_save_with_regressors"
+        
+        # Save model with regressors
+        saved_files = trained_model.mlp.save_model(save_path, save_pytorch=True, save_regressors=True)
+        
+        # Should have PyTorch file, metadata, and regressor files
+        assert len(saved_files) >= 3, "Should save at least PyTorch, metadata, and regressor files"
+        
+        # Check for regressor files
+        regressor_files = [f for f in saved_files if 'regressor_dim' in f]
+        assert len(regressor_files) > 0, "Should save at least one regressor file"
+        
+        # Each regressor file should exist
+        for regressor_file in regressor_files:
+            assert os.path.exists(regressor_file), f"Regressor file should exist: {regressor_file}"
+        
+        print("✅ Save model with regressors test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Save model with regressors test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_save_with_regressors")
+
+
+def test_save_model_selective():
+    """
+    Test selective saving (only PyTorch or only regressors).
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        # Test saving only PyTorch weights
+        save_path_pytorch = "test_save_pytorch_only"
+        saved_files_pytorch = trained_model.mlp.save_model(save_path_pytorch, save_pytorch=True, save_regressors=False)
+        
+        # Should have PyTorch and metadata but no regressor files
+        pytorch_file = f"{save_path_pytorch}_pytorch.pth"
+        metadata_file = f"{save_path_pytorch}_metadata.pkl"
+        
+        assert pytorch_file in saved_files_pytorch, "Should save PyTorch file"
+        assert metadata_file in saved_files_pytorch, "Should save metadata file"
+        assert os.path.exists(pytorch_file), "PyTorch file should exist"
+        assert os.path.exists(metadata_file), "Metadata file should exist"
+        
+        regressor_files = [f for f in saved_files_pytorch if 'regressor_dim' in f]
+        assert len(regressor_files) == 0, "Should not save regressor files"
+        
+        # Test saving only regressors (if available)
+        if hasattr(trained_model.mlp, 'pysr_regressor') and trained_model.mlp.pysr_regressor:
+            save_path_regressors = "test_save_regressors_only"
+            saved_files_regressors = trained_model.mlp.save_model(save_path_regressors, save_pytorch=False, save_regressors=True)
+            
+            # Should have metadata and regressor files but no PyTorch file
+            pytorch_file_reg = f"{save_path_regressors}_pytorch.pth"
+            metadata_file_reg = f"{save_path_regressors}_metadata.pkl"
+            
+            assert pytorch_file_reg not in saved_files_regressors, "Should not save PyTorch file"
+            assert metadata_file_reg in saved_files_regressors, "Should save metadata file"
+            assert not os.path.exists(pytorch_file_reg), "PyTorch file should not exist"
+            assert os.path.exists(metadata_file_reg), "Metadata file should exist"
+            
+            cleanup_save_test_files("test_save_regressors_only")
+        
+        print("✅ Selective save test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Selective save test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_save_pytorch_only")
+
+
+def test_load_model_basic():
+    """
+    Test basic model loading functionality.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        save_path = "test_load_basic"
+        
+        # Ensure model is in a clean MLP state before saving
+        trained_model.mlp.switch_to_mlp()
+        trained_model.eval()  # Ensure in eval mode
+        
+        # First save a model
+        trained_model.mlp.save_model(save_path)
+        
+        # Create same architecture for loading
+        original_architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 1)
+        )
+        
+        # Load the model
+        loaded_model = MLP_SR.load_model(save_path, original_architecture)
+        
+        # Verify loaded model properties
+        assert isinstance(loaded_model, MLP_SR), "Should return MLP_SR instance"
+        assert loaded_model.mlp_name == trained_model.mlp.mlp_name, "Should preserve mlp_name"
+        assert hasattr(loaded_model, 'InterpretSR_MLP'), "Should have wrapped MLP"
+        
+        # Test forward pass works - ensure both models are in same state
+        test_input = torch.FloatTensor(X_train[:5])
+        
+        # Ensure both models are in eval mode and MLP mode
+        trained_model.eval()
+        trained_model.mlp.switch_to_mlp()
+        loaded_model.eval()
+        loaded_model.switch_to_mlp()
+        
+        with torch.no_grad():
+            original_output = trained_model.mlp(test_input)
+            loaded_output = loaded_model(test_input)
+        
+        # Outputs should be very similar (within floating point precision)
+        diff = torch.abs(original_output - loaded_output)
+        max_diff = torch.max(diff)
+        assert max_diff < 1e-5, f"Loaded model should produce similar outputs (max diff: {max_diff})"
+        
+        print("✅ Basic load model test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Load model basic test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_load_basic")
+
+
+def test_load_model_with_regressors():
+    """
+    Test loading model with PySR regressors.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    # Ensure we have a regressor and equation mode set up
+    if not hasattr(trained_model.mlp, 'pysr_regressor') or not trained_model.mlp.pysr_regressor:
+        input_data = torch.FloatTensor(X_train[:50])
+        trained_model.mlp.distill(input_data, sr_params={'niterations': 30})
+    
+    # Switch to equation mode to test complete save/load
+    trained_model.mlp.switch_to_equation()
+    original_using_equation = trained_model.mlp._using_equation
+    
+    try:
+        save_path = "test_load_with_regressors"
+        
+        # Save the model
+        trained_model.mlp.save_model(save_path)
+        
+        # Create architecture for loading
+        architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 1)
+        )
+        
+        # Load the model
+        loaded_model = MLP_SR.load_model(save_path, architecture)
+        
+        # Verify regressor loading
+        assert hasattr(loaded_model, 'pysr_regressor'), "Should have regressors"
+        assert len(loaded_model.pysr_regressor) > 0, "Should have loaded regressors"
+        
+        # Verify equation state restoration
+        assert loaded_model._using_equation == original_using_equation, "Should restore equation mode"
+        if original_using_equation:
+            assert hasattr(loaded_model, '_equation_funcs'), "Should have equation functions"
+            assert len(loaded_model._equation_funcs) > 0, "Should have restored equation functions"
+        
+        # Test that loaded model can switch modes
+        if original_using_equation:
+            # Switch back to MLP mode
+            loaded_model.switch_to_mlp()
+            assert not loaded_model._using_equation, "Should switch back to MLP mode"
+            
+            # Switch back to equation mode
+            loaded_model.switch_to_equation()
+            assert loaded_model._using_equation, "Should switch back to equation mode"
+        
+        print("✅ Load model with regressors test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Load model with regressors test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_load_with_regressors")
+
+
+def test_load_model_without_architecture():
+    """
+    Test loading model metadata and regressors without PyTorch architecture.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        save_path = "test_load_no_arch"
+        
+        # Save the model
+        trained_model.mlp.save_model(save_path)
+        
+        # Load without architecture
+        loaded_model = MLP_SR.load_model(save_path, mlp_architecture=None)
+        
+        # Should have metadata but limited functionality
+        assert isinstance(loaded_model, MLP_SR), "Should return MLP_SR instance"
+        assert loaded_model.mlp_name == trained_model.mlp.mlp_name, "Should preserve mlp_name"
+        
+        # Should have nn.Identity as placeholder
+        assert isinstance(loaded_model.InterpretSR_MLP, nn.Identity), "Should have Identity placeholder"
+        
+        print("✅ Load model without architecture test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Load model without architecture test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_load_no_arch")
+
+
+def test_save_load_roundtrip():
+    """
+    Test complete save/load roundtrip preserves model functionality.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    # Ensure we have regressors
+    if not hasattr(trained_model.mlp, 'pysr_regressor') or not trained_model.mlp.pysr_regressor:
+        input_data = torch.FloatTensor(X_train[:50])
+        trained_model.mlp.distill(input_data, sr_params={'niterations': 20})
+    
+    try:
+        save_path = "test_roundtrip"
+        test_input = torch.FloatTensor(X_train[:10])
+        
+        # Test in MLP mode
+        trained_model.mlp.switch_to_mlp()
+        original_mlp_output = trained_model.mlp(test_input).clone().detach()
+        
+        # Save and load
+        trained_model.mlp.save_model(save_path)
+        
+        architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 1)
+        )
+        
+        loaded_model = MLP_SR.load_model(save_path, architecture)
+        
+        # Test MLP mode preservation
+        loaded_model.switch_to_mlp()
+        loaded_mlp_output = loaded_model(test_input)
+        
+        mlp_diff = torch.abs(original_mlp_output - loaded_mlp_output)
+        max_mlp_diff = torch.max(mlp_diff)
+        assert max_mlp_diff < 1e-5, f"MLP outputs should match (max diff: {max_mlp_diff})"
+        
+        # Test equation mode if available
+        if hasattr(trained_model.mlp, 'pysr_regressor') and trained_model.mlp.pysr_regressor:
+            trained_model.mlp.switch_to_equation()
+            original_eq_output = trained_model.mlp(test_input).clone().detach()
+            
+            loaded_model.switch_to_equation()
+            loaded_eq_output = loaded_model(test_input)
+            
+            eq_diff = torch.abs(original_eq_output - loaded_eq_output)
+            max_eq_diff = torch.max(eq_diff)
+            assert max_eq_diff < 1e-4, f"Equation outputs should be similar (max diff: {max_eq_diff})"
+        
+        print("✅ Save/load roundtrip test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Save/load roundtrip test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_roundtrip")
+
+
+def test_save_load_with_variable_transformations():
+    """
+    Test save/load functionality with variable transformations.
+    """
+    global trained_model
+    if trained_model is None:
+        pytest.skip("No trained model available - training test may have failed")
+    
+    try:
+        save_path = "test_save_load_transforms"
+        
+        # Apply variable transformations
+        variable_transforms = [
+            lambda x: x[:, 0] + x[:, 1],
+            lambda x: x[:, 2] ** 2,
+            lambda x: torch.sin(x[:, 3])
+        ]
+        variable_names = ["x0_plus_x1", "x2_squared", "sin_x3"]
+        
+        input_data = torch.FloatTensor(X_train[:40])
+        trained_model.mlp.distill(
+            input_data,
+            variable_transforms=variable_transforms,
+            fit_params={'variable_names': variable_names},
+            sr_params={'niterations': 20}
+        )
+        
+        # Switch to equation mode
+        trained_model.mlp.switch_to_equation()
+        
+        # Save model
+        trained_model.mlp.save_model(save_path)
+        
+        # Load model
+        architecture = nn.Sequential(
+            nn.Linear(5, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 64),
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(64, 1)
+        )
+        
+        loaded_model = MLP_SR.load_model(save_path, architecture)
+        
+        # Verify transformations were preserved
+        assert hasattr(loaded_model, '_variable_names'), "Should preserve variable names"
+        assert loaded_model._variable_names == variable_names, "Should preserve exact variable names"
+        
+        # Note: Variable transforms are functions and can't be saved/loaded directly
+        # This is expected behavior - transforms need to be reapplied if needed
+        
+        # Test that equation mode still works (even without transforms restored)
+        test_input = torch.FloatTensor(X_train[:5])
+        try:
+            loaded_model.switch_to_equation()
+            # This might fail due to missing transforms, which is expected
+            output = loaded_model(test_input)
+            print("✅ Equation mode worked without transforms (equations may use original variables)")
+        except Exception:
+            print("ℹ️ Equation mode requires transforms to be reapplied (expected behavior)")
+        
+        print("✅ Save/load with variable transformations test passed")
+        
+    except Exception as e:
+        pytest.fail(f"Save/load with variable transformations test failed with error: {e}")
+    finally:
+        cleanup_save_test_files("test_save_load_transforms")
+
+
+def cleanup_save_test_files(base_name):
+    """Clean up files created during save/load tests."""
+    import glob
+    
+    patterns = [
+        f"{base_name}_*.pth",
+        f"{base_name}_*.pkl",
+        f"{base_name}_regressor_*.pkl"
+    ]
+    
+    for pattern in patterns:
+        for file_path in glob.glob(pattern):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
 
 
 def cleanup_sr_outputs():
