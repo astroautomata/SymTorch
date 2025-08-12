@@ -8,6 +8,8 @@ import torch.nn as nn
 import math
 import time
 import numpy as np
+import os
+import pickle
 from typing import Optional, Dict, Any, List, Callable
 from pysr import PySRRegressor
 from .mlp_sr import MLP_SR
@@ -766,3 +768,223 @@ class Pruning_MLP(MLP_SR):
                 'importance': importance_order,
                 'std': std_values
             }
+
+    def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
+        """
+        Save the Pruning_MLP model including PyTorch weights, PySR regressors, and pruning state.
+        
+        Extends MLP_SR's save functionality to include pruning-specific information:
+        - PyTorch model state dict (if save_pytorch=True)
+        - All fitted PySR regressors for active dimensions (if save_regressors=True)
+        - Model metadata and configuration
+        - Pruning mask and dimension information
+        - Pruning schedule and current state
+        
+        Args:
+            save_path (str): Base path for saving (without extension)
+            save_pytorch (bool, optional): Whether to save PyTorch model state. Defaults to True.
+            save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.
+            
+        Example:
+            >>> model.f_net = Pruning_MLP(model.f_net, initial_dim=32, target_dim=2, mlp_name="f_net")
+            >>> # ... train, prune, and run distill ...
+            >>> model.f_net.save_model("./saved_models/pruned_model")
+            
+        Note:
+            This creates multiple files with pruning-specific metadata:
+            - {save_path}_pytorch.pth: PyTorch model state
+            - {save_path}_metadata.pkl: Model configuration, pruning state, and metadata
+            - {save_path}_regressor_dim{i}.pkl: PySR regressors (only for active dimensions)
+        """
+        os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+        
+        saved_files = []
+        
+        # Save PyTorch model state
+        if save_pytorch:
+            pytorch_path = f"{save_path}_pytorch.pth"
+            torch.save(self.InterpretSR_MLP.state_dict(), pytorch_path)
+            saved_files.append(pytorch_path)
+            print(f"✅ Saved PyTorch model state to {pytorch_path}")
+        
+        # Save enhanced metadata for Pruning_MLP
+        metadata = {
+            'mlp_name': self.mlp_name,
+            'output_dims': getattr(self, 'output_dims', None),
+            'variable_transforms_available': hasattr(self, '_variable_transforms') and self._variable_transforms is not None,
+            'variable_names': getattr(self, '_variable_names', None),
+            'using_equation': getattr(self, '_using_equation', False),
+            'class_name': self.__class__.__name__,
+            'equation_vars': getattr(self, '_equation_vars', {}),
+            'regressor_dimensions': list(self.pysr_regressor.keys()) if hasattr(self, 'pysr_regressor') else [],
+            # Pruning-specific metadata
+            'initial_dim': self.initial_dim,
+            'current_dim': self.current_dim,
+            'target_dim': self.target_dim,
+            'pruning_mask': self.pruning_mask.tolist() if hasattr(self, 'pruning_mask') else None,
+            'pruning_schedule': self.pruning_schedule,
+            'active_dimensions': self.get_active_dimensions()
+        }
+        
+        metadata_path = f"{save_path}_metadata.pkl"
+        with open(metadata_path, 'wb') as f:
+            pickle.dump(metadata, f)
+        saved_files.append(metadata_path)
+        print(f"✅ Saved pruning model metadata to {metadata_path}")
+        
+        # Save PySR regressors (only for active dimensions)
+        if save_regressors and hasattr(self, 'pysr_regressor') and self.pysr_regressor:
+            active_dims = self.get_active_dimensions()
+            regressor_files = []
+            
+            for dim, regressor in self.pysr_regressor.items():
+                if dim in active_dims:  # Only save regressors for active dimensions
+                    regressor_path = f"{save_path}_regressor_dim{dim}.pkl"
+                    try:
+                        # Use PySR's built-in pickling support
+                        with open(regressor_path, 'wb') as f:
+                            pickle.dump(regressor, f)
+                        regressor_files.append(regressor_path)
+                        saved_files.append(regressor_path)
+                        print(f"✅ Saved regressor for active dimension {dim} to {regressor_path}")
+                    except Exception as e:
+                        print(f"⚠️ Warning: Could not save regressor for dimension {dim}: {e}")
+                else:
+                    print(f"ℹ️ Skipping inactive dimension {dim} regressor")
+            
+            if regressor_files:
+                print(f"✅ Saved {len(regressor_files)} PySR regressors for active dimensions")
+        elif save_regressors:
+            print("ℹ️ No PySR regressors found to save")
+        
+        print(f"🎯 Pruning model save complete. Created {len(saved_files)} files with base name: {save_path}")
+        print(f"📊 Saved state: {self.current_dim}/{self.initial_dim} active dimensions")
+        return saved_files
+
+    @classmethod
+    def load_model(cls, save_path: str, mlp_architecture: nn.Module = None, device: str = 'cpu'):
+        """
+        Load a previously saved Pruning_MLP model with all components.
+        
+        Reconstructs the complete Pruning_MLP instance including:
+        - PyTorch model weights (requires architecture)
+        - All fitted PySR regressors for active dimensions
+        - Model metadata and configuration
+        - Pruning mask and dimension state
+        - Pruning schedule
+        
+        Args:
+            save_path (str): Base path used during saving (without extension)
+            mlp_architecture (nn.Module, optional): PyTorch model architecture to load weights into.
+                                                   If None, only metadata and regressors are loaded.
+            device (str, optional): Device to load tensors to ('cpu', 'cuda', etc.). Defaults to 'cpu'.
+            
+        Returns:
+            Pruning_MLP: Reconstructed Pruning_MLP instance with loaded components
+            
+        Example:
+            >>> # Create same architecture as original
+            >>> mlp = nn.Sequential(nn.Linear(5, 32), nn.ReLU(), nn.Linear(32, 32))
+            >>> loaded_model = Pruning_MLP.load_model("./saved_models/pruned_model", mlp)
+            >>> # Model ready to use with pruning state and equations
+            >>> loaded_model.switch_to_equation()
+            
+        Note:
+            The mlp_architecture must match the original architecture exactly for weight loading.
+            Pruning state and active dimensions are automatically restored.
+        """
+        # Load metadata first
+        metadata_path = f"{save_path}_metadata.pkl"
+        if not os.path.exists(metadata_path):
+            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+        
+        with open(metadata_path, 'rb') as f:
+            metadata = pickle.load(f)
+        
+        # Verify this is a Pruning_MLP save
+        if metadata['class_name'] != 'Pruning_MLP':
+            raise ValueError(f"Expected Pruning_MLP save file, found {metadata['class_name']}")
+        
+        print(f"📂 Loading Pruning_MLP model: {metadata['mlp_name']}")
+        
+        # Extract pruning dimensions
+        initial_dim = metadata['initial_dim']
+        current_dim = metadata['current_dim']
+        target_dim = metadata['target_dim']
+        
+        if mlp_architecture is None:
+            raise ValueError("mlp_architecture is required when loading Pruning_MLP")
+        
+        # Create Pruning_MLP instance
+        instance = cls(mlp_architecture, 
+                      initial_dim=initial_dim, 
+                      target_dim=target_dim,
+                      mlp_name=metadata['mlp_name'])
+        
+        # Load PyTorch weights if available
+        pytorch_path = f"{save_path}_pytorch.pth"
+        if os.path.exists(pytorch_path):
+            state_dict = torch.load(pytorch_path, map_location=device, weights_only=True)
+            instance.InterpretSR_MLP.load_state_dict(state_dict)
+            print(f"✅ Loaded PyTorch weights from {pytorch_path}")
+        else:
+            print(f"⚠️ PyTorch weights file not found: {pytorch_path}")
+        
+        # Restore pruning state
+        instance.current_dim = current_dim
+        instance.pruning_schedule = metadata.get('pruning_schedule')
+        
+        # Restore pruning mask
+        if metadata['pruning_mask'] is not None:
+            pruning_mask = torch.tensor(metadata['pruning_mask'], dtype=torch.bool)
+            instance.pruning_mask.data = pruning_mask.data
+        
+        # Restore general metadata
+        instance.output_dims = metadata.get('output_dims')
+        instance._variable_names = metadata.get('variable_names')
+        instance._using_equation = metadata.get('using_equation', False)
+        instance._equation_vars = metadata.get('equation_vars', {})
+        
+        # Load PySR regressors
+        regressor_dims = metadata.get('regressor_dimensions', [])
+        instance.pysr_regressor = {}
+        equation_funcs = {}
+        
+        loaded_regressors = 0
+        for dim in regressor_dims:
+            regressor_path = f"{save_path}_regressor_dim{dim}.pkl"
+            if os.path.exists(regressor_path):
+                try:
+                    with open(regressor_path, 'rb') as f:
+                        regressor = pickle.load(f)
+                    instance.pysr_regressor[dim] = regressor
+                    
+                    # Rebuild equation function if model was using equations
+                    if instance._using_equation and dim in instance._equation_vars:
+                        result = instance._get_equation(dim)
+                        if result is not None:
+                            equation_funcs[dim] = result[0]
+                    
+                    loaded_regressors += 1
+                    print(f"✅ Loaded regressor for dimension {dim}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not load regressor for dimension {dim}: {e}")
+            else:
+                print(f"⚠️ Warning: Regressor file not found for dimension {dim}: {regressor_path}")
+        
+        if loaded_regressors > 0:
+            print(f"✅ Loaded {loaded_regressors} PySR regressors")
+            
+            # Restore equation functions if model was using equations
+            if instance._using_equation and equation_funcs:
+                instance._equation_funcs = equation_funcs
+                print(f"✅ Restored symbolic equation functions for {len(equation_funcs)} dimensions")
+        else:
+            print("ℹ️ No PySR regressors found to load")
+        
+        # Display loaded state
+        active_dims = instance.get_active_dimensions()
+        print(f"📊 Loaded pruning state: {len(active_dims)}/{initial_dim} active dimensions: {active_dims}")
+        print(f"🎯 Pruning model loading complete: {metadata['mlp_name']}")
+        
+        return instance
