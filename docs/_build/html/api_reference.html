@@ -96,6 +96,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="demos/getting_started_demo.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/toolkit_demo.html">Pruning MLPs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 </ul>
 
         </div>
@@ -300,17 +301,16 @@ Example: [“x0_minus_x1”, “x2_squared”]</p>
 </dl>
 <p class="rubric">Example</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Basic usage</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">regressor</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">train_inputs</span><span class="p">,</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">sample_inputs</span><span class="p">,</span>
 <span class="gp">... </span>                           <span class="n">sr_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">])</span>
 </pre></div>
 </div>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># With variable transformations</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">transforms</span> <span class="o">=</span> <span class="p">[</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">-</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">],</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="mi">3</span><span class="p">])]</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">names</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;x0_minus_x1&quot;</span><span class="p">,</span> <span class="s2">&quot;x2_squared&quot;</span><span class="p">,</span> <span class="s2">&quot;sin_x3&quot;</span><span class="p">]</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">regressor</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">train_inputs</span><span class="p">,</span>
-<span class="gp">... </span>                           <span class="n">variable_transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
-<span class="gp">... </span>                           <span class="n">fit_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;variable_names&#39;</span><span class="p">:</span> <span class="n">names</span><span class="p">})</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">train_inputs</span><span class="p">,</span>
+<span class="gp">... </span>              <span class="n">variable_transforms</span><span class="o">=</span><span class="n">transforms</span><span class="p">,</span>
+<span class="gp">... </span>              <span class="n">fit_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;variable_names&#39;</span><span class="p">:</span> <span class="n">names</span><span class="p">})</span>
 </pre></div>
 </div>
 </dd></dl>

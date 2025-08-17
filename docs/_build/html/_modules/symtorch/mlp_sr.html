@@ -48,6 +48,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/getting_started_demo.html">Getting Started</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/toolkit_demo.html">Pruning MLPs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 </ul>
 
         </div>
@@ -313,16 +314,15 @@
 <span class="sd">            </span>
 <span class="sd">        Example:</span>
 <span class="sd">            &gt;&gt;&gt; # Basic usage</span>
-<span class="sd">            &gt;&gt;&gt; regressor = model.distill(train_inputs, </span>
+<span class="sd">            &gt;&gt;&gt; model.mlp.distill(sample_inputs, </span>
 <span class="sd">            ...                            sr_params={&#39;niterations&#39;: 1000})</span>
-<span class="sd">            &gt;&gt;&gt; print(regressor.get_best()[&#39;equation&#39;])</span>
 <span class="sd">            </span>
 <span class="sd">            &gt;&gt;&gt; # With variable transformations</span>
 <span class="sd">            &gt;&gt;&gt; transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]</span>
 <span class="sd">            &gt;&gt;&gt; names = [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;, &quot;sin_x3&quot;]</span>
-<span class="sd">            &gt;&gt;&gt; regressor = model.distill(train_inputs, </span>
-<span class="sd">            ...                            variable_transforms=transforms, </span>
-<span class="sd">            ...                            fit_params={&#39;variable_names&#39;: names})</span>
+<span class="sd">            &gt;&gt;&gt; model.distill(train_inputs, </span>
+<span class="sd">            ...               variable_transforms=transforms, </span>
+<span class="sd">            ...               fit_params={&#39;variable_names&#39;: names})</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="c1"># Extract inputs and outputs at this layer level</span>
@@ -398,7 +398,8 @@
             <span class="c1"># Use original inputs</span>
             <span class="n">actual_inputs_numpy</span> <span class="o">=</span> <span class="n">actual_inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># Still store variable names even without transforms for switch_to_equation</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="n">variable_names</span>
 
         <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
 
@@ -606,45 +607,66 @@
             
             <span class="c1"># Handle variable indices based on whether transformations were used</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_transforms&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># With transformations, variables are named by custom names or transform indices</span>
+                <span class="c1"># With transformations, variables can be named with custom names or default x0, x1 format</span>
                 <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
                     <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="kc">None</span>
+                    
+                    <span class="c1"># Try to match with custom variable names first</span>
                     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">:</span>
-                        <span class="c1"># Find the index based on custom variable names</span>
                         <span class="k">try</span><span class="p">:</span>
                             <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">var_str</span><span class="p">)</span>
-                            <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
                         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> not found in variable_names for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">return</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># Variables named as x0, x1, etc. based on transform index</span>
-                        <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
-                            <span class="k">try</span><span class="p">:</span>
-                                <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-                                <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="k">pass</span>  <span class="c1"># Variable not found in custom names, try other methods</span>
+                    
+                    <span class="c1"># If not found in custom names, try default x0, x1, etc. format</span>
+                    <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
+                            <span class="c1"># Validate that this index is within the range of our transforms</span>
+                            <span class="k">if</span> <span class="n">idx</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">):</span>
+                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> index </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> exceeds available transforms (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2">) for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
                                 <span class="k">return</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Unexpected variable format </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">return</span>
+                        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                            <span class="k">pass</span>  <span class="c1"># Not a valid x-numbered variable</span>
+                    
+                    <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not map variable &#39;</span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2">&#39; to any transform for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Available custom names: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Available transforms: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">return</span>
+                    
+                    <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Original behavior for non-transformed variables</span>
                 <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
                 <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
                     <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
+                    <span class="n">idx</span> <span class="o">=</span> <span class="kc">None</span>
+                    
+                    <span class="c1"># Try to match with custom variable names (even without transforms)</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_names&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">:</span>
+                        <span class="k">try</span><span class="p">:</span>
+                            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">var_str</span><span class="p">)</span>
+                        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                            <span class="k">pass</span>  <span class="c1"># Variable not found in custom names</span>
+                    
+                    <span class="c1"># If not found in custom names, try standard x0, x1, etc. format</span>
+                    <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
                         <span class="k">try</span><span class="p">:</span>
                             <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-                            <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
                         <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">return</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Unexpected variable format </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                            <span class="k">pass</span>  <span class="c1"># Not a valid x-numbered variable</span>
+                    
+                    <span class="k">if</span> <span class="n">idx</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not map variable &#39;</span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2">&#39; for dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_names&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">:</span>
+                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Available custom names: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Expected format: x0, x1, x2, etc.&quot;</span><span class="p">)</span>
                         <span class="k">return</span>
+                    
+                    <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
             
             <span class="n">equation_funcs</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span>
             <span class="n">equation_vars</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_indices</span>

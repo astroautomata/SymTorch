@@ -28,5 +28,6 @@ Contents
 
    demos/getting_started_demo.ipynb
    demos/toolkit_demo.ipynb
+   demos/pinns_demo.ipynb
 
 
