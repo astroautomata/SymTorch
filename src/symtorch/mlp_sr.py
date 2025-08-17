@@ -226,9 +226,8 @@ class MLP_SR(nn.Module):
             
         Example:
             >>> # Basic usage
-            >>> regressor = model.distill(train_inputs, 
+            >>> model.mlp.distill(sample_inputs, 
             ...                            sr_params={'niterations': 1000})
-            >>> print(regressor.get_best()['equation'])
             
             >>> # With variable transformations
             >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]
@@ -311,7 +310,8 @@ class MLP_SR(nn.Module):
             # Use original inputs
             actual_inputs_numpy = actual_inputs.detach().cpu().numpy()
             self._variable_transforms = None
-            self._variable_names = None
+            # Still store variable names even without transforms for switch_to_equation
+            self._variable_names = variable_names
 
         timestamp = int(time.time())
 
@@ -516,45 +516,66 @@ class MLP_SR(nn.Module):
             
             # Handle variable indices based on whether transformations were used
             if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
-                # With transformations, variables are named by custom names or transform indices
+                # With transformations, variables can be named with custom names or default x0, x1 format
                 var_indices = []
                 for var in vars_sorted:
                     var_str = str(var)
+                    idx = None
+                    
+                    # Try to match with custom variable names first
                     if self._variable_names:
-                        # Find the index based on custom variable names
                         try:
                             idx = self._variable_names.index(var_str)
-                            var_indices.append(idx)
                         except ValueError:
-                            print(f"⚠️ Warning: Variable {var_str} not found in variable_names for dimension {dim}")
-                            return
-                    else:
-                        # Variables named as x0, x1, etc. based on transform index
-                        if var_str.startswith('x'):
-                            try:
-                                idx = int(var_str[1:])
-                                var_indices.append(idx)
-                            except ValueError:
-                                print(f"⚠️ Warning: Could not parse variable {var_str} for dimension {dim}")
+                            pass  # Variable not found in custom names, try other methods
+                    
+                    # If not found in custom names, try default x0, x1, etc. format
+                    if idx is None and var_str.startswith('x'):
+                        try:
+                            idx = int(var_str[1:])
+                            # Validate that this index is within the range of our transforms
+                            if idx >= len(self._variable_transforms):
+                                print(f"⚠️ Warning: Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}")
                                 return
-                        else:
-                            print(f"⚠️ Warning: Unexpected variable format {var_str} for dimension {dim}")
-                            return
+                        except ValueError:
+                            pass  # Not a valid x-numbered variable
+                    
+                    if idx is None:
+                        print(f"⚠️ Warning: Could not map variable '{var_str}' to any transform for dimension {dim}")
+                        print(f"   Available custom names: {self._variable_names}")
+                        print(f"   Available transforms: {len(self._variable_transforms)}")
+                        return
+                    
+                    var_indices.append(idx)
             else:
                 # Original behavior for non-transformed variables
                 var_indices = []
                 for var in vars_sorted:
                     var_str = str(var)
-                    if var_str.startswith('x'):
+                    idx = None
+                    
+                    # Try to match with custom variable names (even without transforms)
+                    if hasattr(self, '_variable_names') and self._variable_names:
+                        try:
+                            idx = self._variable_names.index(var_str)
+                        except ValueError:
+                            pass  # Variable not found in custom names
+                    
+                    # If not found in custom names, try standard x0, x1, etc. format
+                    if idx is None and var_str.startswith('x'):
                         try:
                             idx = int(var_str[1:])
-                            var_indices.append(idx)
                         except ValueError:
-                            print(f"⚠️ Warning: Could not parse variable {var_str} for dimension {dim}")
-                            return
-                    else:
-                        print(f"⚠️ Warning: Unexpected variable format {var_str} for dimension {dim}")
+                            pass  # Not a valid x-numbered variable
+                    
+                    if idx is None:
+                        print(f"⚠️ Warning: Could not map variable '{var_str}' for dimension {dim}")
+                        if hasattr(self, '_variable_names') and self._variable_names:
+                            print(f"   Available custom names: {self._variable_names}")
+                        print(f"   Expected format: x0, x1, x2, etc.")
                         return
+                    
+                    var_indices.append(idx)
             
             equation_funcs[dim] = f
             equation_vars[dim] = var_indices
