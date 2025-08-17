@@ -232,9 +232,9 @@ class MLP_SR(nn.Module):
             >>> # With variable transformations
             >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]
             >>> names = ["x0_minus_x1", "x2_squared", "sin_x3"]
-            >>> regressor = model.distill(train_inputs, 
-            ...                            variable_transforms=transforms, 
-            ...                            fit_params={'variable_names': names})
+            >>> model.distill(train_inputs, 
+            ...               variable_transforms=transforms, 
+            ...               fit_params={'variable_names': names})
         """
 
         # Extract inputs and outputs at this layer level
