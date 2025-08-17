@@ -8,7 +8,7 @@ torch_symbolic.egg-info
 *.pth
 
 #pysr outputs
-docs/SR_output
+docs/demos/SR_output
 
 #testing files 
 docs/demos/script.py
