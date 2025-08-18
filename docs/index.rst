@@ -30,4 +30,10 @@ Contents
    demos/toolkit_demo.ipynb
    demos/pinns_demo.ipynb
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Extended Demo:
+
+   demos/gnns_demo.ipynb
+
 
