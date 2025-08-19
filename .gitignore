@@ -6,6 +6,7 @@ torch_symbolic.egg-info
 
 #demo weights 
 *.pth
+*.pkl
 
 #pysr outputs
 docs/demos/SR_output
