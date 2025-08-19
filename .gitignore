@@ -12,6 +12,11 @@ docs/demos/SR_output
 
 #testing files 
 docs/demos/script.py
+docs/demos/script2.py
 
 #redundant files
 redundant/
+
+#demo sr_output files
+case_studies/pinn_demo/SR_output
+case_studies/pruning_demo/SR_output
