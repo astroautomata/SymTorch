@@ -45,3 +45,9 @@ pinn.net.distill(sample_data.to(torch.device('mps')), sr_params = sr_params,
 regular_NN.net.distill(sample_data.to(torch.device('mps')), sr_params = sr_params,
                  fit_params=fit_params
                  )
+
+# Save the models with symbolic regression for timing tests using SymTorch's save_model
+print("Saving models with symbolic regression...")
+pinn.net.save_model('pinn_with_sr')
+regular_NN.net.save_model('regular_NN_with_sr')
+print("✅ Models saved with SymTorch save_model functionality")
