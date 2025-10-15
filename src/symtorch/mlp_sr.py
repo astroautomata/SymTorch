@@ -16,6 +16,7 @@ import numpy as np
 import os
 import pickle
 from typing import List, Callable, Optional, Union, Dict, Any
+from contextlib import contextmanager
 
 class MLP_SR(nn.Module):
     """
@@ -36,7 +37,7 @@ class MLP_SR(nn.Module):
     Example:
         >>> import torch
         >>> import torch.nn as nn
-        >>> from interpretsr.mlp_sr import MLP_SR
+        >>> from symtorch.mlp_sr import MLP_SR
         >>> 
         >>> # Create a model
         >>> class SimpleModel(nn.Module):
@@ -72,6 +73,15 @@ class MLP_SR(nn.Module):
         >>> model.switch_to_mlp()
     """
     
+    # Default PySR parameters
+    DEFAULT_SR_PARAMS = {
+        "binary_operators": ["+", "*"],
+        "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
+        "extra_sympy_mappings": {"inv": lambda x: 1/x},
+        "niterations": 400,
+        "complexity_of_operators": {"sin": 3, "exp": 3}
+    }
+    
     def __init__(self, mlp: nn.Module, mlp_name: str = None):
         """
         Initialise the MLP_SR wrapper.
@@ -87,6 +97,158 @@ class MLP_SR(nn.Module):
         if not mlp_name: 
             print(f"➡️ No MLP name specified. MLP label is {self.mlp_name}.")
         self.pysr_regressor = {}
+    
+    def _create_sr_params(self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Create SR parameters by merging defaults with custom parameters.
+        
+        Args:
+            save_path (str): Output directory path for SR results
+            run_id (str): Unique run identifier
+            custom_params (Dict[str, Any], optional): Custom parameters to override defaults
+            
+        Returns:
+            Dict[str, Any]: Final SR parameters for PySRRegressor
+        """
+        output_name = f"SR_output/{self.mlp_name}"
+        if save_path is not None:
+            output_name = f"{save_path}/{self.mlp_name}"
+        
+        base_params = {
+            **self.DEFAULT_SR_PARAMS,
+            "output_directory": output_name,
+            "run_id": run_id
+        }
+        
+        if custom_params:
+            base_params.update(custom_params)
+            
+        return base_params
+    
+    @contextmanager
+    def _capture_layer_output(self, parent_model, inputs):
+        """
+        Context manager to capture inputs and outputs from this layer.
+        
+        Args:
+            parent_model (nn.Module): Parent model containing this MLP_SR instance
+            inputs (torch.Tensor): Input tensor to pass through parent model
+            
+        Yields:
+            tuple: (layer_inputs, layer_outputs) lists containing captured tensors
+        """
+        layer_inputs = []
+        layer_outputs = []
+        
+        def hook_fn(module, input, output):
+            if module is self.InterpretSR_MLP:
+                layer_inputs.append(input[0].clone())
+                layer_outputs.append(output.clone())
+        
+        # Register forward hook
+        hook = self.InterpretSR_MLP.register_forward_hook(hook_fn)
+        
+        try:
+            # Run parent model to capture intermediate activations
+            parent_model.eval()
+            with torch.no_grad():
+                _ = parent_model(inputs)
+            
+            yield layer_inputs, layer_outputs
+        finally:
+            # Always remove hook
+            hook.remove()
+    
+    def _extract_variables_for_equation(self, x: torch.Tensor, var_indices: List[int], dim: int) -> List[torch.Tensor]:
+        """
+        Extract and transform variables needed for a specific equation dimension.
+        
+        Args:
+            x (torch.Tensor): Input tensor
+            var_indices (List[int]): List of variable indices needed
+            dim (int): Output dimension being processed
+            
+        Returns:
+            List[torch.Tensor]: List of extracted/transformed variables
+            
+        Raises:
+            ValueError: If required variables/transforms are not available
+        """
+        selected_inputs = []
+        
+        if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+            # Apply transformations and select needed variables
+            for idx in var_indices:
+                if idx < len(self._variable_transforms):
+                    transformed_var = self._variable_transforms[idx](x)
+                    if transformed_var.dim() > 1:
+                        transformed_var = transformed_var.flatten()
+                    selected_inputs.append(transformed_var)
+                else:
+                    raise ValueError(f"Equation for dimension {dim} requires transform {idx} but only {len(self._variable_transforms)} transforms available")
+        else:
+            # Original behavior - extract by column index
+            for idx in var_indices:
+                if idx < x.shape[1]:
+                    selected_inputs.append(x[:, idx])
+                else:
+                    raise ValueError(f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions")
+        
+        return selected_inputs
+    
+    def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
+        """
+        Map symbolic variables to their corresponding indices.
+        
+        Args:
+            vars_sorted (List): List of symbolic variables from equation
+            dim (int): Output dimension being processed
+            
+        Returns:
+            List[int]: List of variable indices
+            
+        Raises:
+            ValueError: If variables cannot be mapped to indices
+        """
+        var_indices = []
+        
+        for var in vars_sorted:
+            var_str = str(var)
+            idx = None
+            
+            # Try to match with custom variable names first
+            if hasattr(self, '_variable_names') and self._variable_names:
+                try:
+                    idx = self._variable_names.index(var_str)
+                except ValueError:
+                    pass  # Variable not found in custom names, try other methods
+            
+            # If not found in custom names, try default x0, x1, etc. format
+            if idx is None and var_str.startswith('x'):
+                try:
+                    idx = int(var_str[1:])
+                    # With transforms, validate index is within range
+                    if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+                        if idx >= len(self._variable_transforms):
+                            raise ValueError(f"Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}")
+                except ValueError as e:
+                    if "exceeds available transforms" in str(e):
+                        raise e
+                    pass  # Not a valid x-numbered variable
+            
+            if idx is None:
+                error_msg = f"Could not map variable '{var_str}' for dimension {dim}"
+                if hasattr(self, '_variable_names') and self._variable_names:
+                    error_msg += f"\n   Available custom names: {self._variable_names}"
+                if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+                    error_msg += f"\n   Available transforms: {len(self._variable_transforms)}"
+                else:
+                    error_msg += f"\n   Expected format: x0, x1, x2, etc."
+                raise ValueError(error_msg)
+            
+            var_indices.append(idx)
+        
+        return var_indices
     
     def forward(self, x):
         """
@@ -118,25 +280,7 @@ class MLP_SR(nn.Module):
                 var_indices = self._equation_vars[dim]
                 
                 # Extract variables needed for this dimension
-                selected_inputs = []
-                
-                if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
-                    # Apply transformations and select needed variables
-                    for idx in var_indices:
-                        if idx < len(self._variable_transforms):
-                            transformed_var = self._variable_transforms[idx](x)
-                            if transformed_var.dim() > 1:
-                                transformed_var = transformed_var.flatten()
-                            selected_inputs.append(transformed_var)
-                        else:
-                            raise ValueError(f"Equation for dimension {dim} requires transform {idx} but only {len(self._variable_transforms)} transforms available")
-                else:
-                    # Original behavior - extract by column index
-                    for idx in var_indices:
-                        if idx < x.shape[1]:
-                            selected_inputs.append(x[:, idx])
-                        else:
-                            raise ValueError(f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions")
+                selected_inputs = self._extract_variables_for_equation(x, var_indices, dim)
                 
                 # Convert to numpy for the equation function
                 numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
@@ -239,25 +383,8 @@ class MLP_SR(nn.Module):
 
         # Extract inputs and outputs at this layer level
         if parent_model is not None:
-            # Use forward hooks to capture inputs/outputs at this specific layer
-            layer_inputs = []
-            layer_outputs = []
-            
-            def hook_fn(module, input, output):
-                if module is self.InterpretSR_MLP:
-                    layer_inputs.append(input[0].clone())
-                    layer_outputs.append(output.clone())
-            
-            # Register forward hook
-            hook = self.InterpretSR_MLP.register_forward_hook(hook_fn)
-            
-            # Run parent model to capture intermediate activations
-            parent_model.eval()
-            with torch.no_grad():
-                _ = parent_model(inputs)
-            
-            # Remove hook
-            hook.remove()
+            with self._capture_layer_output(parent_model, inputs) as (layer_inputs, layer_outputs):
+                pass
             
             # Use captured intermediate data
             if layer_inputs and layer_outputs:
@@ -331,23 +458,7 @@ class MLP_SR(nn.Module):
                 print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
         
                 run_id = f"dim{dim}_{timestamp}"
-                output_name = f"SR_output/{self.mlp_name}"
-
-                if save_path is not None:
-                    output_name = f"{save_path}/{self.mlp_name}"
-                
-                default_sr_params = {
-                    "binary_operators": ["+", "*"],
-                    "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
-                    "extra_sympy_mappings": {"inv": lambda x: 1/x},
-                    "niterations": 400,
-                    "complexity_of_operators": {"sin": 3, "exp":3},
-                    "output_directory": output_name,
-                    "run_id": run_id
-                }
-                
-                
-                final_sr_params = {**default_sr_params, **sr_params}
+                final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
                 regressor = PySRRegressor(**final_sr_params)
 
                 # Prepare fit arguments
@@ -365,22 +476,7 @@ class MLP_SR(nn.Module):
             print(f"🛠️ Running SR on output dimension {output_dim}.")
 
             run_id = f"dim{output_dim}_{timestamp}"
-            output_name = f"SR_output/{self.mlp_name}"
-
-            if save_path is not None:
-                output_name = f"{save_path}/{self.mlp_name}"
-            
-            default_sr_params = {
-                "binary_operators": ["+", "*"],
-                "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
-                "extra_sympy_mappings": {"inv": lambda x: 1/x},
-                "niterations": 400,
-                "complexity_of_operators": {"sin": 3, "exp":3},
-                "output_directory": output_name,
-                "run_id": run_id
-            }
-                
-            final_sr_params = {**default_sr_params, **sr_params}
+            final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
             regressor = PySRRegressor(**final_sr_params)
 
             # Prepare fit arguments
@@ -514,68 +610,12 @@ class MLP_SR(nn.Module):
                 
             f, vars_sorted = result
             
-            # Handle variable indices based on whether transformations were used
-            if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
-                # With transformations, variables can be named with custom names or default x0, x1 format
-                var_indices = []
-                for var in vars_sorted:
-                    var_str = str(var)
-                    idx = None
-                    
-                    # Try to match with custom variable names first
-                    if self._variable_names:
-                        try:
-                            idx = self._variable_names.index(var_str)
-                        except ValueError:
-                            pass  # Variable not found in custom names, try other methods
-                    
-                    # If not found in custom names, try default x0, x1, etc. format
-                    if idx is None and var_str.startswith('x'):
-                        try:
-                            idx = int(var_str[1:])
-                            # Validate that this index is within the range of our transforms
-                            if idx >= len(self._variable_transforms):
-                                print(f"⚠️ Warning: Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}")
-                                return
-                        except ValueError:
-                            pass  # Not a valid x-numbered variable
-                    
-                    if idx is None:
-                        print(f"⚠️ Warning: Could not map variable '{var_str}' to any transform for dimension {dim}")
-                        print(f"   Available custom names: {self._variable_names}")
-                        print(f"   Available transforms: {len(self._variable_transforms)}")
-                        return
-                    
-                    var_indices.append(idx)
-            else:
-                # Original behavior for non-transformed variables
-                var_indices = []
-                for var in vars_sorted:
-                    var_str = str(var)
-                    idx = None
-                    
-                    # Try to match with custom variable names (even without transforms)
-                    if hasattr(self, '_variable_names') and self._variable_names:
-                        try:
-                            idx = self._variable_names.index(var_str)
-                        except ValueError:
-                            pass  # Variable not found in custom names
-                    
-                    # If not found in custom names, try standard x0, x1, etc. format
-                    if idx is None and var_str.startswith('x'):
-                        try:
-                            idx = int(var_str[1:])
-                        except ValueError:
-                            pass  # Not a valid x-numbered variable
-                    
-                    if idx is None:
-                        print(f"⚠️ Warning: Could not map variable '{var_str}' for dimension {dim}")
-                        if hasattr(self, '_variable_names') and self._variable_names:
-                            print(f"   Available custom names: {self._variable_names}")
-                        print(f"   Expected format: x0, x1, x2, etc.")
-                        return
-                    
-                    var_indices.append(idx)
+            # Map variables to indices using helper method
+            try:
+                var_indices = self._map_variables_to_indices(vars_sorted, dim)
+            except ValueError as e:
+                print(f"⚠️ Warning: {e}")
+                return
             
             equation_funcs[dim] = f
             equation_vars[dim] = var_indices
@@ -874,22 +914,8 @@ class MLP_SR(nn.Module):
         with torch.no_grad():
             # Extract outputs at this layer level for importance evaluation
             if parent_model is not None:
-                # Use forward hooks to capture outputs at this specific layer
-                layer_outputs = []
-                
-                def hook_fn(module, _, output):
-                    if module is self.InterpretSR_MLP:
-                        layer_outputs.append(output.clone())
-                
-                # Register forward hook
-                hook = self.InterpretSR_MLP.register_forward_hook(hook_fn)
-                
-                # Run parent model to capture intermediate activations
-                parent_model.eval()
-                _ = parent_model(sample_data)
-                
-                # Remove hook
-                hook.remove()
+                with self._capture_layer_output(parent_model, sample_data) as (_, layer_outputs):
+                    pass
                 
                 # Use captured intermediate data
                 if layer_outputs:
