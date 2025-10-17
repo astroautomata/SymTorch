@@ -56,7 +56,6 @@ class MLP_SR(nn.Module):
                         nn.Linear(hidden_dim, output_dim)
                     )
                     self.mlp = mlp
-                    with MLP_SR and provide a label
         >>> model = SimpleModel(input_dim=5, output_dim=1) # Initialise the model
         >>> # Train the model normally
         >>> model = training_function(model, dataloader, num_steps)
@@ -141,7 +140,7 @@ class MLP_SR(nn.Module):
         layer_outputs = []
         
         def hook_fn(module, input, output):
-            if module is self.InterpretSR_MLP:
+            if module is self.InterpretSR_MLP: # Only captures layer data for the layers we want to distil
                 layer_inputs.append(input[0].clone())
                 layer_outputs.append(output.clone())
         
@@ -162,6 +161,7 @@ class MLP_SR(nn.Module):
     def _extract_variables_for_equation(self, x: torch.Tensor, var_indices: List[int], dim: int) -> List[torch.Tensor]:
         """
         Extract and transform variables needed for a specific equation dimension.
+        Each output dimension may only depend on a subset of the input variables.
         
         Args:
             x (torch.Tensor): Input tensor
@@ -199,6 +199,8 @@ class MLP_SR(nn.Module):
     def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
         """
         Map symbolic variables to their corresponding indices.
+        Method used during the forward pass when the model is in equation mode to determine 
+        which input columns/transforms to extract and pass to each discovered symbolic equation.
         
         Args:
             vars_sorted (List): List of symbolic variables from equation
@@ -285,32 +287,8 @@ class MLP_SR(nn.Module):
                 # Convert to numpy for the equation function
                 numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
                 
-                try:
-                    # Evaluate the equation for this dimension
-                    result = equation_func(*numpy_inputs)
-                except Exception as e:
-                    # Handle argument mismatch cases
-                    import inspect
-                    sig = inspect.signature(equation_func)
-                    expected_args = len(sig.parameters)
-                    provided_args = len(numpy_inputs)
-                    
-                    if provided_args > expected_args and expected_args > 0:
-                        # Too many arguments provided - use only what's needed
-                        result = equation_func(*numpy_inputs[:expected_args])
-                    elif provided_args < expected_args:
-                        # Too few arguments provided - pad with zeros or use available input columns
-                        padded_inputs = numpy_inputs.copy()
-                        for i in range(provided_args, expected_args):
-                            if i < x.shape[1]:  # Use additional input columns if available
-                                padded_inputs.append(x[:, i].detach().cpu().numpy())
-                            else:
-                                # Pad with zeros if no more input columns
-                                padded_inputs.append(numpy_inputs[0] * 0)  # Same shape as first input, filled with zeros
-                        result = equation_func(*padded_inputs)
-                    else:
-                        # Same number of arguments but still failing - re-raise
-                        raise e
+                # Evaluate the equation for this dimension
+                result = equation_func(*numpy_inputs)
                 
                 # Convert back to torch tensor with same device/dtype as input
                 result_tensor = torch.tensor(result, dtype=x.dtype, device=x.device)
@@ -330,7 +308,7 @@ class MLP_SR(nn.Module):
         else:
             return self.InterpretSR_MLP(x)
 
-    def distill(self, inputs, output_dim: int = None, parent_model=None, 
+    def distill(self, inputs, output_dim: int = None, parent_model=None,
                  variable_transforms: Optional[List[Callable]] = None,
                  save_path: str = None,
                  sr_params: Optional[Dict[str, Any]] = None,
@@ -408,7 +386,7 @@ class MLP_SR(nn.Module):
         # Apply variable transformations if provided
         if variable_transforms is not None:
             # Validate inputs
-            if variable_names is not None and len(variable_names) != len(variable_transforms):
+            if len(variable_names) != len(variable_transforms):
                 raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
             
             # Apply transformations
@@ -452,6 +430,7 @@ class MLP_SR(nn.Module):
             sr_params = {}
 
         if not output_dim:
+            #If output dimension is not specified, run SR on all dims
 
             for dim in range(output_dims):
 
@@ -611,11 +590,7 @@ class MLP_SR(nn.Module):
             f, vars_sorted = result
             
             # Map variables to indices using helper method
-            try:
-                var_indices = self._map_variables_to_indices(vars_sorted, dim)
-            except ValueError as e:
-                print(f"⚠️ Warning: {e}")
-                return
+            var_indices = self._map_variables_to_indices(vars_sorted, dim)
             
             equation_funcs[dim] = f
             equation_vars[dim] = var_indices
