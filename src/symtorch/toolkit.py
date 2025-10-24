@@ -12,24 +12,24 @@ import os
 import pickle
 from typing import Optional, Dict, Any, List, Callable
 from pysr import PySRRegressor
-from .mlp_sr import MLP_SR
+from .SymbolicMLP import SymbolicMLP
 
-class Pruning_MLP(MLP_SR):
+class PruningMLP(SymbolicMLP):
     """
     A PyTorch module wrapper that adds dynamic pruning and symbolic regression capabilities to MLPs.
-    
-    This class extends MLP_SR to provide progressive dimensionality reduction through pruning
+
+    This class extends SymbolicMLP to provide progressive dimensionality reduction through pruning
     while maintaining interpretability features. It dynamically removes less important output
     dimensions during training based on activation variance, then applies symbolic regression
     to the remaining active dimensions.
-    
+
     The wrapper maintains full compatibility with PyTorch's training pipeline and inherits
-    all MLP_SR functionality for symbolic regression on pruned dimensions.
-    
+    all SymbolicMLP functionality for symbolic regression on pruned dimensions.
+
     Attributes:
-        InterpretSR_MLP (nn.Module): The wrapped PyTorch MLP model (inherited from MLP_SR)
-        mlp_name (str): Human-readable name for the MLP instance (inherited from MLP_SR)
-        pysr_regressor (dict): Dictionary mapping active dimensions to fitted symbolic regression models (inherited from MLP_SR)
+        InterpretSR_MLP (nn.Module): The wrapped PyTorch MLP model (inherited from SymbolicMLP)
+        mlp_name (str): Human-readable name for the MLP instance (inherited from SymbolicMLP)
+        pysr_regressor (dict): Dictionary mapping active dimensions to fitted symbolic regression models (inherited from SymbolicMLP)
         initial_dim (int): Initial output dimensionality before pruning
         current_dim (int): Current number of active dimensions
         target_dim (int): Final target dimensionality after pruning
@@ -39,8 +39,8 @@ class Pruning_MLP(MLP_SR):
     Example:
         >>> import torch
         >>> import torch.nn as nn
-        >>> from symtorch.toolkit import Pruning_MLP
-        >>> 
+        >>> from symtorch import PruningMLP
+        >>>
         >>> # Create a composite model
         >>> class SimpleModel(nn.Module):
         ...     def __init__(self, input_dim, output_dim, output_dim_f=32, hidden_dim=128):
@@ -51,17 +51,17 @@ class Pruning_MLP(MLP_SR):
         ...             nn.Linear(hidden_dim, output_dim_f)
         ...         )
         ...         self.g_net = nn.Linear(output_dim_f, output_dim)
-        ...     
+        ...
         ...     def forward(self, x):
         ...         x = self.f_net(x)
         ...         x = self.g_net(x)
         ...         return x
-        >>> 
+        >>>
         >>> # Create model and wrap f_net with pruning
         >>> model = SimpleModel(input_dim=5, output_dim=1, output_dim_f=32)
-        >>> model.f_net = Pruning_MLP(model.f_net, 
-        ...                          initial_dim=32, 
-        ...                          target_dim=2, 
+        >>> model.f_net = PruningMLP(model.f_net,
+        ...                          initial_dim=32,
+        ...                          target_dim=2,
         ...                          mlp_name="f_net")
         >>> 
         >>> # Set up pruning schedule
@@ -84,8 +84,8 @@ class Pruning_MLP(MLP_SR):
     
     def __init__(self, mlp: nn.Module, initial_dim: int, target_dim: int, mlp_name: str = None):
         """
-        Initialise the Pruning_MLP wrapper.
-        
+        Initialise the PruningMLP wrapper.
+
         Args:
             mlp (nn.Module): The PyTorch MLP model to wrap
             initial_dim (int): Initial output dimensionality before pruning
@@ -93,7 +93,7 @@ class Pruning_MLP(MLP_SR):
             mlp_name (str, optional): Human-readable name for this MLP instance.
                                     If None, generates a unique name based on object ID.
         """
-        # Initialize MLP_SR with the MLP
+        # Initialize SymbolicMLP with the MLP
         super().__init__(mlp, mlp_name or f"pruned_mlp_{id(self)}")
         
         # Add pruning-specific attributes
@@ -181,7 +181,7 @@ class Pruning_MLP(MLP_SR):
             epoch (int): Current training epoch
             sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
                                        Typically a subset of validation data.
-            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.
+            parent_model (nn.Module, optional): The parent model containing this PruningMLP instance.
                                               If provided, will trace intermediate activations to get
                                               the actual outputs at this layer level for importance evaluation.
                                        
@@ -207,7 +207,7 @@ class Pruning_MLP(MLP_SR):
                 if layer_outputs:
                     output_array = layer_outputs[0]
                 else:
-                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.")
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.")
             else:
                 # Original behavior - use MLP directly
                 output_array = self.InterpretSR_MLP(sample_data)
@@ -236,17 +236,17 @@ class Pruning_MLP(MLP_SR):
         """
         return torch.where(self.pruning_mask)[0].tolist()
 
-    def distill(self, inputs, output_dim: int = None, parent_model=None, 
+    def distill(self, inputs, output_dim: int = None, parent_model=None,
                  variable_transforms: Optional[List[Callable]] = None,
                  save_path: str = None,
                  sr_params: Optional[Dict[str, Any]] = None,
                  fit_params: Optional[Dict[str, Any]] = None):
         """
         Discover symbolic expressions for active (non-pruned) dimensions only.
-        
-        Overrides MLP_SR's distill method to focus symbolic regression on dimensions
+
+        Overrides SymbolicMLP's distill method to focus symbolic regression on dimensions
         that survived the pruning process, ignoring inactive/masked dimensions.
-        
+
         Args are the same as parent class distill method.
                 
         Returns:
@@ -278,7 +278,7 @@ class Pruning_MLP(MLP_SR):
                 # Filter to active dimensions only
                 active_output = full_output[:, self.pruning_mask]
             else:
-                raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.")
+                raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.")
         else:
             # Original behavior - use MLP directly
             actual_inputs = inputs
@@ -363,7 +363,7 @@ class Pruning_MLP(MLP_SR):
             best_eq = regressor.get_best()['equation']
             print(f"💡Best equation for active dimension {dim_idx}: {best_eq}")
         
-        # Store in the format expected by MLP_SR (merge with existing dict)
+        # Store in the format expected by SymbolicMLP (merge with existing dict)
         self.pysr_regressor = self.pysr_regressor | results
         
         print(f"❤️ SR on {self.mlp_name} active dimensions complete.")
@@ -377,8 +377,8 @@ class Pruning_MLP(MLP_SR):
     def switch_to_equation(self, complexity: list = None):
         """
         Switch forward pass to use symbolic equations for active dimensions only.
-        
-        Overrides MLP_SR's switch_to_equation to handle pruned architectures correctly.
+
+        Overrides SymbolicMLP's switch_to_equation to handle pruned architectures correctly.
         Active dimensions use their discovered symbolic expressions, while inactive
         dimensions output zeros as enforced by the pruning mask.
         
@@ -485,7 +485,7 @@ class Pruning_MLP(MLP_SR):
     def forward(self, x):
         """
         Forward pass through the model with pruning mask applied.
-        
+
         Uses parent's forward method and applies pruning mask to enforce
         zero outputs for inactive dimensions.
         
@@ -496,7 +496,7 @@ class Pruning_MLP(MLP_SR):
             torch.Tensor: Output tensor with inactive dimensions masked to zero
         """
         if hasattr(self, '_using_equation') and self._using_equation:
-            # For equation mode, we need to handle the Pruning_MLP case specially
+            # For equation mode, we need to handle the PruningMLP case specially
             batch_size = x.shape[0]
             # Initialize output tensor with zeros for all dimensions
             output = torch.zeros(batch_size, self.initial_dim, dtype=x.dtype, device=x.device)
@@ -541,15 +541,15 @@ class Pruning_MLP(MLP_SR):
     def get_importance(self, sample_data: torch.Tensor, parent_model=None):
         """
         Get ordered list of output dimensions from most to least important.
-        
-        For Pruning_MLP, this considers only currently active (non-pruned) dimensions.
+
+        For PruningMLP, this considers only currently active (non-pruned) dimensions.
         Evaluates importance by computing standard deviation across sample data,
         with higher standard deviation indicating higher importance.
-        
+
         Args:
             sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
                                        Typically a subset of validation data.
-            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.
+            parent_model (nn.Module, optional): The parent model containing this PruningMLP instance.
                                               If provided, will trace intermediate activations to get
                                               the actual outputs at this layer level for importance evaluation.
                                               
@@ -588,9 +588,9 @@ class Pruning_MLP(MLP_SR):
 
     def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
         """
-        Save the Pruning_MLP model including PyTorch weights, PySR regressors, and pruning state.
-        
-        Extends MLP_SR's save functionality to include pruning-specific information:
+        Save the PruningMLP model including PyTorch weights, PySR regressors, and pruning state.
+
+        Extends SymbolicMLP's save functionality to include pruning-specific information:
         - PyTorch model state dict (if save_pytorch=True)
         - All fitted PySR regressors for active dimensions (if save_regressors=True)
         - Model metadata and configuration
@@ -603,7 +603,7 @@ class Pruning_MLP(MLP_SR):
             save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.
             
         Example:
-            >>> model.f_net = Pruning_MLP(model.f_net, initial_dim=32, target_dim=2, mlp_name="f_net")
+            >>> model.f_net = PruningMLP(model.f_net, initial_dim=32, target_dim=2, mlp_name="f_net")
             >>> # ... train, prune, and run distill ...
             >>> model.f_net.save_model("./saved_models/pruned_model")
             
@@ -624,7 +624,7 @@ class Pruning_MLP(MLP_SR):
             saved_files.append(pytorch_path)
             print(f"✅ Saved PyTorch model state to {pytorch_path}")
         
-        # Save enhanced metadata for Pruning_MLP
+        # Save enhanced metadata for PruningMLP
         metadata = {
             'mlp_name': self.mlp_name,
             'output_dims': getattr(self, 'output_dims', None),
@@ -681,9 +681,9 @@ class Pruning_MLP(MLP_SR):
     @classmethod
     def load_model(cls, save_path: str, mlp_architecture: nn.Module = None, device: str = 'cpu'):
         """
-        Load a previously saved Pruning_MLP model with all components.
-        
-        Reconstructs the complete Pruning_MLP instance including:
+        Load a previously saved PruningMLP model with all components.
+
+        Reconstructs the complete PruningMLP instance including:
         - PyTorch model weights (requires architecture)
         - All fitted PySR regressors for active dimensions
         - Model metadata and configuration
@@ -697,12 +697,12 @@ class Pruning_MLP(MLP_SR):
             device (str, optional): Device to load tensors to ('cpu', 'cuda', etc.). Defaults to 'cpu'.
             
         Returns:
-            Pruning_MLP: Reconstructed Pruning_MLP instance with loaded components
-            
+            PruningMLP: Reconstructed PruningMLP instance with loaded components
+
         Example:
             >>> # Create same architecture as original
             >>> mlp = nn.Sequential(nn.Linear(5, 32), nn.ReLU(), nn.Linear(32, 32))
-            >>> loaded_model = Pruning_MLP.load_model("./saved_models/pruned_model", mlp)
+            >>> loaded_model = PruningMLP.load_model("./saved_models/pruned_model", mlp)
             >>> # Model ready to use with pruning state and equations
             >>> loaded_model.switch_to_equation()
             
@@ -718,11 +718,11 @@ class Pruning_MLP(MLP_SR):
         with open(metadata_path, 'rb') as f:
             metadata = pickle.load(f)
         
-        # Verify this is a Pruning_MLP save
-        if metadata['class_name'] != 'Pruning_MLP':
-            raise ValueError(f"Expected Pruning_MLP save file, found {metadata['class_name']}")
-        
-        print(f"📂 Loading Pruning_MLP model: {metadata['mlp_name']}")
+        # Verify this is a PruningMLP save
+        if metadata['class_name'] != 'PruningMLP':
+            raise ValueError(f"Expected PruningMLP save file, found {metadata['class_name']}")
+
+        print(f"📂 Loading PruningMLP model: {metadata['mlp_name']}")
         
         # Extract pruning dimensions
         initial_dim = metadata['initial_dim']
@@ -730,11 +730,11 @@ class Pruning_MLP(MLP_SR):
         target_dim = metadata['target_dim']
         
         if mlp_architecture is None:
-            raise ValueError("mlp_architecture is required when loading Pruning_MLP")
-        
-        # Create Pruning_MLP instance
-        instance = cls(mlp_architecture, 
-                      initial_dim=initial_dim, 
+            raise ValueError("mlp_architecture is required when loading PruningMLP")
+
+        # Create PruningMLP instance
+        instance = cls(mlp_architecture,
+                      initial_dim=initial_dim,
                       target_dim=target_dim,
                       mlp_name=metadata['mlp_name'])
         

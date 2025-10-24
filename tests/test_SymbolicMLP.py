@@ -13,7 +13,7 @@ import numpy as np
 src_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 sys.path.insert(0, src_path)
 
-from symtorch.mlp_sr import MLP_SR
+from symtorch import SymbolicMLP
 
 
 def test_MLP_SR_wrapper():
@@ -36,7 +36,7 @@ def test_MLP_SR_wrapper():
                     nn.Dropout(0.2),
                     nn.Linear(hidden_dim, output_dim)
                 )
-                self.mlp = MLP_SR(mlp, mlp_name = "Sequential")
+                self.mlp = SymbolicMLP(mlp, mlp_name = "Sequential")
         model = SimpleModel(input_dim=5, output_dim=1)
         assert hasattr(model.mlp, 'InterpretSR_MLP'), "MLP_SR should have InterpretSR_MLP attribute"
         assert hasattr(model.mlp, 'distill'), "MLP_SR should have distill method"
@@ -63,7 +63,7 @@ class SimpleModel(nn.Module):
             nn.Dropout(0.2),
             nn.Linear(hidden_dim, output_dim)
         )
-        self.mlp = MLP_SR(mlp, mlp_name = "Sequential")
+        self.mlp = SymbolicMLP(mlp, mlp_name = "Sequential")
 
     def forward(self, x):
         x = self.mlp(x)
@@ -389,7 +389,7 @@ class DualMLPModel(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim)
         )
-        self.sr_mlp = MLP_SR(sr_mlp, mlp_name="SRSequential")
+        self.sr_mlp = SymbolicMLP(sr_mlp, mlp_name="SRSequential")
         
     def forward(self, x):
         # Combine outputs from both MLPs
@@ -604,7 +604,7 @@ class MultiOutputModel(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, output_dim)
         )
-        self.mlp = MLP_SR(mlp, mlp_name="MultiOutput")
+        self.mlp = SymbolicMLP(mlp, mlp_name="MultiOutput")
 
     def forward(self, x):
         return self.mlp(x)
@@ -813,7 +813,7 @@ def test_multi_dimensional_mixed_training():
                     nn.ReLU(),
                     nn.Linear(32, output_dim)
                 )
-                self.sr_mlp = MLP_SR(sr_mlp, mlp_name="MultiMixed")
+                self.sr_mlp = SymbolicMLP(sr_mlp, mlp_name="MultiMixed")
                 
                 # Regular linear layer
                 self.linear = nn.Linear(input_dim, output_dim)
@@ -1415,7 +1415,7 @@ def test_get_importance_with_parent_model():
                     nn.ReLU(),
                     nn.Linear(64, intermediate_dim)
                 )
-                self.f_net = MLP_SR(f_mlp, mlp_name="f_net")
+                self.f_net = SymbolicMLP(f_mlp, mlp_name="f_net")
                 self.g_net = nn.Linear(intermediate_dim, output_dim)
             
             def forward(self, x):
@@ -1655,10 +1655,10 @@ def test_load_model_basic():
         )
         
         # Load the model
-        loaded_model = MLP_SR.load_model(save_path, original_architecture)
+        loaded_model = SymbolicMLP.load_model(save_path, original_architecture)
         
         # Verify loaded model properties
-        assert isinstance(loaded_model, MLP_SR), "Should return MLP_SR instance"
+        assert isinstance(loaded_model, SymbolicMLP), "Should return MLP_SR instance"
         assert loaded_model.mlp_name == trained_model.mlp.mlp_name, "Should preserve mlp_name"
         assert hasattr(loaded_model, 'InterpretSR_MLP'), "Should have wrapped MLP"
         
@@ -1726,7 +1726,7 @@ def test_load_model_with_regressors():
         )
         
         # Load the model
-        loaded_model = MLP_SR.load_model(save_path, architecture)
+        loaded_model = SymbolicMLP.load_model(save_path, architecture)
         
         # Verify regressor loading
         assert hasattr(loaded_model, 'pysr_regressor'), "Should have regressors"
@@ -1771,10 +1771,10 @@ def test_load_model_without_architecture():
         trained_model.mlp.save_model(save_path)
         
         # Load without architecture
-        loaded_model = MLP_SR.load_model(save_path, mlp_architecture=None)
+        loaded_model = SymbolicMLP.load_model(save_path, mlp_architecture=None)
         
         # Should have metadata but limited functionality
-        assert isinstance(loaded_model, MLP_SR), "Should return MLP_SR instance"
+        assert isinstance(loaded_model, SymbolicMLP), "Should return MLP_SR instance"
         assert loaded_model.mlp_name == trained_model.mlp.mlp_name, "Should preserve mlp_name"
         
         # Should have nn.Identity as placeholder
@@ -1825,7 +1825,7 @@ def test_save_load_roundtrip():
             nn.Linear(64, 1)
         )
         
-        loaded_model = MLP_SR.load_model(save_path, architecture)
+        loaded_model = SymbolicMLP.load_model(save_path, architecture)
         
         # Test MLP mode preservation
         loaded_model.switch_to_mlp()
@@ -1902,7 +1902,7 @@ def test_save_load_with_variable_transformations():
             nn.Linear(64, 1)
         )
         
-        loaded_model = MLP_SR.load_model(save_path, architecture)
+        loaded_model = SymbolicMLP.load_model(save_path, architecture)
         
         # Verify transformations were preserved
         assert hasattr(loaded_model, '_variable_names'), "Should preserve variable names"

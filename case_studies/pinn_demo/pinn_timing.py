@@ -7,7 +7,7 @@ import warnings
 warnings.filterwarnings("ignore", message="To copy construct from a tensor")
 warnings.filterwarnings("ignore", message="torch.compile for Metal is an early prototype")
 
-from symtorch import MLP_SR
+from symtorch import SymbolicMLP
 from pinn_script import RegularNN, PINN
 
 # Load the models with symbolic regression using SymTorch's load_model

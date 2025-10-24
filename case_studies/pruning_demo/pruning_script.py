@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 
-from symtorch import MLP_SR, Pruning_MLP
+from symtorch import SymbolicMLP, PruningMLP
 
 import torch
 import numpy as np

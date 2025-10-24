@@ -2,10 +2,10 @@
 Core SymTorch modules
 """
 
-from .mlp_sr import MLP_SR
-from .toolkit import Pruning_MLP
+from .SymbolicMLP import SymbolicMLP
+from .toolkit import PruningMLP
 
 __all__ = [
-    "MLP_SR",
-    "Pruning_MLP"
+    "SymbolicMLP",
+    "PruningMLP"
 ]

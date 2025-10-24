@@ -1,5 +1,5 @@
 """
-InterpretSR MLP_SR Module
+InterpretSR SymbolicMLP Module
 
 This module provides a wrapper for PyTorch MLP models that adds symbolic regression
 capabilities using PySR (Python Symbolic Regression).
@@ -18,7 +18,7 @@ import pickle
 from typing import List, Callable, Optional, Union, Dict, Any
 from contextlib import contextmanager
 
-class MLP_SR(nn.Module):
+class SymbolicMLP(nn.Module):
     """
     A PyTorch module wrapper that adds symbolic regression capabilities to MLPs.
     
@@ -37,8 +37,8 @@ class MLP_SR(nn.Module):
     Example:
         >>> import torch
         >>> import torch.nn as nn
-        >>> from symtorch.mlp_sr import MLP_SR
-        >>> 
+        >>> from symtorch import SymbolicMLP
+        >>>
         >>> # Create a model
         >>> class SimpleModel(nn.Module):
                 def __init__(self, input_dim, output_dim, hidden_dim = 64):
@@ -59,9 +59,9 @@ class MLP_SR(nn.Module):
         >>> model = SimpleModel(input_dim=5, output_dim=1) # Initialise the model
         >>> # Train the model normally
         >>> model = training_function(model, dataloader, num_steps)
-        >>> 
-        >>> # Wrap the mlp with the MLP_SR wrapper
-        >>> model.mlp = MLP_SR(model.mlp, mlp_name = "Sequential") # Wrap the mlp 
+        >>>
+        >>> # Wrap the mlp with the SymbolicMLP wrapper
+        >>> model.mlp = SymbolicMLP(model.mlp, mlp_name = "Sequential") # Wrap the mlp 
         >>> # Apply symbolic regression to the inputs and outputs of the MLP
         >>> regressor = model.mlp.distill(inputs)
         >>> 
@@ -83,8 +83,8 @@ class MLP_SR(nn.Module):
     
     def __init__(self, mlp: nn.Module, mlp_name: str = None):
         """
-        Initialise the MLP_SR wrapper.
-        
+        Initialise the SymbolicMLP wrapper.
+
         Args:
             mlp (nn.Module): The PyTorch MLP model to wrap
             mlp_name (str, optional): Human-readable name for this MLP instance.
@@ -128,11 +128,11 @@ class MLP_SR(nn.Module):
     def _capture_layer_output(self, parent_model, inputs):
         """
         Context manager to capture inputs and outputs from this layer.
-        
+
         Args:
-            parent_model (nn.Module): Parent model containing this MLP_SR instance
+            parent_model (nn.Module): Parent model containing this SymbolicMLP instance
             inputs (torch.Tensor): Input tensor to pass through parent model
-            
+
         Yields:
             tuple: (layer_inputs, layer_outputs) lists containing captured tensors
         """
@@ -321,7 +321,7 @@ class MLP_SR(nn.Module):
         Args:
             inputs (torch.Tensor): Input data for symbolic regression fitting
             output_dim(torch.Tensor): The output dimension to run PySR on. If None, PySR run on all outputs. Default: None.
-            parent_model (nn.Module, optional): The parent model containing this MLP_SR instance.
+            parent_model (nn.Module, optional): The parent model containing this SymbolicMLP instance.
                                               If provided, will trace intermediate activations to get
                                               the actual inputs/outputs at this layer level.
             variable_transforms (List[Callable], optional): List of functions to transform input variables.
@@ -369,7 +369,7 @@ class MLP_SR(nn.Module):
                 actual_inputs = layer_inputs[0]
                 output = layer_outputs[0]
             else:
-                raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.")
+                raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.")
         else:
             # Original behavior - use MLP directly
             actual_inputs = inputs
@@ -385,8 +385,8 @@ class MLP_SR(nn.Module):
         
         # Apply variable transformations if provided
         if variable_transforms is not None:
-            # Validate inputs
-            if len(variable_names) != len(variable_transforms):
+            # Validate inputs - variable_names is optional
+            if variable_names is not None and len(variable_names) != len(variable_transforms):
                 raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
             
             # Apply transformations
@@ -649,21 +649,21 @@ class MLP_SR(nn.Module):
 
     def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
         """
-        Save the MLP_SR model including PyTorch weights and PySR regressors.
-        
+        Save the SymbolicMLP model including PyTorch weights and PySR regressors.
+
         Creates a comprehensive save that includes:
         - PyTorch model state dict (if save_pytorch=True)
         - All fitted PySR regressors (if save_regressors=True)
         - Model metadata and configuration
         - Variable transforms and names if used
-        
+
         Args:
             save_path (str): Base path for saving (without extension)
             save_pytorch (bool, optional): Whether to save PyTorch model state. Defaults to True.
             save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.
-            
+
         Example:
-            >>> model.mlp = MLP_SR(model.mlp, mlp_name="encoder")
+            >>> model.mlp = SymbolicMLP(model.mlp, mlp_name="encoder")
             >>> # ... train and run distill ...
             >>> model.mlp.save_model("./saved_models/my_model")
             
@@ -728,27 +728,27 @@ class MLP_SR(nn.Module):
     @classmethod
     def load_model(cls, save_path: str, mlp_architecture: nn.Module = None, device: str = 'cpu'):
         """
-        Load a previously saved MLP_SR model with all components.
-        
-        Reconstructs the complete MLP_SR instance including:
+        Load a previously saved SymbolicMLP model with all components.
+
+        Reconstructs the complete SymbolicMLP instance including:
         - PyTorch model weights (requires architecture)
-        - All fitted PySR regressors 
+        - All fitted PySR regressors
         - Model metadata and configuration
         - Variable transforms setup
-        
+
         Args:
             save_path (str): Base path used during saving (without extension)
             mlp_architecture (nn.Module, optional): PyTorch model architecture to load weights into.
                                                    If None, only metadata and regressors are loaded.
             device (str, optional): Device to load tensors to ('cpu', 'cuda', etc.). Defaults to 'cpu'.
-            
+
         Returns:
-            MLP_SR: Reconstructed MLP_SR instance with loaded components
-            
+            SymbolicMLP: Reconstructed SymbolicMLP instance with loaded components
+
         Example:
             >>> # Create same architecture as original
             >>> mlp = nn.Sequential(nn.Linear(5, 64), nn.ReLU(), nn.Linear(64, 1))
-            >>> loaded_model = MLP_SR.load_model("./saved_models/my_model", mlp)
+            >>> loaded_model = SymbolicMLP.load_model("./saved_models/my_model", mlp)
             >>> # Model ready to use with equations
             >>> loaded_model.switch_to_equation()
             
@@ -767,26 +767,26 @@ class MLP_SR(nn.Module):
         print(f"📂 Loading {metadata['class_name']} model: {metadata['mlp_name']}")
         
         # Create instance based on class type
-        if metadata['class_name'] == 'Pruning_MLP':
+        if metadata['class_name'] == 'PruningMLP':
             # Import here to avoid circular imports
-            from .toolkit import Pruning_MLP
-            
-            # Need to determine dimensions for Pruning_MLP
+            from .toolkit import PruningMLP
+
+            # Need to determine dimensions for PruningMLP
             if mlp_architecture is None:
-                raise ValueError("mlp_architecture is required when loading Pruning_MLP")
-            
+                raise ValueError("mlp_architecture is required when loading PruningMLP")
+
             # Try to infer dimensions from saved state
             output_dims = metadata.get('output_dims', None)
             if output_dims is None:
-                raise ValueError("Cannot determine output dimensions for Pruning_MLP")
-            
-            # Create minimal Pruning_MLP - dimensions will be updated from saved state
-            instance = Pruning_MLP(mlp_architecture, 
-                                  initial_dim=output_dims, 
+                raise ValueError("Cannot determine output dimensions for PruningMLP")
+
+            # Create minimal PruningMLP - dimensions will be updated from saved state
+            instance = PruningMLP(mlp_architecture,
+                                  initial_dim=output_dims,
                                   target_dim=1,  # Will be updated
                                   mlp_name=metadata['mlp_name'])
         else:
-            # Standard MLP_SR
+            # Standard SymbolicMLP
             instance = cls(mlp_architecture or nn.Identity(), metadata['mlp_name'])
         
         # Load PyTorch weights if available and architecture provided
@@ -865,14 +865,14 @@ class MLP_SR(nn.Module):
     def get_importance(self, sample_data: torch.Tensor, parent_model=None):
         """
         Get ordered list of output dimensions from most to least important.
-        
+
         Evaluates importance by computing standard deviation across sample data,
         with higher standard deviation indicating higher importance.
-        
+
         Args:
             sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
                                        Typically a subset of validation data.
-            parent_model (nn.Module, optional): The parent model containing this MLP_SR instance.
+            parent_model (nn.Module, optional): The parent model containing this SymbolicMLP instance.
                                               If provided, will trace intermediate activations to get
                                               the actual outputs at this layer level for importance evaluation.
                                               
@@ -896,7 +896,7 @@ class MLP_SR(nn.Module):
                 if layer_outputs:
                     output_array = layer_outputs[0]
                 else:
-                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.")
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.")
             else:
                 # Original behavior - use MLP directly
                 self.InterpretSR_MLP.eval()

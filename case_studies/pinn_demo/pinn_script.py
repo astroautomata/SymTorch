@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt 
 
-from symtorch import MLP_SR
+from symtorch import SymbolicMLP
 
 alpha = 0.2
 def temp(x,t):

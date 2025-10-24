@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 import matplotlib.pyplot as plt 
 
-from symtorch import MLP_SR
+from symtorch import SymbolicMLP
 
 from pinn_script import RegularNN, PINN
 

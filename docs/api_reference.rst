@@ -6,7 +6,7 @@ This section contains the complete API reference for SymTorch.
 MLP_SR
 ~~~~~~
 
-.. autoclass:: symtorch.mlp_sr.MLP_SR
+.. autoclass:: symtorch.SymbolicMLP.MLP_SR
    :members:
    :undoc-members:
    :show-inheritance:
