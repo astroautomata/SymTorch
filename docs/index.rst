@@ -24,6 +24,12 @@ Contents
 
 .. toctree::
    :maxdepth: 1
+   :caption: News:
+
+   news
+
+.. toctree::
+   :maxdepth: 1
    :caption: Demos:
 
    demos/getting_started_demo.ipynb

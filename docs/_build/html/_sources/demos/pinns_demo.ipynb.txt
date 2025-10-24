@@ -430,7 +430,7 @@
    "metadata": {},
    "outputs": [],
    "source": [
-    "from symtorch import MLP_SR"
+    "from symtorch import SymbolicMLP"
    ]
   },
   {
@@ -442,7 +442,7 @@
    "source": [
     "num_data = 5000 # Create 5000 different data points\n",
     "sample_data = torch.tensor(np.random.rand(num_data, 2), dtype=torch.float32) \n",
-    "pinn.net = MLP_SR(pinn.net, 'pinn')\n",
+    "pinn.net = SymbolicMLP(pinn.net, 'pinn')\n",
     "\n",
     "sr_params = {'niterations': 1000,\n",
     "             'constraints': {'sin':3, 'exp':3}, \n",

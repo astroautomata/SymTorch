@@ -3,18 +3,18 @@ API Reference
 
 This section contains the complete API reference for SymTorch.
 
-MLP_SR
+SymbolicMLP
 ~~~~~~
 
-.. autoclass:: symtorch.SymbolicMLP.MLP_SR
+.. autoclass:: symtorch.SymbolicMLP
    :members:
    :undoc-members:
    :show-inheritance:
 
-Pruning_MLP
+PruningMLP
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-.. autoclass:: symtorch.toolkit.Pruning_MLP
+.. autoclass:: symtorch.toolkit.PruningMLP
    :members:
    :undoc-members:
    :show-inheritance:
@@ -25,4 +25,4 @@ Configuration and Parameters
 PySR Parameters
 ~~~~~~~~~~~~~~~
 
-The :meth:`MLP_SR.interpret` method parses in parameters to a `PySRRegressor` class. Please see `PySR <https://ai.damtp.cam.ac.uk/pysr/api/>`_ for more details.
+The :meth:`.distill` method parses in parameters to a `PySRRegressor` class. Please see `PySR <https://ai.damtp.cam.ac.uk/pysr/api/>`_ for more details.

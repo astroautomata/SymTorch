@@ -44,6 +44,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../news.html">News</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/getting_started_demo.html">Getting Started</a></li>
@@ -99,26 +103,26 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">pickle</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pysr</span><span class="w"> </span><span class="kn">import</span> <span class="n">PySRRegressor</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">.mlp_sr</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.SymbolicMLP</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicMLP</span>
 
-<div class="viewcode-block" id="Pruning_MLP">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">Pruning_MLP</span><span class="p">(</span><span class="n">MLP_SR</span><span class="p">):</span>
+<div class="viewcode-block" id="PruningMLP">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">PruningMLP</span><span class="p">(</span><span class="n">SymbolicMLP</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    A PyTorch module wrapper that adds dynamic pruning and symbolic regression capabilities to MLPs.</span>
-<span class="sd">    </span>
-<span class="sd">    This class extends MLP_SR to provide progressive dimensionality reduction through pruning</span>
+
+<span class="sd">    This class extends SymbolicMLP to provide progressive dimensionality reduction through pruning</span>
 <span class="sd">    while maintaining interpretability features. It dynamically removes less important output</span>
 <span class="sd">    dimensions during training based on activation variance, then applies symbolic regression</span>
 <span class="sd">    to the remaining active dimensions.</span>
-<span class="sd">    </span>
+
 <span class="sd">    The wrapper maintains full compatibility with PyTorch&#39;s training pipeline and inherits</span>
-<span class="sd">    all MLP_SR functionality for symbolic regression on pruned dimensions.</span>
-<span class="sd">    </span>
+<span class="sd">    all SymbolicMLP functionality for symbolic regression on pruned dimensions.</span>
+
 <span class="sd">    Attributes:</span>
-<span class="sd">        InterpretSR_MLP (nn.Module): The wrapped PyTorch MLP model (inherited from MLP_SR)</span>
-<span class="sd">        mlp_name (str): Human-readable name for the MLP instance (inherited from MLP_SR)</span>
-<span class="sd">        pysr_regressor (dict): Dictionary mapping active dimensions to fitted symbolic regression models (inherited from MLP_SR)</span>
+<span class="sd">        InterpretSR_MLP (nn.Module): The wrapped PyTorch MLP model (inherited from SymbolicMLP)</span>
+<span class="sd">        mlp_name (str): Human-readable name for the MLP instance (inherited from SymbolicMLP)</span>
+<span class="sd">        pysr_regressor (dict): Dictionary mapping active dimensions to fitted symbolic regression models (inherited from SymbolicMLP)</span>
 <span class="sd">        initial_dim (int): Initial output dimensionality before pruning</span>
 <span class="sd">        current_dim (int): Current number of active dimensions</span>
 <span class="sd">        target_dim (int): Final target dimensionality after pruning</span>
@@ -128,8 +132,8 @@
 <span class="sd">    Example:</span>
 <span class="sd">        &gt;&gt;&gt; import torch</span>
 <span class="sd">        &gt;&gt;&gt; import torch.nn as nn</span>
-<span class="sd">        &gt;&gt;&gt; from symtorch.toolkit import Pruning_MLP</span>
-<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt; from symtorch import PruningMLP</span>
+<span class="sd">        &gt;&gt;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; # Create a composite model</span>
 <span class="sd">        &gt;&gt;&gt; class SimpleModel(nn.Module):</span>
 <span class="sd">        ...     def __init__(self, input_dim, output_dim, output_dim_f=32, hidden_dim=128):</span>
@@ -140,17 +144,17 @@
 <span class="sd">        ...             nn.Linear(hidden_dim, output_dim_f)</span>
 <span class="sd">        ...         )</span>
 <span class="sd">        ...         self.g_net = nn.Linear(output_dim_f, output_dim)</span>
-<span class="sd">        ...     </span>
+<span class="sd">        ...</span>
 <span class="sd">        ...     def forward(self, x):</span>
 <span class="sd">        ...         x = self.f_net(x)</span>
 <span class="sd">        ...         x = self.g_net(x)</span>
 <span class="sd">        ...         return x</span>
-<span class="sd">        &gt;&gt;&gt; </span>
+<span class="sd">        &gt;&gt;&gt;</span>
 <span class="sd">        &gt;&gt;&gt; # Create model and wrap f_net with pruning</span>
 <span class="sd">        &gt;&gt;&gt; model = SimpleModel(input_dim=5, output_dim=1, output_dim_f=32)</span>
-<span class="sd">        &gt;&gt;&gt; model.f_net = Pruning_MLP(model.f_net, </span>
-<span class="sd">        ...                          initial_dim=32, </span>
-<span class="sd">        ...                          target_dim=2, </span>
+<span class="sd">        &gt;&gt;&gt; model.f_net = PruningMLP(model.f_net,</span>
+<span class="sd">        ...                          initial_dim=32,</span>
+<span class="sd">        ...                          target_dim=2,</span>
 <span class="sd">        ...                          mlp_name=&quot;f_net&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; </span>
 <span class="sd">        &gt;&gt;&gt; # Set up pruning schedule</span>
@@ -171,12 +175,12 @@
 <span class="sd">        &gt;&gt;&gt; model.f_net.switch_to_mlp()</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     
-<div class="viewcode-block" id="Pruning_MLP.__init__">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.__init__">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.__init__">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mlp</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">initial_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">target_dim</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">mlp_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialise the Pruning_MLP wrapper.</span>
-<span class="sd">        </span>
+<span class="sd">        Initialise the PruningMLP wrapper.</span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            mlp (nn.Module): The PyTorch MLP model to wrap</span>
 <span class="sd">            initial_dim (int): Initial output dimensionality before pruning</span>
@@ -184,7 +188,7 @@
 <span class="sd">            mlp_name (str, optional): Human-readable name for this MLP instance.</span>
 <span class="sd">                                    If None, generates a unique name based on object ID.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Initialize MLP_SR with the MLP</span>
+        <span class="c1"># Initialize SymbolicMLP with the MLP</span>
         <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">mlp</span><span class="p">,</span> <span class="n">mlp_name</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">&quot;pruned_mlp_</span><span class="si">{</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         
         <span class="c1"># Add pruning-specific attributes</span>
@@ -197,8 +201,8 @@
 
     
 
-<div class="viewcode-block" id="Pruning_MLP.set_schedule">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.set_schedule">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.set_schedule">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.set_schedule">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">set_schedule</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">total_epochs</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">decay_rate</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;cosine&#39;</span><span class="p">,</span> <span class="n">end_epoch_frac</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Set up the pruning schedule for progressive dimensionality reduction.</span>
@@ -264,8 +268,8 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">pruning_schedule</span> <span class="o">=</span> <span class="n">schedule_dict</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.prune">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.prune">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.prune">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.prune">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">prune</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">epoch</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">sample_data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Perform pruning for the current epoch based on the pruning schedule.</span>
@@ -278,7 +282,7 @@
 <span class="sd">            epoch (int): Current training epoch</span>
 <span class="sd">            sample_data (torch.Tensor): Sample input data to evaluate dimension importance.</span>
 <span class="sd">                                       Typically a subset of validation data.</span>
-<span class="sd">            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.</span>
+<span class="sd">            parent_model (nn.Module, optional): The parent model containing this PruningMLP instance.</span>
 <span class="sd">                                              If provided, will trace intermediate activations to get</span>
 <span class="sd">                                              the actual outputs at this layer level for importance evaluation.</span>
 <span class="sd">                                       </span>
@@ -297,28 +301,14 @@
         <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
             <span class="c1"># Extract outputs at this layer level for importance evaluation</span>
             <span class="k">if</span> <span class="n">parent_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># Use forward hooks to capture outputs at this specific layer</span>
-                <span class="n">layer_outputs</span> <span class="o">=</span> <span class="p">[]</span>
-                
-                <span class="k">def</span><span class="w"> </span><span class="nf">hook_fn</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">module</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">:</span>
-                        <span class="n">layer_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">clone</span><span class="p">())</span>
-                
-                <span class="c1"># Register forward hook</span>
-                <span class="n">hook</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span>
-                
-                <span class="c1"># Run parent model to capture intermediate activations</span>
-                <span class="n">parent_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="n">parent_model</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
-                
-                <span class="c1"># Remove hook</span>
-                <span class="n">hook</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+                <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capture_layer_output</span><span class="p">(</span><span class="n">parent_model</span><span class="p">,</span> <span class="n">sample_data</span><span class="p">)</span> <span class="k">as</span> <span class="p">(</span><span class="n">_</span><span class="p">,</span> <span class="n">layer_outputs</span><span class="p">):</span>
+                    <span class="k">pass</span>
                 
                 <span class="c1"># Use captured intermediate data</span>
                 <span class="k">if</span> <span class="n">layer_outputs</span><span class="p">:</span>
                     <span class="n">output_array</span> <span class="o">=</span> <span class="n">layer_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.&quot;</span><span class="p">)</span>
+                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.&quot;</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="c1"># Original behavior - use MLP directly</span>
                 <span class="n">output_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
@@ -333,8 +323,8 @@
             <span class="bp">self</span><span class="o">.</span><span class="n">current_dim</span> <span class="o">=</span> <span class="n">target_dims</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.get_active_dimensions">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.get_active_dimensions">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.get_active_dimensions">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.get_active_dimensions">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_active_dimensions</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get indices of currently active (non-masked) dimensions.</span>
@@ -351,99 +341,58 @@
         <span class="k">return</span> <span class="n">torch</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.distill">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.distill">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">distill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> 
+<div class="viewcode-block" id="PruningMLP.distill">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.distill">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">distill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
                  <span class="n">variable_transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">sr_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                  <span class="n">fit_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Discover symbolic expressions for active (non-pruned) dimensions only.</span>
-<span class="sd">        </span>
-<span class="sd">        Overrides MLP_SR&#39;s distill method to focus symbolic regression on dimensions</span>
+
+<span class="sd">        Overrides SymbolicMLP&#39;s distill method to focus symbolic regression on dimensions</span>
 <span class="sd">        that survived the pruning process, ignoring inactive/masked dimensions.</span>
-<span class="sd">        </span>
-<span class="sd">        Args:</span>
-<span class="sd">            inputs (torch.Tensor): Input data for symbolic regression fitting</span>
-<span class="sd">            output_dim(int, optional): The output dimension to run PySR on. If None, PySR run on all active outputs. Default: None.</span>
-<span class="sd">            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.</span>
-<span class="sd">                                              If provided, will trace intermediate activations to get</span>
-<span class="sd">                                              the actual inputs/outputs at this layer level.</span>
-<span class="sd">            variable_transforms (List[Callable], optional): List of functions to transform input variables.</span>
-<span class="sd">                                                           Each function should take the full input tensor and return</span>
-<span class="sd">                                                           a transformed tensor. Example: [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]</span>
-<span class="sd">            save_path (str, optional): Custom base directory for PySR outputs.</span>
-<span class="sd">                                     If None, uses default &quot;SR_output/&quot; directory.</span>
-<span class="sd">                                     Example: &quot;/custom/output/path&quot;</span>
-<span class="sd">            sr_params (Dict[str, Any], optional): Parameters passed to PySRRegressor. Inherits same defaults as MLP_SR:</span>
-<span class="sd">                - binary_operators (list): [&quot;+&quot;, &quot;*&quot;]</span>
-<span class="sd">                - unary_operators (list): [&quot;inv(x) = 1/x&quot;, &quot;sin&quot;, &quot;exp&quot;]</span>
-<span class="sd">                - niterations (int): 400</span>
-<span class="sd">                - output_directory (str): &quot;{save_path}/{mlp_name}&quot; or &quot;SR_output/{mlp_name}&quot;</span>
-<span class="sd">                - run_id (str): &quot;dim{dim_idx}_{timestamp}&quot;</span>
-<span class="sd">            fit_params (Dict[str, Any], optional): Parameters passed to the regressor.fit() method. Defaults:</span>
-<span class="sd">                - variable_names (List[str]): Custom names for variables if variable_transforms is used.</span>
-<span class="sd">                                             If provided, must match the length of variable_transforms.</span>
-<span class="sd">                                             Example: [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;]</span>
+
+<span class="sd">        Args are the same as parent class distill method.</span>
 <span class="sd">                </span>
 <span class="sd">        Returns:</span>
 <span class="sd">            dict: Dictionary mapping active dimension indices to fitted PySRRegressor objects</span>
-<span class="sd">            </span>
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; # Basic usage</span>
-<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.distill(train_data, </span>
-<span class="sd">            ...                                  sr_params={&#39;niterations&#39;: 1000})</span>
-<span class="sd">            &gt;&gt;&gt; for dim_idx, regressor in regressors.items():</span>
-<span class="sd">            ...     print(f&quot;Dimension {dim_idx}: {regressor.get_best()[&#39;equation&#39;]}&quot;)</span>
-<span class="sd">            </span>
-<span class="sd">            &gt;&gt;&gt; # With variable transformations</span>
-<span class="sd">            &gt;&gt;&gt; transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2, lambda x: torch.sin(x[:, 3])]</span>
-<span class="sd">            &gt;&gt;&gt; names = [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;, &quot;sin_x3&quot;]</span>
-<span class="sd">            &gt;&gt;&gt; regressors = pruned_mlp.distill(train_data, </span>
-<span class="sd">            ...                                  variable_transforms=transforms, </span>
-<span class="sd">            ...                                  fit_params={&#39;variable_names&#39;: names})</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">active_dims</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No active dimensions to interpret!&quot;</span><span class="p">)</span>
             <span class="k">return</span> <span class="p">{}</span>
         
+        <span class="c1"># Filter active dimensions based on output_dim parameter</span>
+        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❗Requested output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> is not active. Active dimensions: </span><span class="si">{</span><span class="n">active_dims</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span> <span class="p">{}</span>
+            <span class="n">target_dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_dim</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">target_dims</span> <span class="o">=</span> <span class="n">active_dims</span>
+        
         <span class="c1"># Extract inputs and outputs at this layer level</span>
         <span class="k">if</span> <span class="n">parent_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Use forward hooks to capture inputs/outputs at this specific layer</span>
-            <span class="n">layer_inputs</span> <span class="o">=</span> <span class="p">[]</span>
-            <span class="n">layer_outputs</span> <span class="o">=</span> <span class="p">[]</span>
-            
-            <span class="k">def</span><span class="w"> </span><span class="nf">hook_fn</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="nb">input</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
-                <span class="k">if</span> <span class="n">module</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">:</span>
-                    <span class="n">layer_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">input</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">clone</span><span class="p">())</span>
-                    <span class="n">layer_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">clone</span><span class="p">())</span>
-            
-            <span class="c1"># Register forward hook</span>
-            <span class="n">hook</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span>
-            
-            <span class="c1"># Run parent model to capture intermediate activations</span>
-            <span class="n">parent_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-            <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="n">parent_model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
-            
-            <span class="c1"># Remove hook</span>
-            <span class="n">hook</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
+            <span class="k">with</span> <span class="bp">self</span><span class="o">.</span><span class="n">_capture_layer_output</span><span class="p">(</span><span class="n">parent_model</span><span class="p">,</span> <span class="n">inputs</span><span class="p">)</span> <span class="k">as</span> <span class="p">(</span><span class="n">layer_inputs</span><span class="p">,</span> <span class="n">layer_outputs</span><span class="p">):</span>
+                <span class="k">pass</span>
             
             <span class="c1"># Use captured intermediate data</span>
             <span class="k">if</span> <span class="n">layer_inputs</span> <span class="ow">and</span> <span class="n">layer_outputs</span><span class="p">:</span>
                 <span class="n">actual_inputs</span> <span class="o">=</span> <span class="n">layer_inputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
                 <span class="n">full_output</span> <span class="o">=</span> <span class="n">layer_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="c1"># Filter to active dimensions only</span>
                 <span class="n">active_output</span> <span class="o">=</span> <span class="n">full_output</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">]</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to capture intermediate activations. Ensure parent_model contains this MLP_SR instance.&quot;</span><span class="p">)</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Original behavior - extract inputs and outputs for active dimensions only</span>
+            <span class="c1"># Original behavior - use MLP directly</span>
+            <span class="n">actual_inputs</span> <span class="o">=</span> <span class="n">inputs</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
             <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-                <span class="n">actual_inputs</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span>
                 <span class="n">full_output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+                <span class="c1"># Filter to active dimensions only  </span>
                 <span class="n">active_output</span> <span class="o">=</span> <span class="n">full_output</span><span class="p">[:,</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span><span class="p">]</span>
 
         <span class="c1"># Extract fit parameters</span>
@@ -484,7 +433,8 @@
             <span class="c1"># Use original inputs</span>
             <span class="n">actual_inputs_numpy</span> <span class="o">=</span> <span class="n">actual_inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="o">=</span> <span class="kc">None</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="c1"># Still store variable names even without transforms for switch_to_equation</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span> <span class="o">=</span> <span class="n">variable_names</span>
 
         <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
         
@@ -492,98 +442,53 @@
         <span class="k">if</span> <span class="n">sr_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">sr_params</span> <span class="o">=</span> <span class="p">{}</span>
         
-        <span class="c1"># Use same default parameters as MLP_SR</span>
-        <span class="n">output_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SR_output/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">output_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2">&quot;</span>
-        
-        <span class="n">default_sr_params</span> <span class="o">=</span> <span class="p">{</span>
-            <span class="s2">&quot;binary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;unary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;inv(x) = 1/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sin&quot;</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">],</span>
-            <span class="s2">&quot;extra_sympy_mappings&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;inv&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span><span class="o">/</span><span class="n">x</span><span class="p">},</span>
-            <span class="s2">&quot;niterations&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span>
-            <span class="s2">&quot;complexity_of_operators&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;sin&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">},</span>
-            <span class="s2">&quot;output_directory&quot;</span><span class="p">:</span> <span class="n">output_name</span><span class="p">,</span>
-        <span class="p">}</span>
-
         <span class="c1"># Set output_dims for compatibility</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">output_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_dim</span>
         
-        <span class="c1"># Filter active dimensions based on output_dim parameter</span>
-        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❗Requested output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> is not active. Active dimensions: </span><span class="si">{</span><span class="n">active_dims</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                <span class="k">return</span> <span class="p">{}</span>
-            <span class="n">target_dims</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_dim</span><span class="p">]</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="n">target_dims</span> <span class="o">=</span> <span class="n">active_dims</span>
+        <span class="c1"># Run SR for active dimensions only</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="p">{}</span>
         
-        <span class="c1"># Run SR for requested dimension(s)</span>
-        <span class="n">regressors</span> <span class="o">=</span> <span class="p">{}</span>
-        
-        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="c1"># Single dimension case</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🛠️ Running SR on active output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">target_dims</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🛠️ Running SR on active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">target_dims</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
             
-            <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">final_sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">default_sr_params</span><span class="p">,</span> <span class="o">**</span><span class="n">sr_params</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">:</span> <span class="n">run_id</span><span class="p">}</span>
+            <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">sr_params</span><span class="p">)</span>
             
             <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_sr_params</span><span class="p">)</span>
             
             <span class="c1"># Find the index of this dimension in the active output</span>
-            <span class="n">dim_index</span> <span class="o">=</span> <span class="n">active_dims</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">output_dim</span><span class="p">)</span>
+            <span class="n">active_dim_index</span> <span class="o">=</span> <span class="n">active_dims</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">dim_idx</span><span class="p">)</span>
             
             <span class="c1"># Prepare fit arguments</span>
-            <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">actual_inputs_numpy</span><span class="p">,</span> <span class="n">active_output</span><span class="p">[:,</span> <span class="n">dim_index</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
+            <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">actual_inputs_numpy</span><span class="p">,</span> <span class="n">active_output</span><span class="p">[:,</span> <span class="n">active_dim_index</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
             <span class="n">final_fit_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fit_params</span><span class="p">)</span>  <span class="c1"># Copy to avoid modifying original</span>
             
             <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
             
-            <span class="n">regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
+            <span class="n">results</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
             
             <span class="n">best_eq</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;💡Best equation for active dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">best_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;💡Best equation for active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">best_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Multiple dimensions case</span>
-            <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">active_dims</span><span class="p">):</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🛠️ Running SR on active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">i</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">active_dims</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
-                
-                <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="n">final_sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">default_sr_params</span><span class="p">,</span> <span class="o">**</span><span class="n">sr_params</span><span class="p">,</span> <span class="s2">&quot;run_id&quot;</span><span class="p">:</span> <span class="n">run_id</span><span class="p">}</span>
-                
-                <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_sr_params</span><span class="p">)</span>
-                
-                <span class="c1"># Prepare fit arguments</span>
-                <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">actual_inputs_numpy</span><span class="p">,</span> <span class="n">active_output</span><span class="p">[:,</span> <span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
-                <span class="n">final_fit_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fit_params</span><span class="p">)</span>  <span class="c1"># Copy to avoid modifying original</span>
-                
-                <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
-                
-                <span class="n">regressors</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
-                
-                <span class="n">best_eq</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;💡Best equation for active dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">best_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        
-        <span class="c1"># Store in the format expected by MLP_SR (merge with existing dict)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">|</span> <span class="n">regressors</span>
+        <span class="c1"># Store in the format expected by SymbolicMLP (merge with existing dict)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">|</span> <span class="n">results</span>
         
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❤️ SR on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="si">}</span><span class="s2"> active dimensions complete.&quot;</span><span class="p">)</span>
         
-        <span class="c1"># For backward compatibility, return the regressor or dict of regressors</span>
+        <span class="c1"># For backward compatibility</span>
         <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span>
+            <span class="k">return</span> <span class="n">results</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">output_dim</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">regressors</span></div>
+            <span class="k">return</span> <span class="n">results</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.switch_to_equation">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.switch_to_equation">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.switch_to_equation">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.switch_to_equation">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">switch_to_equation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">complexity</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Switch forward pass to use symbolic equations for active dimensions only.</span>
-<span class="sd">        </span>
-<span class="sd">        Overrides MLP_SR&#39;s switch_to_equation to handle pruned architectures correctly.</span>
+
+<span class="sd">        Overrides SymbolicMLP&#39;s switch_to_equation to handle pruned architectures correctly.</span>
 <span class="sd">        Active dimensions use their discovered symbolic expressions, while inactive</span>
 <span class="sd">        dimensions output zeros as enforced by the pruning mask.</span>
 <span class="sd">        </span>
@@ -592,23 +497,32 @@
 <span class="sd">                                               If list, maps to active dimensions in order.</span>
 <span class="sd">                                               If int, uses same complexity for all active dimensions.</span>
 <span class="sd">                                               If None, uses best overall equation for each active dimension.</span>
-<span class="sd">                                               </span>
-<span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; pruned_mlp.switch_to_equation()  # Use best equations for all active dimensions</span>
-<span class="sd">            &gt;&gt;&gt; pruned_mlp.switch_to_equation(complexity=[5, 7])  # Use complexity 5 for first active dim, 7 for second</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pysr_regressor&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;❗No equations found. You need to first run .distill.&quot;</span><span class="p">)</span>
-            <span class="k">return</span>
-        
         <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">active_dims</span><span class="p">:</span>
             <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;❗No active dimensions to switch to equations.&quot;</span><span class="p">)</span>
             <span class="k">return</span>
         
+        <span class="c1"># Check if we have equations for all active dimensions</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;pysr_regressor&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;❗No equations found. You need to first run .distill.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        
+        <span class="n">missing_dims</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">dim</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">:</span>
+                <span class="n">missing_dims</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">missing_dims</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;❗Missing equations for active dimensions </span><span class="si">{</span><span class="n">missing_dims</span><span class="si">}</span><span class="s2">. You need to run .distill on all active dimensions first.&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+        
         <span class="c1"># Store original MLP for potential restoration</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_original_mlp&#39;</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_original_mlp</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span>
+        
+        <span class="c1"># Set output_dims to initial_dim for compatibility</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_dim</span>
         
         <span class="c1"># Get equations for active dimensions only</span>
         <span class="n">equation_funcs</span> <span class="o">=</span> <span class="p">{}</span>
@@ -632,47 +546,12 @@
                 
             <span class="n">f</span><span class="p">,</span> <span class="n">vars_sorted</span> <span class="o">=</span> <span class="n">result</span>
             
-            <span class="c1"># Handle variable indices based on whether transformations were used</span>
-            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_transforms&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># With transformations, variables are named by custom names or transform indices</span>
-                <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
-                    <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="p">:</span>
-                        <span class="c1"># Find the index based on custom variable names</span>
-                        <span class="k">try</span><span class="p">:</span>
-                            <span class="n">idx</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">var_str</span><span class="p">)</span>
-                            <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> not found in variable_names for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">return</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># Variables named as x0, x1, etc. based on transform index</span>
-                        <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
-                            <span class="k">try</span><span class="p">:</span>
-                                <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-                                <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                            <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                                <span class="k">return</span>
-                        <span class="k">else</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Unexpected variable format </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">return</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># Original behavior for non-transformed variables</span>
-                <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[]</span>
-                <span class="k">for</span> <span class="n">var</span> <span class="ow">in</span> <span class="n">vars_sorted</span><span class="p">:</span>
-                    <span class="n">var_str</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">var</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="n">var_str</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">):</span>
-                        <span class="k">try</span><span class="p">:</span>
-                            <span class="n">idx</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">var_str</span><span class="p">[</span><span class="mi">1</span><span class="p">:])</span>
-                            <span class="n">var_indices</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">idx</span><span class="p">)</span>
-                        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Could not parse variable </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                            <span class="k">return</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: Unexpected variable format </span><span class="si">{</span><span class="n">var_str</span><span class="si">}</span><span class="s2"> for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                        <span class="k">return</span>
+            <span class="c1"># Map variables to indices using helper method</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">var_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_map_variables_to_indices</span><span class="p">(</span><span class="n">vars_sorted</span><span class="p">,</span> <span class="n">dim_idx</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Warning: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="k">return</span>
             
             <span class="n">equation_funcs</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span>
             <span class="n">equation_vars</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">var_indices</span>
@@ -714,33 +593,23 @@
         <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;🔒 Inactive dimensions will output zeros.&quot;</span><span class="p">)</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.forward">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.forward">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.forward">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.forward">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Forward pass through the model with pruning mask applied.</span>
-<span class="sd">        </span>
-<span class="sd">        Automatically switches between MLP and symbolic equations based on current mode.</span>
-<span class="sd">        When using MLP mode, applies pruning mask to zero out inactive dimensions.</span>
-<span class="sd">        When using symbolic equation mode, evaluates equations only for active dimensions</span>
-<span class="sd">        and outputs zeros for inactive dimensions.</span>
+
+<span class="sd">        Uses parent&#39;s forward method and applies pruning mask to enforce</span>
+<span class="sd">        zero outputs for inactive dimensions.</span>
 <span class="sd">        </span>
 <span class="sd">        Args:</span>
 <span class="sd">            x (torch.Tensor): Input tensor of shape (batch_size, input_dim)</span>
 <span class="sd">            </span>
 <span class="sd">        Returns:</span>
-<span class="sd">            torch.Tensor: Output tensor of shape (batch_size, initial_dim) with inactive</span>
-<span class="sd">                         dimensions masked to zero</span>
-<span class="sd">                         </span>
-<span class="sd">        Raises:</span>
-<span class="sd">            ValueError: If symbolic equations require variables not present in input</span>
+<span class="sd">            torch.Tensor: Output tensor with inactive dimensions masked to zero</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_using_equation&#39;</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_using_equation</span><span class="p">:</span>
-            <span class="c1"># Use parent&#39;s forward method and apply pruning mask</span>
-            <span class="n">output</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
-            <span class="k">return</span> <span class="n">output</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Custom forward pass for equations with proper zero-padding</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_using_equation&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_using_equation</span><span class="p">:</span>
+            <span class="c1"># For equation mode, we need to handle the PruningMLP case specially</span>
             <span class="n">batch_size</span> <span class="o">=</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
             <span class="c1"># Initialize output tensor with zeros for all dimensions</span>
             <span class="n">output</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="n">batch_size</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">initial_dim</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
@@ -753,67 +622,50 @@
                     <span class="n">var_indices</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_equation_vars</span><span class="p">[</span><span class="n">dim_idx</span><span class="p">]</span>
                     
                     <span class="c1"># Extract variables needed for this dimension</span>
-                    <span class="n">selected_inputs</span> <span class="o">=</span> <span class="p">[]</span>
-                    
-                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;_variable_transforms&#39;</span><span class="p">)</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                        <span class="c1"># Apply transformations and select needed variables</span>
-                        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">:</span>
-                            <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">):</span>
-                                <span class="n">transformed_var</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">[</span><span class="n">idx</span><span class="p">](</span><span class="n">x</span><span class="p">)</span>
-                                <span class="k">if</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                                    <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-                                <span class="n">selected_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_var</span><span class="p">)</span>
-                            <span class="k">else</span><span class="p">:</span>
-                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Equation for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2"> requires transform </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> but only </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2"> transforms available&quot;</span><span class="p">)</span>
-                                <span class="k">continue</span>
-                    <span class="k">else</span><span class="p">:</span>
-                        <span class="c1"># Original behavior - extract by column index</span>
-                        <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">:</span>
-                            <span class="k">if</span> <span class="n">idx</span> <span class="o">&lt;</span> <span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:</span>
-                                <span class="n">selected_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">])</span>
-                            <span class="k">else</span><span class="p">:</span>
-                                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Variable x</span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2"> not available for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-                                <span class="k">continue</span>
-                    
-                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">selected_inputs</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">var_indices</span><span class="p">):</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">selected_inputs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_extract_variables_for_equation</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">var_indices</span><span class="p">,</span> <span class="n">dim_idx</span><span class="p">)</span>
+                        
                         <span class="c1"># Convert to numpy for the equation function</span>
                         <span class="n">numpy_inputs</span> <span class="o">=</span> <span class="p">[</span><span class="n">inp</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="n">selected_inputs</span><span class="p">]</span>
                         
-                        <span class="k">try</span><span class="p">:</span>
-                            <span class="c1"># Evaluate the equation for this dimension</span>
-                            <span class="n">result</span> <span class="o">=</span> <span class="n">equation_func</span><span class="p">(</span><span class="o">*</span><span class="n">numpy_inputs</span><span class="p">)</span>
-                            
-                            <span class="c1"># Convert back to torch tensor with same device/dtype as input</span>
-                            <span class="n">result_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
-                            
-                            <span class="c1"># Ensure result is 1D (batch_size,)</span>
-                            <span class="k">if</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                                <span class="n">result_tensor</span> <span class="o">=</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
-                            <span class="k">elif</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-                                <span class="n">result_tensor</span> <span class="o">=</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-                            
-                            <span class="n">output</span><span class="p">[:,</span> <span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">result_tensor</span>
-                        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Error evaluating equation for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="c1"># Evaluate the equation for this dimension</span>
+                        <span class="n">result</span> <span class="o">=</span> <span class="n">equation_func</span><span class="p">(</span><span class="o">*</span><span class="n">numpy_inputs</span><span class="p">)</span>
+                        
+                        <span class="c1"># Convert back to torch tensor with same device/dtype as input</span>
+                        <span class="n">result_tensor</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span>
+                        
+                        <span class="c1"># Ensure result is 1D (batch_size,)</span>
+                        <span class="k">if</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                            <span class="n">result_tensor</span> <span class="o">=</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">expand</span><span class="p">(</span><span class="n">batch_size</span><span class="p">)</span>
+                        <span class="k">elif</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                            <span class="n">result_tensor</span> <span class="o">=</span> <span class="n">result_tensor</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
+                        
+                        <span class="n">output</span><span class="p">[:,</span> <span class="n">dim_idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">result_tensor</span>
+                    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;⚠️ Error evaluating equation for dimension </span><span class="si">{</span><span class="n">dim_idx</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
             
             <span class="c1"># Apply pruning mask to ensure inactive dimensions are zero</span>
+            <span class="k">return</span> <span class="n">output</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Use parent&#39;s forward method and apply pruning mask</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">output</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">pruning_mask</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.get_importance">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.get_importance">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.get_importance">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.get_importance">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">get_importance</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sample_data</span><span class="p">:</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">parent_model</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Get ordered list of output dimensions from most to least important.</span>
-<span class="sd">        </span>
-<span class="sd">        For Pruning_MLP, this considers only currently active (non-pruned) dimensions.</span>
+
+<span class="sd">        For PruningMLP, this considers only currently active (non-pruned) dimensions.</span>
 <span class="sd">        Evaluates importance by computing standard deviation across sample data,</span>
 <span class="sd">        with higher standard deviation indicating higher importance.</span>
-<span class="sd">        </span>
+
 <span class="sd">        Args:</span>
 <span class="sd">            sample_data (torch.Tensor): Sample input data to evaluate dimension importance.</span>
 <span class="sd">                                       Typically a subset of validation data.</span>
-<span class="sd">            parent_model (nn.Module, optional): The parent model containing this Pruning_MLP instance.</span>
+<span class="sd">            parent_model (nn.Module, optional): The parent model containing this PruningMLP instance.</span>
 <span class="sd">                                              If provided, will trace intermediate activations to get</span>
 <span class="sd">                                              the actual outputs at this layer level for importance evaluation.</span>
 <span class="sd">                                              </span>
@@ -828,67 +680,36 @@
 <span class="sd">            &gt;&gt;&gt; print(f&quot;Most important active dimension: {result[&#39;importance&#39;][0]} (std: {result[&#39;std&#39;][0]})&quot;)</span>
 <span class="sd">            &gt;&gt;&gt; print(f&quot;Least important active dimension: {result[&#39;importance&#39;][-1]} (std: {result[&#39;std&#39;][-1]})&quot;)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-            <span class="c1"># Extract outputs at this layer level for importance evaluation</span>
-            <span class="k">if</span> <span class="n">parent_model</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="c1"># Use forward hooks to capture outputs at this specific layer</span>
-                <span class="n">layer_outputs</span> <span class="o">=</span> <span class="p">[]</span>
-                
-                <span class="k">def</span><span class="w"> </span><span class="nf">hook_fn</span><span class="p">(</span><span class="n">module</span><span class="p">,</span> <span class="n">_</span><span class="p">,</span> <span class="n">output</span><span class="p">):</span>
-                    <span class="k">if</span> <span class="n">module</span> <span class="ow">is</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">:</span>
-                        <span class="n">layer_outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">clone</span><span class="p">())</span>
-                
-                <span class="c1"># Register forward hook</span>
-                <span class="n">hook</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">register_forward_hook</span><span class="p">(</span><span class="n">hook_fn</span><span class="p">)</span>
-                
-                <span class="c1"># Run parent model to capture intermediate activations</span>
-                <span class="n">parent_model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-                <span class="n">_</span> <span class="o">=</span> <span class="n">parent_model</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
-                
-                <span class="c1"># Remove hook</span>
-                <span class="n">hook</span><span class="o">.</span><span class="n">remove</span><span class="p">()</span>
-                
-                <span class="c1"># Use captured intermediate data</span>
-                <span class="k">if</span> <span class="n">layer_outputs</span><span class="p">:</span>
-                    <span class="n">output_array</span> <span class="o">=</span> <span class="n">layer_outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                <span class="k">else</span><span class="p">:</span>
-                    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Failed to capture intermediate activations. Ensure parent_model contains this Pruning_MLP instance.&quot;</span><span class="p">)</span>
-            <span class="k">else</span><span class="p">:</span>
-                <span class="c1"># Original behavior - use MLP directly</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-                <span class="n">output_array</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">InterpretSR_MLP</span><span class="p">(</span><span class="n">sample_data</span><span class="p">)</span>
-
-            <span class="c1"># Calculate importance for all dimensions</span>
-            <span class="n">output_importance</span> <span class="o">=</span> <span class="n">output_array</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">dim</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-            
-            <span class="c1"># Filter to only active dimensions</span>
-            <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">active_dims</span><span class="p">:</span>
-                <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="p">[]}</span>
-            
-            <span class="c1"># Get importance values for active dimensions only</span>
-            <span class="n">active_importance</span> <span class="o">=</span> <span class="n">output_importance</span><span class="p">[</span><span class="n">active_dims</span><span class="p">]</span>
-            
-            <span class="c1"># Sort active dimensions by importance (descending order)</span>
-            <span class="n">sorted_indices</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">argsort</span><span class="p">(</span><span class="n">active_importance</span><span class="p">,</span> <span class="n">descending</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-            
-            <span class="c1"># Map back to original dimension indices and get corresponding std values</span>
-            <span class="n">importance_order</span> <span class="o">=</span> <span class="p">[</span><span class="n">active_dims</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">sorted_indices</span><span class="o">.</span><span class="n">tolist</span><span class="p">()]</span>
-            <span class="n">std_values</span> <span class="o">=</span> <span class="n">active_importance</span><span class="p">[</span><span class="n">sorted_indices</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
-            
-            <span class="k">return</span> <span class="p">{</span>
-                <span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="n">importance_order</span><span class="p">,</span>
-                <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="n">std_values</span>
-            <span class="p">}</span></div>
+        <span class="c1"># Get full importance from parent class</span>
+        <span class="n">full_result</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">get_importance</span><span class="p">(</span><span class="n">sample_data</span><span class="p">,</span> <span class="n">parent_model</span><span class="p">)</span>
+        
+        <span class="c1"># Filter to only active dimensions</span>
+        <span class="n">active_dims</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_active_dimensions</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">active_dims</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="p">[],</span> <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="p">[]}</span>
+        
+        <span class="c1"># Filter parent results to active dimensions only</span>
+        <span class="n">active_importance</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="n">active_std</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">full_result</span><span class="p">[</span><span class="s1">&#39;importance&#39;</span><span class="p">]):</span>
+            <span class="k">if</span> <span class="n">dim_idx</span> <span class="ow">in</span> <span class="n">active_dims</span><span class="p">:</span>
+                <span class="n">active_importance</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">dim_idx</span><span class="p">)</span>
+                <span class="n">active_std</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">full_result</span><span class="p">[</span><span class="s1">&#39;std&#39;</span><span class="p">][</span><span class="n">i</span><span class="p">])</span>
+        
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s1">&#39;importance&#39;</span><span class="p">:</span> <span class="n">active_importance</span><span class="p">,</span>
+            <span class="s1">&#39;std&#39;</span><span class="p">:</span> <span class="n">active_std</span>
+        <span class="p">}</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.save_model">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.save_model">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.save_model">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.save_model">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save_model</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">save_pytorch</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">,</span> <span class="n">save_regressors</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Save the Pruning_MLP model including PyTorch weights, PySR regressors, and pruning state.</span>
-<span class="sd">        </span>
-<span class="sd">        Extends MLP_SR&#39;s save functionality to include pruning-specific information:</span>
+<span class="sd">        Save the PruningMLP model including PyTorch weights, PySR regressors, and pruning state.</span>
+
+<span class="sd">        Extends SymbolicMLP&#39;s save functionality to include pruning-specific information:</span>
 <span class="sd">        - PyTorch model state dict (if save_pytorch=True)</span>
 <span class="sd">        - All fitted PySR regressors for active dimensions (if save_regressors=True)</span>
 <span class="sd">        - Model metadata and configuration</span>
@@ -901,7 +722,7 @@
 <span class="sd">            save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.</span>
 <span class="sd">            </span>
 <span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; model.f_net = Pruning_MLP(model.f_net, initial_dim=32, target_dim=2, mlp_name=&quot;f_net&quot;)</span>
+<span class="sd">            &gt;&gt;&gt; model.f_net = PruningMLP(model.f_net, initial_dim=32, target_dim=2, mlp_name=&quot;f_net&quot;)</span>
 <span class="sd">            &gt;&gt;&gt; # ... train, prune, and run distill ...</span>
 <span class="sd">            &gt;&gt;&gt; model.f_net.save_model(&quot;./saved_models/pruned_model&quot;)</span>
 <span class="sd">            </span>
@@ -922,7 +743,7 @@
             <span class="n">saved_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pytorch_path</span><span class="p">)</span>
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;✅ Saved PyTorch model state to </span><span class="si">{</span><span class="n">pytorch_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         
-        <span class="c1"># Save enhanced metadata for Pruning_MLP</span>
+        <span class="c1"># Save enhanced metadata for PruningMLP</span>
         <span class="n">metadata</span> <span class="o">=</span> <span class="p">{</span>
             <span class="s1">&#39;mlp_name&#39;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp_name</span><span class="p">,</span>
             <span class="s1">&#39;output_dims&#39;</span><span class="p">:</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s1">&#39;output_dims&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">),</span>
@@ -977,14 +798,14 @@
         <span class="k">return</span> <span class="n">saved_files</span></div>
 
 
-<div class="viewcode-block" id="Pruning_MLP.load_model">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.Pruning_MLP.load_model">[docs]</a>
+<div class="viewcode-block" id="PruningMLP.load_model">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.toolkit.PruningMLP.load_model">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">load_model</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">mlp_architecture</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">device</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;cpu&#39;</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Load a previously saved Pruning_MLP model with all components.</span>
-<span class="sd">        </span>
-<span class="sd">        Reconstructs the complete Pruning_MLP instance including:</span>
+<span class="sd">        Load a previously saved PruningMLP model with all components.</span>
+
+<span class="sd">        Reconstructs the complete PruningMLP instance including:</span>
 <span class="sd">        - PyTorch model weights (requires architecture)</span>
 <span class="sd">        - All fitted PySR regressors for active dimensions</span>
 <span class="sd">        - Model metadata and configuration</span>
@@ -998,12 +819,12 @@
 <span class="sd">            device (str, optional): Device to load tensors to (&#39;cpu&#39;, &#39;cuda&#39;, etc.). Defaults to &#39;cpu&#39;.</span>
 <span class="sd">            </span>
 <span class="sd">        Returns:</span>
-<span class="sd">            Pruning_MLP: Reconstructed Pruning_MLP instance with loaded components</span>
-<span class="sd">            </span>
+<span class="sd">            PruningMLP: Reconstructed PruningMLP instance with loaded components</span>
+
 <span class="sd">        Example:</span>
 <span class="sd">            &gt;&gt;&gt; # Create same architecture as original</span>
 <span class="sd">            &gt;&gt;&gt; mlp = nn.Sequential(nn.Linear(5, 32), nn.ReLU(), nn.Linear(32, 32))</span>
-<span class="sd">            &gt;&gt;&gt; loaded_model = Pruning_MLP.load_model(&quot;./saved_models/pruned_model&quot;, mlp)</span>
+<span class="sd">            &gt;&gt;&gt; loaded_model = PruningMLP.load_model(&quot;./saved_models/pruned_model&quot;, mlp)</span>
 <span class="sd">            &gt;&gt;&gt; # Model ready to use with pruning state and equations</span>
 <span class="sd">            &gt;&gt;&gt; loaded_model.switch_to_equation()</span>
 <span class="sd">            </span>
@@ -1019,11 +840,11 @@
         <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">metadata_path</span><span class="p">,</span> <span class="s1">&#39;rb&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
             <span class="n">metadata</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
         
-        <span class="c1"># Verify this is a Pruning_MLP save</span>
-        <span class="k">if</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;class_name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;Pruning_MLP&#39;</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected Pruning_MLP save file, found </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;class_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📂 Loading Pruning_MLP model: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;mlp_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="c1"># Verify this is a PruningMLP save</span>
+        <span class="k">if</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;class_name&#39;</span><span class="p">]</span> <span class="o">!=</span> <span class="s1">&#39;PruningMLP&#39;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected PruningMLP save file, found </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;class_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;📂 Loading PruningMLP model: </span><span class="si">{</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;mlp_name&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         
         <span class="c1"># Extract pruning dimensions</span>
         <span class="n">initial_dim</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;initial_dim&#39;</span><span class="p">]</span>
@@ -1031,11 +852,11 @@
         <span class="n">target_dim</span> <span class="o">=</span> <span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;target_dim&#39;</span><span class="p">]</span>
         
         <span class="k">if</span> <span class="n">mlp_architecture</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;mlp_architecture is required when loading Pruning_MLP&quot;</span><span class="p">)</span>
-        
-        <span class="c1"># Create Pruning_MLP instance</span>
-        <span class="n">instance</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">mlp_architecture</span><span class="p">,</span> 
-                      <span class="n">initial_dim</span><span class="o">=</span><span class="n">initial_dim</span><span class="p">,</span> 
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;mlp_architecture is required when loading PruningMLP&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Create PruningMLP instance</span>
+        <span class="n">instance</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span><span class="n">mlp_architecture</span><span class="p">,</span>
+                      <span class="n">initial_dim</span><span class="o">=</span><span class="n">initial_dim</span><span class="p">,</span>
                       <span class="n">target_dim</span><span class="o">=</span><span class="n">target_dim</span><span class="p">,</span>
                       <span class="n">mlp_name</span><span class="o">=</span><span class="n">metadata</span><span class="p">[</span><span class="s1">&#39;mlp_name&#39;</span><span class="p">])</span>
         

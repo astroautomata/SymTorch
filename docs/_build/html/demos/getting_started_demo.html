@@ -23,7 +23,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Pruning MLPs" href="toolkit_demo.html" />
-    <link rel="prev" title="API Reference" href="../api_reference.html" /> 
+    <link rel="prev" title="News" href="../news.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -48,6 +48,10 @@
               <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../news.html">News</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul class="current">
@@ -100,10 +104,10 @@
 <h1>Getting Started<a class="headerlink" href="#getting-started" title="Link to this heading"></a></h1>
 <p>In this demo, we show you how to:</p>
 <ul class="simple">
-<li><p>Wrap an MLP in a PyTorch model with our <code class="docutils literal notranslate"><span class="pre">MLP_SR</span></code> class</p></li>
+<li><p>Wrap an MLP in a PyTorch model with our <code class="docutils literal notranslate"><span class="pre">SymbolicMLP</span></code> class</p></li>
 <li><p>Perform symbolic regresson on the MLP with the <code class="docutils literal notranslate"><span class="pre">distill</span></code> method</p></li>
 <li><p>Switch the MLP to an equation in the forward pass of the model with the <code class="docutils literal notranslate"><span class="pre">switch_to_equation</span></code> method</p></li>
-<li><p>Switch back to the MLP with the <code class="docutils literal notranslate"><span class="pre">switch_to_MLP</span></code> method</p></li>
+<li><p>Switch back to the MLP with the <code class="docutils literal notranslate"><span class="pre">switch_to_mlp</span></code> method</p></li>
 <li><p>Loading a SymTorch model with the <code class="docutils literal notranslate"><span class="pre">load_model</span></code> method (BETA TESTING)</p></li>
 </ul>
 <section id="wrapping-a-pytorch-model">
@@ -238,10 +242,10 @@ y = x_0^2 +3 \sin(x_4)-4
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.090837
-Epoch [10/20], Avg Loss: 0.063189
-Epoch [15/20], Avg Loss: 0.052076
-Epoch [20/20], Avg Loss: 0.041570
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.080689
+Epoch [10/20], Avg Loss: 0.059326
+Epoch [15/20], Avg Loss: 0.048104
+Epoch [20/20], Avg Loss: 0.038434
 </pre></div>
 </div>
 </div>
@@ -249,8 +253,8 @@ Epoch [20/20], Avg Loss: 0.041570
 <p>Wrap the mlp layer in the trained model with MLP_SR.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
-<span class="n">model</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="p">,</span> <span class="n">mlp_name</span> <span class="o">=</span> <span class="s1">&#39;Sequential&#39;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicMLP</span>
+<span class="n">model</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="n">SymbolicMLP</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">mlp</span><span class="p">,</span> <span class="n">mlp_name</span> <span class="o">=</span> <span class="s1">&#39;Sequential&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -291,44 +295,54 @@ To see all the possible parameters, please see the <code class="docutils literal
   warnings.warn(
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432214).
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be (x4 + -4.004943) + ((((x4 * (x4 * -0.27583972)) + inv(x4)) * x4) * ((x4 + (x0 * x0)) + x4)).
 ❤️ SR on Sequential complete.
 </pre></div>
 </div>
 <div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
  	    pick         score                                           equation  \
  	0         0.000000e+00                                                 x4   
- 	1         2.693680e+00                                         -2.2729003   
- 	2         4.305627e-01                                    x4 + -2.7745965   
- 	3         4.866128e-01                              x4 + (x4 + -3.276266)   
- 	4         1.181860e-01                      (x4 * 2.3365693) + -3.4451187   
- 	5         1.428903e+00                      x0 + ((x4 + x4) + -3.7737725)   
- 	6         8.013156e-01                ((x4 * 2.3453188) + x0) + -3.947015   
- 	7         2.012037e-01         (x4 * 2.343591) + ((x0 * x0) + -3.7779894)   
- 	8         1.672051e-01           (x0 + -4.034988) + (sin(x4) * 2.7433662)   
- 	9         4.156152e-01    (sin(x4) * 2.741074) + ((x0 * x0) + -3.8657725)   
- 	10  &gt;&gt;&gt;&gt;  1.677344e-01  sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432...   
- 	11        4.104815e-08  inv(inv((sin(x0 * x0) + (sin(x4) * 2.740518)) ...   
- 	12        1.012104e-01  ((sin(x4) + (((x0 * 0.26781264) + 0.06732551) ...   
- 	13        4.542017e-08  inv(inv(((sin(x4) + (((x0 * 0.26781264) + 0.06...   
- 	14        2.835841e-03  inv(inv(((((x0 * 0.27710882) * x0) + sin((x0 *...   
+ 	1         2.600202e+00                                          -2.301479   
+ 	2         4.040378e-01                                     x4 + -2.800622   
+ 	3         4.821778e-01                             (x4 + x4) + -3.2995384   
+ 	4         2.194239e-01                       (x4 * 2.490159) + -3.5441391   
+ 	5         9.529646e-01                      (x0 + (x4 + -3.8061292)) + x4   
+ 	6         9.319039e-01                 x0 + ((x4 + -1.6320255) * 2.47844)   
+ 	7         1.465733e-01        ((x0 * x0) + -3.8779812) + (x4 * 2.4770215)   
+ 	8         7.084829e-01             (inv(exp(x4)) * -4.158734) + (x0 * x0)   
+ 	9         1.403650e-01    ((x0 * x0) + -3.972769) + (sin(x4) * 2.9010966)   
+ 	10        8.077646e-02  (inv(exp(x4)) * -4.073437) + (x0 * (x0 + -0.11...   
+ 	11        1.115349e-02  (((x0 + (x4 * x0)) * x0) + -4.158734) * inv(ex...   
+ 	12        1.944279e-01  (sin(sin(x4)) * 3.257794) + ((x0 * x0) + -4.04...   
+ 	13        9.353280e-03  (inv(exp(x4)) * -3.977397) + sin((x0 * x0) + -...   
+ 	14        1.606033e-01  ((sin(sin(x4)) * 3.5838883) + ((x0 * x0) + -4....   
+ 	15        6.370600e-02  ((((x4 + ((x0 * x0) + x4)) * x4) * ((x4 * -0.2...   
+ 	16  &gt;&gt;&gt;&gt;  1.416759e-01  (x4 + -4.004943) + ((((x4 * (x4 * -0.27583972)...   
+ 	17        8.073089e-08  inv(inv(x4 + (-4.004943 + (((((x4 * x4) * -0.2...   
+ 	18        3.562809e-02  ((((x0 * (x0 * 0.97650796)) + x4) + x4) * ((((...   
+ 	19        7.526650e-04  ((((x0 * (x0 * 0.9767106)) + (x4 + x4)) * (inv...   
  	
  	        loss  complexity  
- 	0   7.924852           1  
- 	1   0.535971           2  
- 	2   0.226547           4  
- 	3   0.085604           6  
- 	4   0.076061           7  
- 	5   0.018222           8  
- 	6   0.008177           9  
- 	7   0.005468          11  
- 	8   0.004626          12  
- 	9   0.002015          14  
- 	10  0.001218          17  
- 	11  0.001218          19  
- 	12  0.001101          20  
- 	13  0.001101          22  
- 	14  0.001095          24  
+ 	0   8.111321           1  
+ 	1   0.602335           2  
+ 	2   0.268470           4  
+ 	3   0.102348           6  
+ 	4   0.082184           7  
+ 	5   0.031690           8  
+ 	6   0.012480           9  
+ 	7   0.009309          11  
+ 	8   0.004583          12  
+ 	9   0.003462          14  
+ 	10  0.003193          15  
+ 	11  0.003158          16  
+ 	12  0.002600          17  
+ 	13  0.002575          18  
+ 	14  0.001868          20  
+ 	15  0.001644          22  
+ 	16  0.001239          24  
+ 	17  0.001239          26  
+ 	18  0.001195          27  
+ 	19  0.001193          30  
  ]}
 </pre></div>
 </div>
@@ -346,37 +360,47 @@ Outputs from <em>PySR</em> are saved in <code class="docutils literal notranslat
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
 	    pick         score                                           equation  \
 	0         0.000000e+00                                                 x4   
-	1         2.693680e+00                                         -2.2729003   
-	2         4.305627e-01                                    x4 + -2.7745965   
-	3         4.866128e-01                              x4 + (x4 + -3.276266)   
-	4         1.181860e-01                      (x4 * 2.3365693) + -3.4451187   
-	5         1.428903e+00                      x0 + ((x4 + x4) + -3.7737725)   
-	6         8.013156e-01                ((x4 * 2.3453188) + x0) + -3.947015   
-	7         2.012037e-01         (x4 * 2.343591) + ((x0 * x0) + -3.7779894)   
-	8         1.672051e-01           (x0 + -4.034988) + (sin(x4) * 2.7433662)   
-	9         4.156152e-01    (sin(x4) * 2.741074) + ((x0 * x0) + -3.8657725)   
-	10  &gt;&gt;&gt;&gt;  1.677344e-01  sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432...   
-	11        4.104815e-08  inv(inv((sin(x0 * x0) + (sin(x4) * 2.740518)) ...   
-	12        1.012104e-01  ((sin(x4) + (((x0 * 0.26781264) + 0.06732551) ...   
-	13        4.542017e-08  inv(inv(((sin(x4) + (((x0 * 0.26781264) + 0.06...   
-	14        2.835841e-03  inv(inv(((((x0 * 0.27710882) * x0) + sin((x0 *...   
+	1         2.600202e+00                                          -2.301479   
+	2         4.040378e-01                                     x4 + -2.800622   
+	3         4.821778e-01                             (x4 + x4) + -3.2995384   
+	4         2.194239e-01                       (x4 * 2.490159) + -3.5441391   
+	5         9.529646e-01                      (x0 + (x4 + -3.8061292)) + x4   
+	6         9.319039e-01                 x0 + ((x4 + -1.6320255) * 2.47844)   
+	7         1.465733e-01        ((x0 * x0) + -3.8779812) + (x4 * 2.4770215)   
+	8         7.084829e-01             (inv(exp(x4)) * -4.158734) + (x0 * x0)   
+	9         1.403650e-01    ((x0 * x0) + -3.972769) + (sin(x4) * 2.9010966)   
+	10        8.077646e-02  (inv(exp(x4)) * -4.073437) + (x0 * (x0 + -0.11...   
+	11        1.115349e-02  (((x0 + (x4 * x0)) * x0) + -4.158734) * inv(ex...   
+	12        1.944279e-01  (sin(sin(x4)) * 3.257794) + ((x0 * x0) + -4.04...   
+	13        9.353280e-03  (inv(exp(x4)) * -3.977397) + sin((x0 * x0) + -...   
+	14        1.606033e-01  ((sin(sin(x4)) * 3.5838883) + ((x0 * x0) + -4....   
+	15        6.370600e-02  ((((x4 + ((x0 * x0) + x4)) * x4) * ((x4 * -0.2...   
+	16  &gt;&gt;&gt;&gt;  1.416759e-01  (x4 + -4.004943) + ((((x4 * (x4 * -0.27583972)...   
+	17        8.073089e-08  inv(inv(x4 + (-4.004943 + (((((x4 * x4) * -0.2...   
+	18        3.562809e-02  ((((x0 * (x0 * 0.97650796)) + x4) + x4) * ((((...   
+	19        7.526650e-04  ((((x0 * (x0 * 0.9767106)) + (x4 + x4)) * (inv...   
 	
 	        loss  complexity  
-	0   7.924852           1  
-	1   0.535971           2  
-	2   0.226547           4  
-	3   0.085604           6  
-	4   0.076061           7  
-	5   0.018222           8  
-	6   0.008177           9  
-	7   0.005468          11  
-	8   0.004626          12  
-	9   0.002015          14  
-	10  0.001218          17  
-	11  0.001218          19  
-	12  0.001101          20  
-	13  0.001101          22  
-	14  0.001095          24  
+	0   8.111321           1  
+	1   0.602335           2  
+	2   0.268470           4  
+	3   0.102348           6  
+	4   0.082184           7  
+	5   0.031690           8  
+	6   0.012480           9  
+	7   0.009309          11  
+	8   0.004583          12  
+	9   0.003462          14  
+	10  0.003193          15  
+	11  0.003158          16  
+	12  0.002600          17  
+	13  0.002575          18  
+	14  0.001868          20  
+	15  0.001644          22  
+	16  0.001239          24  
+	17  0.001239          26  
+	18  0.001195          27  
+	19  0.001193          30  
 ]}
 </pre></div>
 </div>
@@ -395,7 +419,7 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Successfully switched Sequential to symbolic equations for all 1 dimensions:
-   Dimension 0: (sin(x4) * 2.741074) + ((x0 * x0) + -3.8657725)
+   Dimension 0: ((x0 * x0) + -3.972769) + (sin(x4) * 2.9010966)
    Variables: [&#39;x0&#39;, &#39;x4&#39;]
 🎯 All 1 output dimensions now using symbolic equations.
 </pre></div>
@@ -411,13 +435,13 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.2651],
-        [-2.4022],
-        [-1.0710],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.7768],
+        [-3.3793],
+        [-1.8882],
         ...,
-        [-2.6542],
-        [-2.5095],
-        [-1.8382]])
+        [-1.8417],
+        [-2.7306],
+        [-1.6110]])
 </pre></div>
 </div>
 </div>
@@ -447,13 +471,13 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.2492],
-        [-2.3460],
-        [-1.0507],
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>tensor([[-2.7518],
+        [-3.3348],
+        [-1.8268],
         ...,
-        [-2.6601],
-        [-2.5197],
-        [-1.8332]])
+        [-1.7640],
+        [-2.7127],
+        [-1.6157]])
 </pre></div>
 </div>
 </div>
@@ -502,18 +526,18 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">loaded_model</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="s1">&#39;symtorch_data/symtorch_model&#39;</span><span class="p">)</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">loaded_model</span> <span class="o">=</span> <span class="n">SymbolicMLP</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="s1">&#39;symtorch_data/symtorch_model&#39;</span><span class="p">)</span>
 <span class="n">loaded_model</span><span class="o">.</span><span class="n">switch_to_equation</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>📂 Loading MLP_SR model: Sequential
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>📂 Loading SymbolicMLP model: Sequential
 ✅ Loaded regressor for dimension 0
 ✅ Loaded 1 PySR regressors
 🎯 Model loading complete: Sequential
 ✅ Successfully switched Sequential to symbolic equations for all 1 dimensions:
-   Dimension 0: sin(x0 * x0) + ((sin(x4) * 2.740516) + -3.8432214)
+   Dimension 0: (x4 + -4.004943) + ((((x4 * (x4 * -0.27583972)) + inv(x4)) * x4) * ((x4 + (x0 * x0)) + x4))
    Variables: [&#39;x0&#39;, &#39;x4&#39;]
 🎯 All 1 output dimensions now using symbolic equations.
 </pre></div>
@@ -542,7 +566,7 @@ If left blank, then we choose the best equation chosen by <em>PySR</em>.</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="../api_reference.html" class="btn btn-neutral float-left" title="API Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../news.html" class="btn btn-neutral float-left" title="News" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="toolkit_demo.html" class="btn btn-neutral float-right" title="Pruning MLPs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

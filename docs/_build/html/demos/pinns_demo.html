@@ -49,6 +49,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../news.html">News</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="getting_started_demo.html">Getting Started</a></li>
@@ -373,7 +377,7 @@ They can be useful in predicting behviour of physical systems, provided that obe
 <h2>Use PyTorch to approximate the behaviour of the PINN<a class="headerlink" href="#use-pytorch-to-approximate-the-behaviour-of-the-pinn" title="Link to this heading"></a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicMLP</span>
 </pre></div>
 </div>
 </div>
@@ -382,7 +386,7 @@ They can be useful in predicting behviour of physical systems, provided that obe
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">num_data</span> <span class="o">=</span> <span class="mi">5000</span> <span class="c1"># Create 5000 different data points</span>
 <span class="n">sample_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_data</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> 
-<span class="n">pinn</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="p">(</span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="p">,</span> <span class="s1">&#39;pinn&#39;</span><span class="p">)</span>
+<span class="n">pinn</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">SymbolicMLP</span><span class="p">(</span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="p">,</span> <span class="s1">&#39;pinn&#39;</span><span class="p">)</span>
 
 <span class="n">sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
              <span class="s1">&#39;constraints&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">},</span> 

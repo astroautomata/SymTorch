@@ -48,6 +48,10 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
 </ul>
+<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../news.html">News</a></li>
+</ul>
 <p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started_demo.html">Getting Started</a></li>
@@ -100,7 +104,7 @@ By approximating the edge model with an analytic equation using symbolic regress
 In this reproduction, we use <a class="reference external" href="https://symtorch.readthedocs.io/en/latest/">SymTorch</a> to perform the symbolic regression on the edge model. We introduce a new way of encouraging sparsity in the model representation by using SymTorch’s pruning functionality.</p>
 <p>The SymTorch functionality shown in this demo include:</p>
 <ul class="simple">
-<li><p>Wrapping an MLP with the <code class="docutils literal notranslate"><span class="pre">MLP_SR</span></code> class</p></li>
+<li><p>Wrapping an MLP with the <code class="docutils literal notranslate"><span class="pre">SymbolicMLP</span></code> class</p></li>
 <li><p>Creating and training a Pruning MLP within a GNN</p></li>
 <li><p>Approximating MLPs with symbolic expressions</p></li>
 <li><p>Using variable transforms</p></li>
@@ -671,7 +675,7 @@ For the results in the project report, we trained for 200 epochs (1.1 million st
 The pruning models are already a <code class="docutils literal notranslate"><span class="pre">symtorch.toolkit.Pruning_MLP</span></code> class, which has in-built interpretation methods.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">MLP_SR</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicMLP</span>
 </pre></div>
 </div>
 </div>
@@ -682,7 +686,7 @@ The pruning models are already a <code class="docutils literal notranslate"><spa
 <div class="cell_input docutils container">
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Wrap the model with the MLP_SR wrapper if it&#39;s not a pruning model</span>
 <span class="k">if</span> <span class="n">model_type</span> <span class="o">!=</span> <span class="s1">&#39;pruning&#39;</span><span class="p">:</span>
-    <span class="n">model</span><span class="o">.</span><span class="n">edge_model</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">edge_model</span><span class="p">,</span> <span class="n">mlp_name</span><span class="o">=</span><span class="n">model_type</span><span class="p">)</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">edge_model</span> <span class="o">=</span> <span class="n">SymbolicMLP</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">edge_model</span><span class="p">,</span> <span class="n">mlp_name</span><span class="o">=</span><span class="n">model_type</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
@@ -2570,7 +2574,7 @@ Complexity  Loss       Score      Equation
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Load the model</span>
-<span class="n">loaded_model</span> <span class="o">=</span> <span class="n">MLP_SR</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="s1">&#39;symtorch_model&#39;</span><span class="p">)</span>
+<span class="n">loaded_model</span> <span class="o">=</span> <span class="n">SymbolicMLP</span><span class="o">.</span><span class="n">load_model</span><span class="p">(</span><span class="s1">&#39;symtorch_model&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
