@@ -21,3 +21,5 @@ redundant/
 #demo sr_output files
 case_studies/pinn_demo/SR_output
 case_studies/pruning_demo/SR_output
+
+.DS_Store
