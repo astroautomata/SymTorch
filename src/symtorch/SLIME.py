@@ -30,7 +30,7 @@ def regressor_to_function(regressor, complexity=None):
         raise RuntimeError(f"Could not create lambdify function: {e}")
 
 
-def SLIME(f, inputs, x=None, p_synthetic=0, var=None, J_neighbours=10, real_weighting=1.0, pysr_params=None, fit_params=None):
+def SLIME(f, inputs, x=None, p_synthetic=0, var=None, J_neighbours=10, real_weighting=1.0, pysr_params=None, fit_params=None, nn_metric = 'euclidean'):
     # Validate real_weighting can only be used with synthetic samples
     if real_weighting != 1.0 and p_synthetic == 0:
         import warnings
@@ -49,7 +49,7 @@ def SLIME(f, inputs, x=None, p_synthetic=0, var=None, J_neighbours=10, real_weig
             var = np.var(inputs, axis=0, ddof=1)
 
         # Use NearestNeighbors to find J nearest neighbors
-        nbrs = NearestNeighbors(n_neighbors=J_neighbours, metric='euclidean').fit(inputs)
+        nbrs = NearestNeighbors(n_neighbors=J_neighbours, metric=nn_metric).fit(inputs)
         _, indices = nbrs.kneighbors(x.reshape(1, -1))
 
         # Get the J nearest neighbors
