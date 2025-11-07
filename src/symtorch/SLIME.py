@@ -1,3 +1,10 @@
+"""
+SymTorch SLIME Module
+
+This module implements SLIME (SupraLocal Interpretable Model Agnostic Explanations),
+a model interpretability technique that extends LIME by using symbolic regression
+instead of linear models for local approximations.
+"""
 import numpy as np
 from pysr import PySRRegressor
 from sympy import lambdify
@@ -12,6 +19,33 @@ DEFAULT_PYSR_PARAMS = {
 }
 
 def regressor_to_function(regressor, complexity=None):
+    """
+    Convert a PySR regressor to a callable Python function.
+
+    This helper function extracts the symbolic equation from a fitted PySRRegressor
+    and converts it to a numpy-compatible lambda function that can be called directly.
+
+    Args:
+        regressor (PySRRegressor): A fitted PySR regressor containing discovered equations
+        complexity (int, optional): Specific complexity level of equation to extract.
+                                   If None, uses the best equation according to PySR scoring.
+
+    Returns:
+        tuple: A tuple containing:
+            - f (callable): Numpy-compatible lambda function that evaluates the symbolic expression
+            - vars_sorted (list): List of sympy symbols representing the input variables,
+                                sorted alphabetically (e.g., [x0, x1, x2])
+
+    Raises:
+        ValueError: If specified complexity level is not found in the equation set
+        RuntimeError: If the symbolic expression cannot be converted to a lambda function
+
+    Example:
+        >>> regressor = SLIME(f=model.predict, inputs=X_train, x=x0, J_neighbours=10)
+        >>> slime_func, variables = regressor_to_function(regressor)
+        >>> # Call the function with individual feature values
+        >>> prediction = slime_func(x0[0], x0[1], x0[2])
+    """
     if complexity is None:
         best_str = regressor.get_best()["equation"]
         expr = regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
@@ -30,7 +64,109 @@ def regressor_to_function(regressor, complexity=None):
         raise RuntimeError(f"Could not create lambdify function: {e}")
 
 
-def SLIME(f, inputs, x=None, num_synthetic=0, var=None, J_neighbours=10, real_weighting=1.0, pysr_params=None, fit_params=None, nn_metric = 'euclidean'):
+def SLIME(f, inputs, x=None, num_synthetic=0, var=None, J_neighbours=10, real_weighting=1.0, pysr_params=None, fit_params=None, nn_metric='euclidean'):
+    """
+    Fit a SLIME (SupraLocal Interpretable Model Agnostic Explanations) model.
+
+    SLIME is a model interpretability technique that extends LIME (Local Interpretable
+    Model Agnostic Explanations) by using symbolic regression instead of linear models
+    to approximate black-box model behavior in a local region around a point of interest.
+
+    The algorithm works as follows:
+    1. Define a local neighborhood around point x₀ using J nearest neighbors
+    2. Optionally generate synthetic samples around x₀ using Gaussian perturbations
+    3. Evaluate the black-box model f(x) on all neighborhood points
+    4. Fit a symbolic regression model that minimizes:
+
+       g*(x) = argmin_g ∑(synthetic) π(z_i)[f(z_i) - g(z_i)]² + M ∑(neighbors) [f(z_j) - g(z_j)]²
+
+       where π(z_i) = exp(-||x₀ - z_i||²/σ²) is a Gaussian proximity kernel
+
+    SLIME offers better interpretability than LIME by discovering closed-form analytic
+    expressions that may be nonlinear, while maintaining the same local approximation
+    guarantee.
+
+    Args:
+        f (callable): Black-box model function to approximate. Should accept numpy array
+                     of shape (n_samples, n_features) and return predictions.
+        inputs (np.ndarray): Dataset of input samples, shape (n_samples, n_features).
+                            Used to find nearest neighbors.
+        x (np.ndarray, optional): Point of interest around which to build local approximation,
+                                 shape (n_features,). If None, uses all inputs without
+                                 neighborhood selection.
+        num_synthetic (int, optional): Number of synthetic samples to generate around x
+                                      using Gaussian perturbations. Default is 0.
+                                      Must be > 0 if x is specified.
+        var (np.ndarray, optional): Variance for Gaussian perturbations, shape (n_features,).
+                                   If None, computed from J nearest neighbors.
+        J_neighbours (int, optional): Number of nearest neighbors to include in the
+                                     local neighborhood. Default is 10.
+        real_weighting (float, optional): Weight M for real neighbor samples in the loss
+                                         function. Only applies when num_synthetic > 0.
+                                         Default is 1.0.
+        pysr_params (dict, optional): Custom parameters for PySRRegressor. These override
+                                     DEFAULT_PYSR_PARAMS. Common parameters include:
+                                     - 'niterations': Number of iterations (default 400)
+                                     - 'binary_operators': List of binary operators
+                                     - 'unary_operators': List of unary operators
+                                     - 'complexity_of_operators': Complexity penalties
+        fit_params (dict, optional): Additional parameters to pass to PySRRegressor.fit()
+        nn_metric (str, optional): Distance metric for nearest neighbor search.
+                                  Any metric supported by sklearn.neighbors.NearestNeighbors.
+                                  Default is 'euclidean'.
+
+    Returns:
+        PySRRegressor: Fitted symbolic regression model. Use regressor_to_function()
+                      to convert to a callable function, or access equations via
+                      regressor.equations_ DataFrame.
+
+    Raises:
+        ValueError: If x is specified but num_synthetic is 0
+        ValueError: If J_neighbours >= len(inputs)
+        UserWarning: If real_weighting != 1.0 but num_synthetic is 0 (reverts to 1.0)
+
+    Example:
+        >>> from sklearn.ensemble import GradientBoostingRegressor
+        >>> from symtorch.SLIME import SLIME, regressor_to_function
+        >>>
+        >>> # Train a black-box model
+        >>> xgb_model = GradientBoostingRegressor().fit(X_train, y_train)
+        >>>
+        >>> # Define model wrapper
+        >>> def f(inputs):
+        ...     return xgb_model.predict(inputs)
+        >>>
+        >>> # Fit SLIME around a specific point
+        >>> x0 = X_test[0]  # Point of interest
+        >>> regressor = SLIME(
+        ...     f=f,
+        ...     inputs=X_test,
+        ...     x=x0,
+        ...     num_synthetic=5000,
+        ...     J_neighbours=10,
+        ...     pysr_params={
+        ...         'niterations': 500,
+        ...         'binary_operators': ['+', '*', '-', '/'],
+        ...         'unary_operators': ['sin', 'cos', 'exp', 'log', 'sqrt'],
+        ...     }
+        ... )
+        >>>
+        >>> # Convert to callable function
+        >>> slime_func, variables = regressor_to_function(regressor)
+        >>> print(f"Best equation: {regressor.get_best()['equation']}")
+        >>> print(f"Uses variables: {variables}")
+        >>>
+        >>> # Make predictions
+        >>> var_indices = [int(str(v).replace('x', '')) for v in variables]
+        >>> prediction = slime_func(*[x0[i] for i in var_indices])
+
+    References:
+        Fong, Motani (2025). "SLIME: SupraLocal Interpretable Model Agnostic Explanations"
+        ACM Conference, https://dl.acm.org/doi/10.1145/3712255.3726721
+
+        Ribeiro et al. (2016). "LIME: Local Interpretable Model Agnostic Explanations"
+        https://arxiv.org/pdf/1602.04938
+    """
     # Validate real_weighting can only be used with synthetic samples
     if real_weighting != 1.0 and num_synthetic == 0:
         import warnings
