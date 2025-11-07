@@ -65,6 +65,10 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="toolkit_demo.html">Pruning MLPs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slime_demo.html#slime-demo">SLIME Demo</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slime_demo.html#fitting-lime">Fitting LIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="slime_demo.html#fitting-slime">Fitting SLIME</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Extended Demo:</span></p>
 <ul>
@@ -250,7 +254,7 @@ Epoch [20/20], Avg Loss: 0.038434
 </div>
 </div>
 </div>
-<p>Wrap the mlp layer in the trained model with MLP_SR.</p>
+<p>Wrap the mlp layer in the trained model with SymbolicMLP.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicMLP</span>
