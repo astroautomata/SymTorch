@@ -314,5 +314,5 @@ def test_local_explanation_workflow():
     assert best['loss'] >= 0
 
 
-if os.path.exists('outputs'):
-    shutil.rmtree('outputs')
+if os.path.exists('../outputs'):
+    shutil.rmtree('../outputs')
