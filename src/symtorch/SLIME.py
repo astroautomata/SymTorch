@@ -30,23 +30,20 @@ def regressor_to_function(regressor, complexity=None):
         raise RuntimeError(f"Could not create lambdify function: {e}")
 
 
-def SLIME(f, inputs, x=None, p_synthetic=0, var=None, J_neighbours=10, real_weighting=1.0, pysr_params=None, fit_params=None, nn_metric = 'euclidean'):
+def SLIME(f, inputs, x=None, num_synthetic=0, var=None, J_neighbours=10, real_weighting=1.0, pysr_params=None, fit_params=None, nn_metric = 'euclidean'):
     # Validate real_weighting can only be used with synthetic samples
-    if real_weighting != 1.0 and p_synthetic == 0:
+    if real_weighting != 1.0 and num_synthetic == 0:
         import warnings
-        warnings.warn("real_weighting can only be modified when p_synthetic > 0. Reverting real_weighting to 1.0", UserWarning)
+        warnings.warn("real_weighting can only be modified when num_synthetic > 0. Reverting real_weighting to 1.0", UserWarning)
         real_weighting = 1.0
 
     if x is not None:
-        if p_synthetic == 0:
-            raise ValueError("Need to set p_synthetic to non-zero if x is specified.")
+        if num_synthetic == 0:
+            raise ValueError("Need to set num_synthetic to non-zero if x is specified.")
 
         # Validate J_neighbours
         if J_neighbours >= len(inputs):
             raise ValueError(f"J_neighbours ({J_neighbours}) must be less than len(inputs) ({len(inputs)})")
-
-        if var is None:
-            var = np.var(inputs, axis=0, ddof=1)
 
         # Use NearestNeighbors to find J nearest neighbors
         nbrs = NearestNeighbors(n_neighbors=J_neighbours, metric=nn_metric).fit(inputs)
@@ -55,10 +52,16 @@ def SLIME(f, inputs, x=None, p_synthetic=0, var=None, J_neighbours=10, real_weig
         # Get the J nearest neighbors
         real_inputs = inputs[indices[0]]
 
-        N = int(p_synthetic * len(real_inputs) / (1 - p_synthetic))
-        samples = np.random.normal(loc=x, scale=np.sqrt(var), size=(N, len(x)))
+        if var is None:
+            var = np.var(real_inputs, axis=0, ddof=1)
+
+        # Use num_synthetic directly as the number of synthetic samples
+        samples = np.random.normal(loc=x, scale=np.sqrt(var), size=(num_synthetic, len(x)))
         sr_inputs = np.concatenate([real_inputs, samples], axis=0)
+
+        print(f"Fitting SLIME with {len(sr_inputs)} points including {len(real_inputs)} real points and {num_synthetic} Gaussian sampled points.")
     else:
+        print("Fitting SLIME with all inputs provided.")
         real_inputs = inputs
         sr_inputs = inputs
         samples = None
