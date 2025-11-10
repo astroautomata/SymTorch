@@ -100,7 +100,6 @@
   <section id="supralocal-interpretable-model-agnostic-explanations-slime">
 <h1>SupraLocal Interpretable Model Agnostic Explanations (SLIME)<a class="headerlink" href="#supralocal-interpretable-model-agnostic-explanations-slime" title="Link to this heading"></a></h1>
 <p>SLIME is a very similar model interpretability technique to <a class="reference external" href="https://arxiv.org/pdf/1602.04938">LIME</a> (Local Interpretable Model Agnostic Explanations). Essentially, LIME is a technique that approximates any black box machine learning model with a linear model around a certain point. The surrogate model is fitted with Gaussian perturbed samples around the point.</p>
-<p><img alt="image.png" src="demos/attachment:image.png" /></p>
 <p>SLIME extends this idea. Here, we implement the framework as presented by the <a class="reference external" href="https://dl.acm.org/doi/10.1145/3712255.3726721">SLIME paper</a> (Fong, Motani 2025).</p>
 <p><strong>SLIME Algorithm</strong>: Suppose we have a black-box model <span class="math notranslate nohighlight">\(f(x)\)</span>,</p>
 <ol class="arabic simple">

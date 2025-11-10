@@ -62,6 +62,7 @@ intersphinx_mapping = {
     'torch': ('https://pytorch.org/docs/stable/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
 }
+intersphinx_timeout = 10  # Timeout in seconds (default is 30s)
 
 # Type hints configuration
 always_document_param_types = True
