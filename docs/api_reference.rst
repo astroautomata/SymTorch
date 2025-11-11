@@ -27,10 +27,16 @@ PruningMLP
    :undoc-members:
    :show-inheritance:
 
-SLIME
-~~~~~
+SLIMEModel
+~~~~~~~~~~
 
-.. autofunction:: symtorch.SLIME
+.. autoclass:: symtorch.SLIMEModel
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Helper Functions
+~~~~~~~~~~~~~~~~
 
 .. autofunction:: symtorch.regressor_to_function
 
