@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.abspath('../../'))
 
 project = 'SymTorch'
 author = 'Liz Tan'
-release = '1.0.4'
+release = '1.1.1'
 
 extensions = [
     'sphinx.ext.autodoc',
