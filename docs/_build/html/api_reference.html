@@ -6,22 +6,23 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>API Reference &mdash; SymTorch 1.0.4 documentation</title>
+  <title>API Reference &mdash; SymTorch 1.1.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
 
   
+    <link rel="shortcut icon" href="_static/symtorch_favicon.png"/>
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=71272d9f"></script>
+      <script src="_static/documentation_options.js?v=58fbf978"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="News" href="news.html" />
-    <link rel="prev" title="Installation" href="index.html" /> 
+    <link rel="next" title="API Demos" href="api_demos.html" />
+    <link rel="prev" title="Welcome to the SymTorch Documentation" href="index.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -32,8 +33,9 @@
 
           
           
-          <a href="index.html" class="icon icon-home">
-            SymTorch
+          <a href="index.html">
+            
+              <img src="_static/symtorch_favicon.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -101,8 +103,18 @@
 </li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="#slime">SLIME</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#symtorch.SLIME"><code class="docutils literal notranslate"><span class="pre">SLIME()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#slimemodel">SLIMEModel</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#symtorch.SLIMEModel"><code class="docutils literal notranslate"><span class="pre">SLIMEModel</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#symtorch.SLIMEModel.__init__"><code class="docutils literal notranslate"><span class="pre">SLIMEModel.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#symtorch.SLIMEModel.fit"><code class="docutils literal notranslate"><span class="pre">SLIMEModel.fit()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#symtorch.SLIMEModel.predict"><code class="docutils literal notranslate"><span class="pre">SLIMEModel.predict()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#symtorch.SLIMEModel.get_equation"><code class="docutils literal notranslate"><span class="pre">SLIMEModel.get_equation()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#symtorch.SLIMEModel.equations_"><code class="docutils literal notranslate"><span class="pre">SLIMEModel.equations_</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#helper-functions">Helper Functions</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#symtorch.regressor_to_function"><code class="docutils literal notranslate"><span class="pre">regressor_to_function()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="#configuration-and-parameters">Configuration and Parameters</a></li>
 </ul>
@@ -110,29 +122,19 @@
 <li class="toctree-l2"><a class="reference internal" href="#pysr-parameters">PySR Parameters</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="api_demos.html">API Demos</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="demos/getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/toolkit_demo.html">Pruning MLPs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#slime-demo">SLIME Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#fitting-lime">Fitting LIME</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#fitting-slime">Fitting SLIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Extended Demo:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#set-up">Set up</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#generate-the-dataset">Generate the dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#run-the-models">Run the models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#plot-the-linear-combination-of-forces">Plot the linear combination of forces</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#symbolic-regression">Symbolic regression</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="show_your_work.html">Show Your Work</a></li>
 </ul>
 
         </div>
@@ -161,7 +163,7 @@
              
   <section id="api-reference">
 <h1>API Reference<a class="headerlink" href="#api-reference" title="Link to this heading"></a></h1>
-<p>This section contains the complete API reference for SymTorch.</p>
+<p>This section contains the complete API reference for SymTorch. Please see the <span class="xref std std-doc">API Demos</span> for examples on how to use each object or function.</p>
 <section id="symbolicmlp">
 <h2>SymbolicMLP<a class="headerlink" href="#symbolicmlp" title="Link to this heading"></a></h2>
 <dl class="py class">
@@ -1093,127 +1095,102 @@ Pruning state and active dimensions are automatically restored.</p>
 </dd></dl>
 
 </section>
-<section id="slime">
-<h2>SLIME<a class="headerlink" href="#slime" title="Link to this heading"></a></h2>
-<dl class="py function">
-<dt class="sig sig-object py" id="symtorch.SLIME">
-<span class="sig-prename descclassname"><span class="pre">symtorch.</span></span><span class="sig-name descname"><span class="pre">SLIME</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_synthetic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">J_neighbours</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">real_weighting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pysr_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nn_metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'euclidean'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIME.html#SLIME"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SLIME" title="Link to this definition"></a></dt>
-<dd><p>Fit a SLIME (SupraLocal Interpretable Model Agnostic Explanations) model.</p>
-<p>SLIME is a model interpretability technique that extends LIME (Local Interpretable
-Model Agnostic Explanations) by using symbolic regression instead of linear models
-to approximate black-box model behavior in a local region around a point of interest.</p>
-<p>The algorithm works as follows:
-1. Define a local neighborhood around point x₀ using J nearest neighbors
-2. Optionally generate synthetic samples around x₀ using Gaussian perturbations
-3. Evaluate the black-box model f(x) on all neighborhood points
-4. Fit a symbolic regression model that minimizes:</p>
-<blockquote>
-<div><p>g*(x) = argmin_g ∑(synthetic) π(z_i)[f(z_i) - g(z_i)]² + M ∑(neighbors) [f(z_j) - g(z_j)]²</p>
-<p>where π(z_i) = exp(-||x₀ - z_i||²/σ²) is a Gaussian proximity kernel</p>
-</div></blockquote>
-<p>SLIME offers better interpretability than LIME by discovering closed-form analytic
-expressions that may be nonlinear, while maintaining the same local approximation
-guarantee.</p>
+<section id="slimemodel">
+<h2>SLIMEModel<a class="headerlink" href="#slimemodel" title="Link to this heading"></a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="symtorch.SLIMEModel">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">symtorch.</span></span><span class="sig-name descname"><span class="pre">SLIMEModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">J_neighbours</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_synthetic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">real_weighting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nn_metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'euclidean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pysr_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIMEModel.html#SLIMEModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SLIMEModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.python.org/3/library/functions.html#object" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></a></p>
+<p>SLIME (SupraLocal Interpretable Model Agnostic Explanations) model.</p>
+<p>SLIME extends LIME by using symbolic regression instead of linear models
+to approximate black-box model behavior in a local region.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>f</strong> (<em>callable</em>) – Black-box model function to approximate. Should accept numpy array
-of shape (n_samples, n_features) and return predictions.</p></li>
-<li><p><strong>inputs</strong> (<em>np.ndarray</em>) – Dataset of input samples, shape (n_samples, n_features).
-Used to find nearest neighbors.</p></li>
-<li><p><strong>x</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Point of interest around which to build local approximation,
-shape (n_features,). If None, uses all inputs without
-neighborhood selection.</p></li>
-<li><p><strong>num_synthetic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of synthetic samples to generate around x
-using Gaussian perturbations. Default is 0.
-Must be &gt; 0 if x is specified.</p></li>
-<li><p><strong>var</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Variance for Gaussian perturbations, shape (n_features,).
-If None, computed from J nearest neighbors.</p></li>
-<li><p><strong>J_neighbours</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Number of nearest neighbors to include in the
-local neighborhood. Default is 10.</p></li>
-<li><p><strong>real_weighting</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a><em>, </em><em>optional</em>) – Weight M for real neighbor samples in the loss
-function. Only applies when num_synthetic &gt; 0.
-Default is 1.0.</p></li>
-<li><p><strong>pysr_params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>, </em><em>optional</em>) – Custom parameters for PySRRegressor. These override
-DEFAULT_PYSR_PARAMS. Common parameters include:
-- ‘niterations’: Number of iterations (default 400)
-- ‘binary_operators’: List of binary operators
-- ‘unary_operators’: List of unary operators
-- ‘complexity_of_operators’: Complexity penalties</p></li>
-<li><p><strong>fit_params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>, </em><em>optional</em>) – Additional parameters to pass to PySRRegressor.fit()</p></li>
-<li><p><strong>nn_metric</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>optional</em>) – Distance metric for nearest neighbor search.
-Any metric supported by sklearn.neighbors.NearestNeighbors.
-Default is ‘euclidean’.</p></li>
+<li><p><strong>J_neighbours</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of nearest neighbors. Default is 10.</p></li>
+<li><p><strong>num_synthetic</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Number of synthetic samples. Default is 0.</p></li>
+<li><p><strong>real_weighting</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#float" title="(in Python v3.14)"><em>float</em></a>) – Weight for real samples. Default is 1.0.</p></li>
+<li><p><strong>nn_metric</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a>) – Distance metric. Default is ‘euclidean’.</p></li>
+<li><p><strong>pysr_params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a>) – Custom PySR parameters.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Attributes (set after fit):</dt><dd><p><a href="#id1"><span class="problematic" id="id2">x0_</span></a>: Point of interest
+<a href="#id3"><span class="problematic" id="id4">real_inputs_</span></a>: Real nearest neighbor inputs
+<a href="#id5"><span class="problematic" id="id6">synthetic_samples_</span></a>: Synthetic samples
+<a href="#id7"><span class="problematic" id="id8">weights_</span></a>: Sample weights
+<a href="#id9"><span class="problematic" id="id10">var_</span></a>: Variance for perturbations
+<a href="#id11"><span class="problematic" id="id12">regressor_</span></a>: Fitted PySRRegressor
+<a href="#id13"><span class="problematic" id="id14">equations_</span></a>: DataFrame of discovered equations</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="symtorch.SLIMEModel.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">J_neighbours</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">10</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_synthetic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">real_weighting</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nn_metric</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'euclidean'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pysr_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIMEModel.html#SLIMEModel.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SLIMEModel.__init__" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="symtorch.SLIMEModel.fit">
+<span class="sig-name descname"><span class="pre">fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">f</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">var</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_params</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIMEModel.html#SLIMEModel.fit"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SLIMEModel.fit" title="Link to this definition"></a></dt>
+<dd><p>Fit SLIME model to approximate function f around point x.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>f</strong> (<em>callable</em>) – Black-box model function</p></li>
+<li><p><strong>inputs</strong> (<em>np.ndarray</em>) – Dataset of input samples</p></li>
+<li><p><strong>x</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Point of interest</p></li>
+<li><p><strong>var</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – Variance for perturbations</p></li>
+<li><p><strong>fit_params</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>, </em><em>optional</em>) – Additional fit parameters</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p><dl class="simple">
-<dt>Fitted symbolic regression model. Use regressor_to_function()</dt><dd><p>to convert to a callable function, or access equations via
-<a href="#id1"><span class="problematic" id="id2">regressor.equations_</span></a> DataFrame.</p>
+<dd class="field-even"><p>self</p>
 </dd>
 </dl>
-</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>PySRRegressor</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><ul class="simple">
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If x is specified but num_synthetic is 0</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#ValueError" title="(in Python v3.14)"><strong>ValueError</strong></a> – If J_neighbours &gt;= len(inputs)</p></li>
-<li><p><a class="reference external" href="https://docs.python.org/3/library/exceptions.html#UserWarning" title="(in Python v3.14)"><strong>UserWarning</strong></a> – If real_weighting != 1.0 but num_synthetic is 0 (reverts to 1.0)</p></li>
-</ul>
-</dd>
-</dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.ensemble</span><span class="w"> </span><span class="kn">import</span> <span class="n">GradientBoostingRegressor</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch.SLIME</span><span class="w"> </span><span class="kn">import</span> <span class="n">SLIME</span><span class="p">,</span> <span class="n">regressor_to_function</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Train a black-box model</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">xgb_model</span> <span class="o">=</span> <span class="n">GradientBoostingRegressor</span><span class="p">()</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Define model wrapper</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="k">def</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
-<span class="gp">... </span>    <span class="k">return</span> <span class="n">xgb_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Fit SLIME around a specific point</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">x0</span> <span class="o">=</span> <span class="n">X_test</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>  <span class="c1"># Point of interest</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">regressor</span> <span class="o">=</span> <span class="n">SLIME</span><span class="p">(</span>
-<span class="gp">... </span>    <span class="n">f</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">inputs</span><span class="o">=</span><span class="n">X_test</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">x</span><span class="o">=</span><span class="n">x0</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">num_synthetic</span><span class="o">=</span><span class="mi">5000</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">J_neighbours</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
-<span class="gp">... </span>    <span class="n">pysr_params</span><span class="o">=</span><span class="p">{</span>
-<span class="gp">... </span>        <span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span>
-<span class="gp">... </span>        <span class="s1">&#39;binary_operators&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">],</span>
-<span class="gp">... </span>        <span class="s1">&#39;unary_operators&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;sin&#39;</span><span class="p">,</span> <span class="s1">&#39;cos&#39;</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="s1">&#39;sqrt&#39;</span><span class="p">],</span>
-<span class="gp">... </span>    <span class="p">}</span>
-<span class="gp">... </span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Convert to callable function</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">slime_func</span><span class="p">,</span> <span class="n">variables</span> <span class="o">=</span> <span class="n">regressor_to_function</span><span class="p">(</span><span class="n">regressor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation: </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Uses variables: </span><span class="si">{</span><span class="n">variables</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt;</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Make predictions</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">var_indices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">variables</span><span class="p">]</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">prediction</span> <span class="o">=</span> <span class="n">slime_func</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">x0</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">])</span>
-</pre></div>
-</div>
-<p class="rubric">References</p>
-<p>Fong, Motani (2025). “SLIME: SupraLocal Interpretable Model Agnostic Explanations”
-ACM Conference, <a class="reference external" href="https://dl.acm.org/doi/10.1145/3712255.3726721">https://dl.acm.org/doi/10.1145/3712255.3726721</a></p>
-<p>Ribeiro et al. (2016). “LIME: Local Interpretable Model Agnostic Explanations”
-<a class="reference external" href="https://arxiv.org/pdf/1602.04938">https://arxiv.org/pdf/1602.04938</a></p>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="symtorch.SLIMEModel.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">X</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">complexity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIMEModel.html#SLIMEModel.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SLIMEModel.predict" title="Link to this definition"></a></dt>
+<dd><p>Predict using the discovered symbolic equation.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>np.ndarray</em>) – Input samples</p></li>
+<li><p><strong>complexity</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a><em>, </em><em>optional</em>) – Equation complexity to use</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Predictions</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="symtorch.SLIMEModel.get_equation">
+<span class="sig-name descname"><span class="pre">get_equation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">complexity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIMEModel.html#SLIMEModel.get_equation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SLIMEModel.get_equation" title="Link to this definition"></a></dt>
+<dd><p>Get the symbolic equation as a string.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="symtorch.SLIMEModel.equations_">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">equations_</span></span><a class="headerlink" href="#symtorch.SLIMEModel.equations_" title="Link to this definition"></a></dt>
+<dd><p>Access the PySR equations DataFrame.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+<section id="helper-functions">
+<h2>Helper Functions<a class="headerlink" href="#helper-functions" title="Link to this heading"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="symtorch.regressor_to_function">
-<span class="sig-prename descclassname"><span class="pre">symtorch.</span></span><span class="sig-name descname"><span class="pre">regressor_to_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regressor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">complexity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIME.html#regressor_to_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.regressor_to_function" title="Link to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">symtorch.</span></span><span class="sig-name descname"><span class="pre">regressor_to_function</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">regressor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">complexity</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SLIMEModel.html#regressor_to_function"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.regressor_to_function" title="Link to this definition"></a></dt>
 <dd><p>Convert a PySR regressor to a callable Python function.</p>
-<p>This helper function extracts the symbolic equation from a fitted PySRRegressor
-and converts it to a numpy-compatible lambda function that can be called directly.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -1226,11 +1203,7 @@ If None, uses the best equation according to PySR scoring.</p></li>
 <dd class="field-even"><p><dl class="simple">
 <dt>A tuple containing:</dt><dd><ul class="simple">
 <li><p>f (callable): Numpy-compatible lambda function that evaluates the symbolic expression</p></li>
-<li><dl class="simple">
-<dt>vars_sorted (list): List of sympy symbols representing the input variables,</dt><dd><p>sorted alphabetically (e.g., [x0, x1, x2])</p>
-</dd>
-</dl>
-</li>
+<li><p>vars_sorted (list): List of sympy symbols representing the input variables</p></li>
 </ul>
 </dd>
 </dl>
@@ -1246,13 +1219,6 @@ If None, uses the best equation according to PySR scoring.</p></li>
 </ul>
 </dd>
 </dl>
-<p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">regressor</span> <span class="o">=</span> <span class="n">SLIME</span><span class="p">(</span><span class="n">f</span><span class="o">=</span><span class="n">model</span><span class="o">.</span><span class="n">predict</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="n">X_train</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">x0</span><span class="p">,</span> <span class="n">J_neighbours</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">slime_func</span><span class="p">,</span> <span class="n">variables</span> <span class="o">=</span> <span class="n">regressor_to_function</span><span class="p">(</span><span class="n">regressor</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Call the function with individual feature values</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">prediction</span> <span class="o">=</span> <span class="n">slime_func</span><span class="p">(</span><span class="n">x0</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">x0</span><span class="p">[</span><span class="mi">2</span><span class="p">])</span>
-</pre></div>
-</div>
 </dd></dl>
 
 <section id="configuration-and-parameters">
@@ -1269,8 +1235,8 @@ If None, uses the best equation according to PySR scoring.</p></li>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="index.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="news.html" class="btn btn-neutral float-right" title="News" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="index.html" class="btn btn-neutral float-left" title="Welcome to the SymTorch Documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api_demos.html" class="btn btn-neutral float-right" title="API Demos" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

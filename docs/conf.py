@@ -29,6 +29,13 @@ language = 'en'
 html_theme = 'sphinx_rtd_theme'
 html_static_path = ['_static']
 
+html_logo = "_static/symtorch_favicon.png"
+html_favicon = "_static/symtorch_favicon.png"   # optional
+html_theme_options = {
+    "logo_only": True,
+    "display_version": False,
+}
+
 # -- Extension configuration -------------------------------------------------
 
 # Napoleon settings

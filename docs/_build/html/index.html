@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; SymTorch 1.0.4 documentation</title>
+  <title>Welcome to the SymTorch Documentation &mdash; SymTorch 1.1.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
 
   
+    <link rel="shortcut icon" href="_static/symtorch_favicon.png"/>
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=71272d9f"></script>
+      <script src="_static/documentation_options.js?v=58fbf978"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/js/theme.js"></script>
@@ -31,8 +32,9 @@
 
           
           
-          <a href="#" class="icon icon-home">
-            SymTorch
+          <a href="#">
+            
+              <img src="_static/symtorch_favicon.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -45,29 +47,19 @@
               <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_demos.html">API Demos</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="demos/getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/toolkit_demo.html">Pruning MLPs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#slime-demo">SLIME Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#fitting-lime">Fitting LIME</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#fitting-slime">Fitting SLIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Extended Demo:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#set-up">Set up</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#generate-the-dataset">Generate the dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#run-the-models">Run the models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#plot-the-linear-combination-of-forces">Plot the linear combination of forces</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#symbolic-regression">Symbolic regression</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="show_your_work.html">Show Your Work</a></li>
 </ul>
 
         </div>
@@ -84,7 +76,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Installation</li>
+      <li class="breadcrumb-item active">Welcome to the SymTorch Documentation</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -94,15 +86,55 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <a class="reference internal image-reference" href="_images/symtorch_logo.png"><img alt="Description" src="_images/symtorch_logo.png" style="width: 100%;" />
+  <section id="welcome-to-the-symtorch-documentation">
+<h1>Welcome to the SymTorch Documentation<a class="headerlink" href="#welcome-to-the-symtorch-documentation" title="Link to this heading"></a></h1>
+<a class="reference internal image-reference" href="_images/symtorch_logo.png"><img alt="SymTorch logo." src="_images/symtorch_logo.png" style="width: 100%;" />
+</a>
+<a class="reference internal image-reference" href="_images/conceptual_pic.png"><img alt="Visual example of SymbolicMLP." src="_images/conceptual_pic.png" style="width: 100%;" />
 </a>
 <p><em>SymTorch</em> allows you to approximate the behaviour of multi-layer perceptrons (MLPs) in deep learning models with symbolic equations using <a class="reference external" href="https://ai.damtp.cam.ac.uk/pysr/">PySR</a>.</p>
+</section>
 <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
-<p>To install <em>SymTorch</em>,</p>
+<p><em>SymTorch</em> can be installed from <a class="reference external" href="https://pypi.org/project/torch-symbolic/">PyPI</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch-symbolic
 </pre></div>
 </div>
+</section>
+<section id="overview">
+<h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
+<p>SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to automatically extract human-readable formulas from trained models. Instead of treating models as black boxes, it reveals the underlying mathematical relationships they’ve discovered.</p>
+<section id="layer-level-analysis-symbolicmlp">
+<h2>1. Layer-Level Analysis (<code class="docutils literal notranslate"><span class="pre">SymbolicMLP</span></code>)<a class="headerlink" href="#layer-level-analysis-symbolicmlp" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Wraps individual MLP layers within larger deep learning models</p></li>
+<li><p>Discovers symbolic equations approximating the behavior of individual layers</p></li>
+<li><p>Can switch between the MLP and the symbolic model during both forward pass and model training</p></li>
+<li><p>See the <a class="reference internal" href="demos/getting_started_demo.html"><span class="doc">SymbolicMLP Demo</span></a> for usage information</p></li>
+</ul>
+</section>
+<section id="model-level-analysis-symbolicmodel">
+<h2>2. Model-Level Analysis (<code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code>)<a class="headerlink" href="#model-level-analysis-symbolicmodel" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Wraps entire PyToch models end-to-end</p></li>
+<li><p>Approximates the behavior of entire models with a symbolic model</p></li>
+</ul>
+</section>
+<section id="local-interpretability-slimemodel">
+<h2>3. Local Interpretability (<code class="docutils literal notranslate"><span class="pre">SLIMEModel</span></code>)<a class="headerlink" href="#local-interpretability-slimemodel" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Model-agnostic approach to approximating model behavior around a single point with a symbolic surrogate model</p></li>
+<li><p>Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)</p></li>
+</ul>
+</section>
+<section id="reducing-model-flexibility-pruningmlp">
+<h2>4. Reducing Model Flexibility (<code class="docutils literal notranslate"><span class="pre">PruningMLP</span></code>)<a class="headerlink" href="#reducing-model-flexibility-pruningmlp" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Automatically identifies and removes less important output dimensions on a MLP layer-level basis</p></li>
+<li><p>May encourage models to learn simpler and more interpretable patterns</p></li>
+<li><p>See the <a class="reference internal" href="demos/toolkit_demo.html"><span class="doc">PruningMLP Demo</span></a> for usage information</p></li>
+</ul>
+</section>
 </section>
 <section id="contents">
 <h1>Contents<a class="headerlink" href="#contents" title="Link to this heading"></a></h1>
@@ -110,35 +142,23 @@
 <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_demos.html">API Demos</a></li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">News:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="news.html">News</a></li>
-</ul>
-</div>
-<div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="demos/getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/toolkit_demo.html">Pruning MLPs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#slime-demo">SLIME Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#fitting-lime">Fitting LIME</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html#fitting-slime">Fitting SLIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">
-<p class="caption" role="heading"><span class="caption-text">Extended Demo:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#set-up">Set up</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#generate-the-dataset">Generate the dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#run-the-models">Run the models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#plot-the-linear-combination-of-forces">Plot the linear combination of forces</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html#symbolic-regression">Symbolic regression</a></li>
+<li class="toctree-l1"><a class="reference internal" href="release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="show_your_work.html">Show Your Work</a></li>
 </ul>
 </div>
 </section>

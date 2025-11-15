@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SupraLocal Interpretable Model Agnostic Explanations (SLIME) &mdash; SymTorch 1.0.4 documentation</title>
+  <title>SupraLocal Interpretable Model Agnostic Explanations (SLIME) &mdash; SymTorch 1.1.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
 
   
+    <link rel="shortcut icon" href="../_static/symtorch_favicon.png"/>
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=71272d9f"></script>
+      <script src="../_static/documentation_options.js?v=58fbf978"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
@@ -22,7 +23,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Symbolic Distillation of GNNs Demo" href="gnns_demo.html" />
+    <link rel="next" title="Symbolic Distillation of GNNs" href="gnns_demo.html" />
     <link rel="prev" title="Physics-Informed Neural Network (PINN)" href="pinns_demo.html" /> 
 </head>
 
@@ -34,8 +35,9 @@
 
           
           
-          <a href="../index.html" class="icon icon-home">
-            SymTorch
+          <a href="../index.html">
+            
+              <img src="../_static/symtorch_favicon.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -48,29 +50,24 @@
               <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_demos.html">API Demos</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">News:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../news.html">News</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="toolkit_demo.html">Pruning MLPs</a></li>
 <li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#slime-demo">SLIME Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#fitting-lime">Fitting LIME</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#fitting-slime">Fitting SLIME</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#slime-demo">SLIME Demo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fitting-lime">Fitting LIME</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fitting-slime">Fitting SLIME</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Extended Demo:</span></p>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#set-up">Set up</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#generate-the-dataset">Generate the dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#run-the-models">Run the models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#plot-the-linear-combination-of-forces">Plot the linear combination of forces</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#symbolic-regression">Symbolic regression</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../show_your_work.html">Show Your Work</a></li>
 </ul>
 
         </div>
@@ -97,7 +94,7 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="supralocal-interpretable-model-agnostic-explanations-slime">
+  <section class="tex2jax_ignore mathjax_ignore" id="supralocal-interpretable-model-agnostic-explanations-slime">
 <h1>SupraLocal Interpretable Model Agnostic Explanations (SLIME)<a class="headerlink" href="#supralocal-interpretable-model-agnostic-explanations-slime" title="Link to this heading"></a></h1>
 <p>SLIME is a very similar model interpretability technique to <a class="reference external" href="https://arxiv.org/pdf/1602.04938">LIME</a> (Local Interpretable Model Agnostic Explanations). Essentially, LIME is a technique that approximates any black box machine learning model with a linear model around a certain point. The surrogate model is fitted with Gaussian perturbed samples around the point.</p>
 <p>SLIME extends this idea. Here, we implement the framework as presented by the <a class="reference external" href="https://dl.acm.org/doi/10.1145/3712255.3726721">SLIME paper</a> (Fong, Motani 2025).</p>
@@ -113,20 +110,20 @@ $$</p></li>
 <p>$<span class="math notranslate nohighlight">\(
 where \)</span>\pi_x(z_i) = \exp(\frac{-||x_0-x_i||^2}{\sigma^2})<span class="math notranslate nohighlight">\( is the proximity kernel weighting and \)</span>M$ is a weighting for the real neighbours.</p>
 <p>SLIME has benefits over LIME as it does not restrict itself to linear models, yet does not have any reduction in interpretability of the surrogate model.</p>
-<p>We present <code class="docutils literal notranslate"><span class="pre">symtorch.SLIME</span></code>, which can fit a SLIME model for you. The user can specify:</p>
+<p>We present <code class="docutils literal notranslate"><span class="pre">symtorch.SLIMEModel</span></code>, which can fit a SLIME model for you. The user can specify:</p>
 <ul class="simple">
 <li><p><span class="math notranslate nohighlight">\(J-\)</span> nearest neighbours (<code class="docutils literal notranslate"><span class="pre">J_neighbours</span> <span class="pre">=</span> <span class="pre">10</span></code>)</p></li>
 <li><p><span class="math notranslate nohighlight">\(M\)</span> (<code class="docutils literal notranslate"><span class="pre">real_weighting</span> <span class="pre">=</span> <span class="pre">1.0</span></code>)</p></li>
-<li><p><span class="math notranslate nohighlight">\(N_{\text{synthetic}}\)</span> (<code class="docutils literal notranslate"><span class="pre">num_synthetic</span> <span class="pre">=</span> <span class="pre">0</span></code>)</p></li>
+<li><p><span class="math notranslate nohighlight">\(N_{	ext{synthetic}}\)</span> (<code class="docutils literal notranslate"><span class="pre">num_synthetic</span> <span class="pre">=</span> <span class="pre">0</span></code>)</p></li>
 </ul>
 <p>As well as</p>
 <ul class="simple">
 <li><p>Nearest neighbour metric (<code class="docutils literal notranslate"><span class="pre">nn_metric</span> <span class="pre">=</span> <span class="pre">&quot;euclidean&quot;</span></code>)</p></li>
-<li><p>PySR parameters (<code class="docutils literal notranslate"><span class="pre">pysr_params=None,</span> <span class="pre">fit_params=None</span></code> defaults to default parameters)</p></li>
+<li><p>PySR parameters (<code class="docutils literal notranslate"><span class="pre">pysr_params=None</span></code> defaults to default parameters)</p></li>
 </ul>
-</section>
+<p>The model is fitted using the <code class="docutils literal notranslate"><span class="pre">.fit()</span></code> method and predictions can be made using <code class="docutils literal notranslate"><span class="pre">.predict()</span></code>.</p>
 <section id="slime-demo">
-<h1>SLIME Demo<a class="headerlink" href="#slime-demo" title="Link to this heading"></a></h1>
+<h2>SLIME Demo<a class="headerlink" href="#slime-demo" title="Link to this heading"></a></h2>
 <p>Let’s apply SLIME to the airfoil self-noise dataset.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
@@ -190,13 +187,13 @@ where \)</span>\pi_x(z_i) = \exp(\frac{-||x_0-x_i||^2}{\sigma^2})<span class="ma
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Accuracy:  0.8640301369780393
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Accuracy:  0.8484194741522617
 </pre></div>
 </div>
 </div>
 </div>
 <p>This gives us a pretty good R2 score, our model explains 85% of the variance in the dataset.</p>
-<p>Wrap the model in a function, which is what <code class="docutils literal notranslate"><span class="pre">symtorch.SLIME</span></code> expects.</p>
+<p>Wrap the model in a function, which is what <code class="docutils literal notranslate"><span class="pre">symtorch.SLIMEModel.fit()</span></code> expects.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">f</span> <span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
@@ -207,7 +204,7 @@ where \)</span>\pi_x(z_i) = \exp(\frac{-||x_0-x_i||^2}{\sigma^2})<span class="ma
 </div>
 </section>
 <section id="fitting-lime">
-<h1>Fitting LIME<a class="headerlink" href="#fitting-lime" title="Link to this heading"></a></h1>
+<h2>Fitting LIME<a class="headerlink" href="#fitting-lime" title="Link to this heading"></a></h2>
 <p>Before we get to using SLIME, let’s create a LIME model for comparison.<br />
 In this LIME model, we use 5000 perturbed samples around some random <span class="math notranslate nohighlight">\(x_0\)</span>. The variance of the Gaussian used to get these samples is determined by our <span class="math notranslate nohighlight">\(J\)</span> nearest neighbours, just so we have a fair comparison between the SLIME and LIME models (as we fit and compare performance on the same neighbourhood).</p>
 <div class="cell docutils container">
@@ -323,714 +320,65 @@ In this LIME model, we use 5000 perturbed samples around some random <span class
 FITTING LIME MODEL (Linear Approximation)
 ============================================================
 Using variance from 10 nearest neighbors
-Perturbation std: [1.00000000e-06 4.74533689e+00 9.27863232e-02 2.49819935e+00
- 1.99061805e-02]
+Perturbation std: [1.00000000e-06 5.99662868e+00 8.96027777e-02 8.32733117e+00
+ 1.09085610e-02]
 
-LIME Local R² (weighted): 0.7322
-LIME Local MSE (weighted): 3.8528
+LIME Local R² (weighted): 0.8208
+LIME Local MSE (weighted): 4.5403
 
-XGBoost prediction at x0: 130.7645
-LIME prediction at x0: 127.7400
+XGBoost prediction at x0: 125.4337
+LIME prediction at x0: 126.3820
 </pre></div>
 </div>
 </div>
 </div>
 </section>
 <section id="fitting-slime">
-<h1>Fitting SLIME<a class="headerlink" href="#fitting-slime" title="Link to this heading"></a></h1>
+<h2>Fitting SLIME<a class="headerlink" href="#fitting-slime" title="Link to this heading"></a></h2>
 <p>Let’s fit a SLIME model using the same J=10 nearest neighbors approach. SLIME will discover a symbolic equation that approximates the XGBoost model’s behavior in this local region.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch.SLIME</span><span class="w"> </span><span class="kn">import</span> <span class="n">SLIME</span><span class="p">,</span> <span class="n">regressor_to_function</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SLIMEModel</span><span class="p">,</span> <span class="n">regressor_to_function</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;FITTING SLIME MODEL (Symbolic Regression)&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
 
-<span class="c1"># Fit SLIME with J=10 nearest neighbors</span>
+<span class="c1"># Create SLIME model with J=10 nearest neighbors</span>
 <span class="c1"># Use num_synthetic to add synthetic samples around x0</span>
-<span class="n">slime_regressor</span> <span class="o">=</span> <span class="n">SLIME</span><span class="p">(</span>
-    <span class="n">f</span><span class="o">=</span><span class="n">f</span><span class="p">,</span>
-    <span class="n">inputs</span><span class="o">=</span><span class="n">X_test</span><span class="p">,</span>
-    <span class="n">x</span><span class="o">=</span><span class="n">x0</span><span class="p">,</span>
-    <span class="n">num_synthetic</span><span class="o">=</span><span class="mi">4990</span><span class="p">,</span>  <span class="c1"># 5000 - 10 synthetic samples</span>
+<span class="n">slime_model</span> <span class="o">=</span> <span class="n">SLIMEModel</span><span class="p">(</span>
     <span class="n">J_neighbours</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">num_synthetic</span><span class="o">=</span><span class="mi">4990</span><span class="p">,</span>  <span class="c1"># 5000 - 10 synthetic samples</span>
     <span class="n">nn_metric</span><span class="o">=</span><span class="s1">&#39;euclidean&#39;</span><span class="p">,</span>
     <span class="n">pysr_params</span><span class="o">=</span><span class="p">{</span>
         <span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span>
         <span class="s1">&#39;binary_operators&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;+&#39;</span><span class="p">,</span> <span class="s1">&#39;*&#39;</span><span class="p">,</span> <span class="s1">&#39;-&#39;</span><span class="p">,</span> <span class="s1">&#39;/&#39;</span><span class="p">],</span>
         <span class="s1">&#39;unary_operators&#39;</span><span class="p">:</span> <span class="p">[</span><span class="s1">&#39;sin&#39;</span><span class="p">,</span> <span class="s1">&#39;cos&#39;</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">,</span> <span class="s1">&#39;sqrt&#39;</span><span class="p">],</span>
-        <span class="s1">&#39;complexity_of_operators&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;cos&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;sqrt&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span>
+        <span class="s1">&#39;complexity_of_operators&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;cos&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;log&#39;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;sqrt&#39;</span><span class="p">:</span> <span class="mi">2</span><span class="p">},</span> 
+        <span class="s1">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span>
     <span class="p">}</span>
 <span class="p">)</span>
+
+<span class="c1"># Fit the model</span>
+<span class="n">slime_model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">f</span><span class="o">=</span><span class="n">f</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="n">X_test</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="n">x0</span><span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;SLIME RESULTS&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Top 5 equations found by SLIME:&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">slime_regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">[[</span><span class="s1">&#39;complexity&#39;</span><span class="p">,</span> <span class="s1">&#39;loss&#39;</span><span class="p">,</span> <span class="s1">&#39;score&#39;</span><span class="p">,</span> <span class="s1">&#39;equation&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">slime_model</span><span class="o">.</span><span class="n">equations_</span><span class="p">[[</span><span class="s1">&#39;complexity&#39;</span><span class="p">,</span> <span class="s1">&#39;loss&#39;</span><span class="p">,</span> <span class="s1">&#39;score&#39;</span><span class="p">,</span> <span class="s1">&#39;equation&#39;</span><span class="p">]]</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="mi">10</span><span class="p">))</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/SymTorch/src/symtorch/SLIME.py:79: RuntimeWarning: invalid value encountered in divide
-  synthetic_distances_sq = np.sum((samples - x)**2 / var, axis=1)
-/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
-  warnings.warn(
-Compiling Julia backend...
-</pre></div>
-</div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>============================================================
 FITTING SLIME MODEL (Symbolic Regression)
 ============================================================
-Fitting SLIME with 5000 points including 10 real points and 4990 Gaussian sampled points.
+Fitting SLIME with 5000 points (10 real + 4990 synthetic)
 </pre></div>
 </div>
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Started!
-</pre></div>
-</div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Expressions evaluated per second: 1.680e+05
-Progress: 968 / 15500 total iterations (6.245%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.843e+00  5.396e-02  y = 128.11 * (cos(x₂) - x₄)
-9           7.038e+00  1.083e-01  y = (128.16 - (128.16 * x₄)) - (x₂ / 0.054577)
-10          6.341e+00  1.043e-01  y = 138.12 - (exp(x₄ * 17.586) * 10.255)
-11          5.520e+00  1.388e-01  y = 128.47 - (x₄ * (x₀ * ((x₄ * 1.6017) + 0.088007)))
-12          3.571e+00  4.354e-01  y = 141.06 - (exp((x₄ * 14.277) + x₂) * 12.56)
-13          3.225e+00  1.019e-01  y = 129.39 - (((x₄ * ((x₄ * -164.99) + -7.2865)) - x₂) * -...
-                                      18.644)
-15          2.582e+00  1.113e-01  y = 129.39 - ((((x₄ * (-9.4267 - (x₄ * 169.85))) - x₂) * -...
-                                      18.948) / 1.0157)
-23          2.449e+00  6.593e-03  y = 127.86 - (((x₄ * ((((x₃ * x₄) + 1.286) * x₃) + x₃)) - ...
-                                      ((x₂ / -0.10555) + 0.80345)) * (x₂ + 1.8964))
-24          2.347e+00  4.257e-02  y = 127.84 - ((((((x₃ * (x₃ * x₄)) + x₃) + 31.284) * x₄) -...
-                                       cos((x₂ / 0.096842) + 0.48661)) * 2.4278)
-26          2.071e+00  6.249e-02  y = 127.95 - ((x₂ / 0.11103) + (((x₄ * (x₃ + (26.297 + (x₃...
-                                       * (x₃ * x₄))))) - cos(x₂ / 0.091777)) * 2.4446))
-28          1.995e+00  1.882e-02  y = 127.95 - ((x₂ / 0.11103) + (((x₄ * ((x₃ + 26.297) + (x...
-                                      ₃ * (x₃ * x₄)))) - cos(x₂ / 0.091777)) * (2.4446 + x₂)))
-30          1.988e+00  1.647e-03  y = (127.95 - ((x₂ / 0.11103) + (((x₄ * ((x₃ + 26.297) + (...
-                                      x₃ * (x₃ * x₄)))) - cos(x₂ / 0.091777)) * (2.4446 + x₂))))...
-                                       - x₄
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.800e+05
-Progress: 2058 / 15500 total iterations (13.277%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.654e+00  3.208e-01  y = 128.16 - (((x₄ * -10.187) - x₂) * -18.421)
-11          5.520e+00  1.204e-02  y = 128.47 - (x₄ * (x₀ * ((x₄ * 1.6017) + 0.088006)))
-12          3.568e+00  4.364e-01  y = 140.64 - (exp((x₄ * 14.861) + x₂) * 12.14)
-13          2.581e+00  3.236e-01  y = 129.39 - (((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -1...
-                                      8.253)
-15          2.550e+00  6.104e-03  y = 129.4 - (((x₄ * (-9.6799 - (x₄ * 177.22))) - x₂) * (-1...
-                                      8.166 - x₂))
-17          2.238e+00  6.515e-02  y = 129.42 - (((((-10 - (x₄ * 170.19)) * x₄) - x₂) * -18.0...
-                                      54) / (1.081 - x₂))
-19          2.215e+00  5.244e-03  y = (x₂ + 129.42) - (((x₄ * (-9.7167 - (x₄ * 169.91))) - x...
-                                      ₂) * (-18.73 / (1.0924 - x₂)))
-21          2.184e+00  7.088e-03  y = 129.41 - ((((((-9.3662 - (x₄ * 169.85)) * x₄) - x₂) * ...
-                                      -18.902) / (1.0558 - x₂)) - (x₂ / 0.27898))
-23          2.177e+00  1.538e-03  y = 130.28 - ((0.84419 - (x₂ * 3.4709)) + ((((x₄ * (-9.292...
-                                      6 - (x₄ * 170.06))) - x₂) / (1.0091 - x₂)) * -18.084))
-24          1.770e+00  2.070e-01  y = 128.05 - ((((x₄ * (((x₄ * x₃) / 0.026272) + 82.717)) -...
-                                       cos(x₂ / 0.083526)) * 2.1239) + (x₂ / 0.09198))
-28          1.672e+00  1.431e-02  y = 128.05 - (((x₂ / 0.18151) + ((((x₃ + 43.416) + (x₄ * (...
-                                      x₃ / 0.026541))) * x₄) - cos((x₂ + x₄) / -0.085773))) * 2....
-                                      0555)
-30          1.671e+00  3.174e-04  y = (x₄ + 128.05) - ((((x₂ / 0.18151) + ((x₃ + (((x₄ * x₃)...
-                                       / 0.026541) + 43.416)) * x₄)) - cos((x₂ + x₄) / -0.085773...
-                                      )) * 2.0555)
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.870e+05
-Progress: 3123 / 15500 total iterations (20.148%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054916 - x₄) * (x₄ * -3205))
-11          5.209e+00  2.893e-02  y = 128.52 - (((-3205.9 * x₄) * (-0.054895 - x₄)) + x₂)
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.581e+00  3.236e-01  y = 129.39 - ((((-9.6206 - (x₄ * 177.2)) * x₄) - x₂) * -18...
-                                      .251)
-15          2.550e+00  6.103e-03  y = 129.4 - (((x₄ * (-9.6799 - (x₄ * 177.22))) - x₂) * (-1...
-                                      8.166 - x₂))
-16          2.476e+00  2.935e-02  y = 129.59 - (sin(((-0.048325 - x₄) * (x₄ * 199.41)) - x₂)...
-                                       * -19.642)
-17          2.238e+00  1.009e-01  y = 129.42 - (((((-10 - (x₄ * 170.19)) * x₄) - x₂) * -18.0...
-                                      54) / (1.081 - x₂))
-18          2.217e+00  9.784e-03  y = 129.43 - (exp(x₂) * ((((-10.025 - (x₄ * 177.61)) * x₄)...
-                                       - x₂) * -16.383))
-19          2.211e+00  2.477e-03  y = (129.43 - ((((x₄ * (-9.7808 - (x₄ * 170.22))) - x₂) * ...
-                                      -17.96) / (1.0556 - x₂))) + x₂
-21          2.184e+00  6.202e-03  y = 129.41 - ((((((-9.3662 - (x₄ * 169.85)) * x₄) - x₂) * ...
-                                      -18.902) / (1.0558 - x₂)) - (x₂ / 0.27898))
-22          1.815e+00  1.851e-01  y = 129.25 - ((((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -...
-                                      18.342) + sin((x₀ - x₂) * -18.342))
-24          1.770e+00  1.247e-02  y = 128.05 - ((((x₄ * (((x₄ * x₃) / 0.026272) + 82.717)) -...
-                                       cos(x₂ / 0.083526)) * 2.1239) + (x₂ / 0.09198))
-26          1.658e+00  3.282e-02  y = 128.07 - (((x₂ / 0.18423) + ((x₄ * (((x₄ * 1503.4) + 4...
-                                      3.407) + x₃)) - cos((x₄ + x₂) / -0.084175))) * 2.0442)
-27          1.552e+00  6.602e-02  y = 128.14 - ((x₂ / 0.093986) + (((((sin(x₄ * x₃) / 0.0169...
-                                      87) + 82.242) * x₄) - cos(x₂ / 0.088121)) * 2.2222))
-29          1.470e+00  2.722e-02  y = 128.14 - ((x₂ / 0.095109) + (((x₄ * ((sin(x₃ * x₄) / 0...
-                                      .01506) + 82.242)) - cos(x₂ / 0.090378)) * (2.2223 + x₂)))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.860e+05
-Progress: 4136 / 15500 total iterations (26.684%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((x₄ * (-0.054935 - x₄)) * -3203.9)
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.581e+00  3.237e-01  y = 129.4 - (((x₄ * (-9.5729 - (x₄ * 176.35))) - x₂) * -18...
-                                      .333)
-15          2.550e+00  6.063e-03  y = 129.4 - (((x₄ * (-9.6799 - (x₄ * 177.22))) - x₂) * (-1...
-                                      8.166 - x₂))
-16          2.408e+00  5.713e-02  y = 129.59 - ((sin((-0.048315 - x₄) * (199.49 * x₄)) - x₂)...
-                                       * -19.638)
-17          2.238e+00  7.351e-02  y = 129.42 - ((((x₄ * (-10.035 - (x₄ * 170.27))) - x₂) / (...
-                                      1.0789 - x₂)) * -17.904)
-18          2.213e+00  1.126e-02  y = 129.44 - ((((x₄ * (-10.197 - (x₄ * 178.15))) - x₂) * e...
-                                      xp(x₂)) * -16.368)
-19          2.211e+00  6.624e-04  y = (129.43 - ((((x₄ * (-9.7808 - (x₄ * 170.22))) - x₂) * ...
-                                      -17.96) / (1.0556 - x₂))) + x₂
-20          2.195e+00  7.249e-03  y = (exp(x₂) * ((x₂ - ((-9.9714 - (x₄ * 177.74)) * x₄)) * ...
-                                      -16.731)) + (129.43 + x₂)
-21          2.033e+00  7.680e-02  y = ((exp(x₂) * (x₂ - sin(x₄ * (-10.795 - (214.13 * x₄))))...
-                                      ) * -16.216) + 129.5
-22          1.815e+00  1.135e-01  y = 129.25 - ((((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -...
-                                      18.342) + sin((x₀ - x₂) * -18.342))
-24          1.770e+00  1.247e-02  y = 128.05 - ((((x₄ * (((x₄ * x₃) / 0.026272) + 82.717)) -...
-                                       cos(x₂ / 0.083526)) * 2.1239) + (x₂ / 0.09198))
-26          1.658e+00  3.283e-02  y = 128.08 - ((((((x₄ * 1503.4) + (x₃ + 43.39)) * x₄) + (x...
-                                      ₂ / 0.18388)) - cos((x₄ + x₂) / 0.084086)) * 2.0438)
-27          1.504e+00  9.720e-02  y = (128.23 - (((((sin(x₃ * x₄) / 0.01506) + 82.242) * x₄)...
-                                       - cos(x₂ / 0.095109)) * 2.2223)) - (x₂ / 0.095109)
-29          1.418e+00  2.959e-02  y = 128.18 - ((x₂ / 0.094542) + ((x₂ + 2.1356) * ((x₄ * ((...
-                                      sin(x₃ * x₄) / 0.015938) + 82.244)) - cos(x₂ / 0.092156)))...
-                                      )
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.900e+05
-Progress: 5176 / 15500 total iterations (33.394%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((x₄ * -3203.9) * (-0.054941 - x₄))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.581e+00  3.237e-01  y = 129.4 - (((x₄ * (-9.5729 - (x₄ * 176.35))) - x₂) * -18...
-                                      .333)
-15          2.550e+00  6.063e-03  y = 129.4 - (((x₄ * (-9.6799 - (x₄ * 177.22))) - x₂) * (-1...
-                                      8.166 - x₂))
-16          2.389e+00  6.520e-02  y = ((x₂ - sin(x₄ * (-10.217 - (x₄ * 214.87)))) * -18.423)...
-                                       + 129.57
-17          2.238e+00  6.544e-02  y = 129.42 - ((((x₄ * (-10.035 - (x₄ * 170.27))) - x₂) / (...
-                                      1.0789 - x₂)) * -17.904)
-18          2.213e+00  1.126e-02  y = 129.44 - ((((x₄ * (-10.197 - (x₄ * 178.15))) - x₂) * e...
-                                      xp(x₂)) * -16.368)
-19          2.209e+00  1.481e-03  y = (x₂ + 129.4) - (((((-10.021 - (x₄ * 170.48)) * x₄) - x...
-                                      ₂) / (1.0291 - x₂)) * -17.202)
-20          2.077e+00  6.187e-02  y = (129.25 - (((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -...
-                                      18.342)) + cos(x₂ * -18.342)
-21          2.010e+00  3.287e-02  y = ((exp(x₂) * -17.386) * sin(x₂ - (x₄ * (-10.49 - (x₄ * ...
-                                      214.2))))) + 129.66
-22          1.815e+00  1.020e-01  y = 129.25 - ((((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -...
-                                      18.342) + sin((x₀ - x₂) * -18.342))
-24          1.770e+00  1.247e-02  y = 128.05 - ((((x₄ * (((x₄ * x₃) / 0.026272) + 82.717)) -...
-                                       cos(x₂ / 0.083526)) * 2.1239) + (x₂ / 0.09198))
-26          1.658e+00  3.285e-02  y = 128.07 - ((((((x₄ * 1503.4) + (x₃ + 43.326)) * x₄) + (...
-                                      x₂ * 5.432)) - cos((x₂ + x₄) / 0.084283)) * 2.0453)
-27          1.502e+00  9.877e-02  y = (128.23 - (2.2223 * ((((sin(x₄ * x₃) / 0.01506) + 82.2...
-                                      42) * x₄) - cos(x₂ / 0.088049)))) - (x₂ / 0.095109)
-29          1.418e+00  2.879e-02  y = 128.18 - ((x₂ / 0.094542) + ((x₂ + 2.1356) * ((x₄ * ((...
-                                      sin(x₃ * x₄) / 0.015938) + 82.244)) - cos(x₂ / 0.092156)))...
-                                      )
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.890e+05
-Progress: 6184 / 15500 total iterations (39.897%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((x₄ * -3203.9) * (-0.054941 - x₄))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.581e+00  3.237e-01  y = 129.39 - (((x₄ * (-9.5951 - (x₄ * 176.26))) - x₂) * -1...
-                                      8.303)
-15          2.550e+00  6.054e-03  y = 129.4 - (((x₄ * (-9.6799 - (x₄ * 177.22))) - x₂) * (-1...
-                                      8.166 - x₂))
-16          2.389e+00  6.520e-02  y = ((x₂ - sin((-10.217 - (x₄ * 214.86)) * x₄)) * -18.422)...
-                                       + 129.57
-17          2.213e+00  7.645e-02  y = 129.41 - ((-16.378 - (x₂ * 18.761)) * ((x₄ * (-10.085 ...
-                                      - (x₄ * 170.26))) - x₂))
-18          2.207e+00  2.874e-03  y = 129.42 - (((((-10.551 - (x₄ * 187.31)) * x₄) - x₂) * e...
-                                      xp(x₂)) * -15.855)
-19          2.202e+00  2.146e-03  y = (x₂ + 129.41) - ((-16.378 - (x₂ * 18.761)) * ((x₄ * (-...
-                                      10.085 - (x₄ * 170.26))) - x₂))
-20          2.077e+00  5.858e-02  y = (129.25 - (((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -...
-                                      18.342)) + cos(x₂ * -18.342)
-21          2.005e+00  3.494e-02  y = (exp(x₂) * (sin(x₂ - ((-10.742 - (x₄ * 226.25)) * x₄))...
-                                       * -17.063)) + 129.68
-22          1.763e+00  1.286e-01  y = 128.09 - (2.0516 * (((5.3518 * x₂) - cos(x₂ / 0.081578...
-                                      )) + (((x₄ * 1503.4) + 86.408) * x₄)))
-24          1.718e+00  1.302e-02  y = 128.07 - (((((x₄ * 1503.4) + 86.618) * x₄) + ((x₂ * 4....
-                                      8526) - cos(x₂ / -0.091333))) * (x₂ + 2.0455))
-26          1.657e+00  1.810e-02  y = 128.07 - ((((x₄ * ((x₄ * 1503.4) + (x₃ + 42.942))) + (...
-                                      x₂ * 5.3973)) - cos((x₄ + x₂) / 0.084088)) * 2.053)
-27          1.472e+00  1.185e-01  y = 128.52 - ((((((sin(x₄ * x₃) / 0.014501) + 82.243) * x₄...
-                                      ) - cos(x₂ / 0.080874)) * 2.1398) + (x₂ / 0.091219))
-29          1.418e+00  1.878e-02  y = 128.18 - ((x₂ / 0.094542) + ((x₂ + 2.1356) * ((x₄ * ((...
-                                      sin(x₃ * x₄) / 0.015938) + 82.244)) - cos(x₂ / 0.092156)))...
-                                      )
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.850e+05
-Progress: 7200 / 15500 total iterations (46.452%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((x₄ * -3203.9) * (-0.054941 - x₄))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.581e+00  3.237e-01  y = 129.39 - ((((-9.4818 - (x₄ * 172.07)) * x₄) - x₂) * -1...
-                                      8.535)
-15          2.550e+00  6.079e-03  y = 129.39 - ((((-9.675 - (x₄ * 177.21)) * x₄) - x₂) * (-1...
-                                      8.114 - x₂))
-16          2.389e+00  6.514e-02  y = ((x₂ - sin(x₄ * (-10.198 - (x₄ * 214.12)))) * -18.45) ...
-                                      + 129.57
-17          2.213e+00  7.643e-02  y = 129.41 - ((-16.378 - (x₂ * 18.761)) * ((x₄ * (-10.085 ...
-                                      - (x₄ * 170.26))) - x₂))
-18          2.207e+00  2.935e-03  y = 129.43 - (exp(x₂) * (-15.873 * (((-10.515 - (x₄ * 187....
-                                      33)) * x₄) - x₂)))
-19          2.198e+00  3.867e-03  y = 129.41 - ((-16.378 - ((x₂ * 18.761) / 0.87376)) * ((x₄...
-                                       * (-10.085 - (x₄ * 170.26))) - x₂))
-20          2.061e+00  6.464e-02  y = (129.25 - (((x₄ * (-9.6195 - (x₄ * 177.21))) - x₂) * -...
-                                      18.342)) + cos(x₂ * 17.84)
-21          2.005e+00  2.710e-02  y = ((exp(x₂) * -17.063) * sin(x₂ - ((-10.741 - (x₄ * 226....
-                                      25)) * x₄))) + 129.68
-22          1.763e+00  1.286e-01  y = 128.09 - (2.0516 * (((5.3518 * x₂) - cos(x₂ / 0.081578...
-                                      )) + (((x₄ * 1503.4) + 86.408) * x₄)))
-24          1.676e+00  2.548e-02  y = 128.12 - ((x₂ + 1.9919) * (((((x₄ * 1503.4) + 86.618) ...
-                                      * x₄) + (x₂ * 4.7814)) - cos(x₂ / -0.080336)))
-26          1.656e+00  5.896e-03  y = 128.16 - (((x₂ + x₂) + 1.9347) * ((((x₄ * 1503.4) + 86...
-                                      .667) * x₄) + ((x₂ * 4.12) - cos(x₂ / -0.077682))))
-27          1.472e+00  1.180e-01  y = 128.52 - ((((((sin(x₄ * x₃) / 0.014501) + 82.243) * x₄...
-                                      ) - cos(x₂ / 0.080874)) * 2.1398) + (x₂ / 0.091219))
-29          1.416e+00  1.937e-02  y = 128.18 - ((((x₄ * ((sin(x₄ * x₃) / 0.016088) + 82.244)...
-                                      ) - cos(x₂ / -0.086833)) * (x₂ + 2.1517)) + (x₂ / 0.10126)...
-                                      )
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.850e+05
-Progress: 8217 / 15500 total iterations (53.013%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.581e+00  3.237e-01  y = 129.39 - ((((-9.4818 - (x₄ * 172.07)) * x₄) - x₂) * -1...
-                                      8.535)
-15          2.465e+00  2.304e-02  y = 129.28 - ((x₄ + (x₂ * 0.10612)) * (((x₄ * 23.867) + 1....
-                                      2664) * 127.86))
-16          2.389e+00  3.121e-02  y = ((x₂ - sin(x₄ * (-10.198 - (x₄ * 214.12)))) * -18.45) ...
-                                      + 129.57
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          2.162e+00  1.916e-02  y = 129.49 - (((x₂ * 0.10262) + x₄) * (131.16 * (sin(x₄ * ...
-                                      35.941) + 1.2342)))
-20          1.955e+00  5.028e-02  y = cos(x₂ * -15.013) + (128.91 - (((x₄ * (-10.641 - (x₄ *...
-                                       177.56))) - x₂) * -16.583))
-22          1.623e+00  9.308e-02  y = 128.09 - (((((x₂ * 0.06448) + x₄) * ((x₄ * 1503.5) + 8...
-                                      5.173)) - cos(x₂ / -0.080756)) * 1.9893)
-24          1.621e+00  6.910e-04  y = 128.09 - (((((x₄ + (x₂ * 0.06448)) * ((x₄ * 1503.5) + ...
-                                      85.173)) - cos(x₂ / -0.080756)) - x₄) * 1.9893)
-25          1.591e+00  1.845e-02  y = 128.3 - (((((x₂ * 0.068028) + x₄) * ((x₄ * 1503.5) + 8...
-                                      3.817)) - sin(cos(x₂ / -0.076769))) * 2.014)
-27          1.470e+00  3.971e-02  y = 128.52 - ((((((sin(x₄ * x₃) / 0.014202) + 82.243) * x₄...
-                                      ) - cos(x₂ / -0.081496)) * 2.1574) + (x₂ / 0.098193))
-29          1.349e+00  4.270e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((x₄ * ((sin(x₃ * ...
-                                      x₄) / 0.014652) + 82.24)) - cos(x₂ / -0.08368)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.810e+05
-Progress: 9164 / 15500 total iterations (59.123%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.512e+00  3.509e-01  y = 129.12 - (((x₄ * 2991.3) + 168.11) * ((x₂ * 0.091688) ...
-                                      + x₄))
-15          2.465e+00  9.447e-03  y = 129.28 - (((x₄ * 23.874) + 1.266) * ((x₄ + (x₂ * 0.106...
-                                      09)) * 127.87))
-16          2.389e+00  3.121e-02  y = ((x₂ - sin((-10.199 - (x₄ * 214.12)) * x₄)) * -18.449)...
-                                       + 129.56
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          2.153e+00  2.326e-02  y = 129.47 - ((sin(x₄ * 35.4) + 1.1966) * (((x₂ * 0.10208)...
-                                       + x₄) * 134.12))
-20          1.943e+00  5.121e-02  y = cos(x₂ * -14.06) + (128.88 - (((x₄ * (-13.382 - (x₄ * ...
-                                      264.09))) - x₂) * -13.016))
-22          1.622e+00  9.033e-02  y = 128.09 - (((((x₄ * 1503.5) + 84.928) * ((x₂ * 0.064395...
-                                      ) + x₄)) - cos(x₂ / -0.081388)) * 1.9934)
-24          1.606e+00  5.123e-03  y = 128.17 - (((((x₄ * 1503.5) + 83.808) * ((x₂ * 0.07406)...
-                                       + x₄)) - cos((x₂ / -0.075959) + 0.17387)) * 1.9877)
-25          1.591e+00  9.128e-03  y = 128.3 - (((((x₂ * 0.068028) + x₄) * ((x₄ * 1503.5) + 8...
-                                      3.817)) - sin(cos(x₂ / -0.076769))) * 2.014)
-27          1.470e+00  3.971e-02  y = 128.52 - ((((((sin(x₄ * x₃) / 0.014202) + 82.243) * x₄...
-                                      ) - cos(x₂ / -0.081496)) * 2.1574) + (x₂ / 0.098193))
-29          1.349e+00  4.270e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((x₄ * ((sin(x₃ * ...
-                                      x₄) / 0.014652) + 82.24)) - cos(x₂ / -0.08368)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.800e+05
-Progress: 10150 / 15500 total iterations (65.484%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.466e+00  3.693e-01  y = 129.26 - ((x₄ + (x₂ * 0.10627)) * ((x₄ * 2991.3) + 162...
-                                      .27))
-15          2.457e+00  1.852e-03  y = (129.25 - (((2991.2 * x₄) + 163.91) * (x₄ + (x₂ * 0.10...
-                                      132)))) - x₂
-16          2.389e+00  2.804e-02  y = ((x₂ - sin((-10.199 - (x₄ * 214.12)) * x₄)) * -18.449)...
-                                       + 129.56
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          2.138e+00  3.022e-02  y = 129.57 - (((x₄ + (x₂ * 0.10124)) * 143.37) * (sin(x₄ *...
-                                       34.574) + 1.1198))
-20          1.943e+00  4.773e-02  y = cos(x₂ * -14.06) + (128.88 - (((x₄ * (-13.382 - (x₄ * ...
-                                      264.09))) - x₂) * -13.016))
-22          1.618e+00  9.151e-02  y = 128.08 - (((((x₄ * 1503.5) + 83.785) * (x₄ + (x₂ * 0.0...
-                                      64447))) - cos(x₂ / -0.081264)) * 2.0118)
-24          1.606e+00  3.942e-03  y = 128.17 - (((((x₄ * 1503.5) + 83.808) * ((x₂ * 0.07406)...
-                                       + x₄)) - cos((x₂ / -0.075959) + 0.17387)) * 1.9877)
-25          1.591e+00  9.128e-03  y = 128.3 - (((((x₂ * 0.068028) + x₄) * ((x₄ * 1503.5) + 8...
-                                      3.817)) - sin(cos(x₂ / -0.076769))) * 2.014)
-27          1.470e+00  3.971e-02  y = 128.52 - ((((((sin(x₄ * x₃) / 0.014202) + 82.243) * x₄...
-                                      ) - cos(x₂ / -0.081496)) * 2.1574) + (x₂ / 0.098193))
-29          1.349e+00  4.270e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((x₄ * ((sin(x₃ * ...
-                                      x₄) / 0.014652) + 82.24)) - cos(x₂ / -0.08368)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.800e+05
-Progress: 11132 / 15500 total iterations (71.819%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.466e+00  3.693e-01  y = 129.26 - (((x₄ * 2991.6) + 162.27) * ((x₂ * 0.10628) +...
-                                       x₄))
-15          2.457e+00  1.850e-03  y = (129.25 - (((2991.2 * x₄) + 163.91) * (x₄ + (x₂ * 0.10...
-                                      132)))) - x₂
-16          2.389e+00  2.804e-02  y = ((x₂ - sin((-10.199 - (x₄ * 214.12)) * x₄)) * -18.449)...
-                                       + 129.56
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          2.046e+00  7.398e-02  y = (cos(x₂) * 129.81) - (((x₄ * (-14.352 - (x₄ * 263.84))...
-                                      ) - x₂) * -12.137)
-20          1.943e+00  2.585e-02  y = cos(x₂ * -14.06) + (128.88 - (((x₄ * (-13.382 - (x₄ * ...
-                                      264.09))) - x₂) * -13.016))
-22          1.618e+00  9.151e-02  y = 128.08 - (((((x₄ * 1503.5) + 83.785) * (x₄ + (x₂ * 0.0...
-                                      64447))) - cos(x₂ / -0.081264)) * 2.0118)
-24          1.586e+00  1.020e-02  y = 127.93 - (((((x₄ * 1503.6) + 80.688) * ((x₂ * 0.071575...
-                                      ) + x₄)) - cos(x₂ / (0.090503 - x₄))) * 1.9267)
-26          1.582e+00  1.271e-03  y = 127.93 - ((((((x₂ * 0.071575) + x₄) * ((x₄ * 1503.6) +...
-                                       80.688)) - cos(x₂ / (0.090503 - x₄))) * 1.9267) + -0.0787...
-                                      9)
-27          1.469e+00  7.352e-02  y = 128.53 - ((((x₄ * ((sin(x₄ * x₃) / 0.014202) + 82.243)...
-                                      ) - cos(x₂ / -0.081496)) * 2.1574) + (x₂ / 0.098193))
-29          1.349e+00  4.268e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((x₄ * ((sin(x₃ * ...
-                                      x₄) / 0.014652) + 82.24)) - cos(x₂ / -0.08368)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.790e+05
-Progress: 12134 / 15500 total iterations (78.284%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.466e+00  3.693e-01  y = 129.26 - (((x₄ * 2991.6) + 162.27) * ((x₂ * 0.10628) +...
-                                       x₄))
-15          2.455e+00  2.197e-03  y = (129.26 - ((x₄ + (x₂ * 0.10107)) * ((x₄ * 2991.2) + 16...
-                                      2.3))) - x₂
-16          2.389e+00  2.734e-02  y = ((x₂ - sin((-10.199 - (x₄ * 214.12)) * x₄)) * -18.449)...
-                                       + 129.56
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          2.045e+00  7.464e-02  y = (cos(x₂) * 129.8) - (((x₄ * (-14.502 - (x₄ * 263.85)))...
-                                       - x₂) * -12.123)
-20          1.941e+00  2.615e-02  y = cos(x₂ * 14.298) + (128.88 - (-13.016 * ((x₄ * (-13.38...
-                                      2 - (x₄ * 264.09))) - x₂)))
-22          1.612e+00  9.291e-02  y = 128.06 - ((((x₄ + (x₂ * 0.064277)) * ((x₄ * 1503.7) + ...
-                                      80.353)) - cos(x₂ / 0.082635)) * 2.0722)
-24          1.576e+00  1.109e-02  y = 127.97 - (((((x₄ * 1503.7) + 79.258) * (x₄ + (x₂ * 0.0...
-                                      72182))) - cos(x₂ / (0.091395 - x₄))) * 1.9432)
-26          1.571e+00  1.843e-03  y = 128.02 - (((((x₄ + (x₂ * 0.06191)) * ((x₄ * 1503.7) + ...
-                                      80.382)) - cos(x₂ / (0.090009 - x₄))) + x₂) * 1.9348)
-27          1.469e+00  6.655e-02  y = 128.53 - ((((x₄ * ((sin(x₄ * x₃) / 0.014202) + 82.243)...
-                                      ) - cos(x₂ / -0.081496)) * 2.1574) + (x₂ / 0.098193))
-29          1.349e+00  4.268e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((x₄ * ((sin(x₃ * ...
-                                      x₄) / 0.014652) + 82.24)) - cos(x₂ / -0.08368)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.820e+05
-Progress: 13134 / 15500 total iterations (84.735%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.466e+00  3.693e-01  y = 129.26 - (((x₄ * 2991.6) + 162.27) * ((x₂ * 0.10628) +...
-                                       x₄))
-15          2.455e+00  2.197e-03  y = (129.26 - ((x₄ + (x₂ * 0.10107)) * ((x₄ * 2991.2) + 16...
-                                      2.3))) - x₂
-16          2.389e+00  2.734e-02  y = ((x₂ - sin((-10.199 - (x₄ * 214.12)) * x₄)) * -18.449)...
-                                       + 129.56
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          2.045e+00  7.464e-02  y = (cos(x₂) * 129.8) - (((x₄ * (-14.512 - (x₄ * 263.86)))...
-                                       - x₂) * -12.116)
-19          1.992e+00  2.626e-02  y = 129.56 - ((((x₄ * 1503.8) + 78.275) * ((x₂ * ((x₂ * 0....
-                                      31396) + 0.075716)) + x₄)) * 2.0124)
-20          1.757e+00  1.254e-01  y = cos(x₂ * 14.739) + (128.84 - (((x₄ * -11.965) - x₂) * ...
-                                      (-13.692 - (x₄ * 264.05))))
-22          1.612e+00  4.322e-02  y = 128.06 - ((((x₄ + (x₂ * 0.064277)) * ((x₄ * 1503.7) + ...
-                                      80.353)) - cos(x₂ / 0.082635)) * 2.0722)
-24          1.565e+00  1.467e-02  y = 128 - ((((x₄ + (x₂ * 0.073386)) * ((x₄ * 1503.8) + 76....
-                                      45)) - cos(x₂ / (0.08997 - x₄))) * 1.9852)
-26          1.555e+00  3.246e-03  y = 128 - ((((((x₄ * 1503.8) + 75.62) * (x₄ + (x₂ * 0.0607...
-                                      25))) - cos(x₂ / (0.090436 - x₄))) + x₂) * 2.0153)
-27          1.469e+00  5.671e-02  y = 128.53 - ((((x₄ * ((sin(x₄ * x₃) / 0.014202) + 82.243)...
-                                      ) - cos(x₂ / 0.082635)) * 2.1574) + (x₂ / 0.098193))
-29          1.349e+00  4.263e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((x₄ * ((sin(x₃ * ...
-                                      x₄) / 0.014652) + 82.24)) - cos(x₂ / -0.08368)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.800e+05
-Progress: 14082 / 15500 total iterations (90.852%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.466e+00  3.693e-01  y = 129.26 - (((x₄ * 2991.6) + 162.27) * ((x₂ * 0.10628) +...
-                                       x₄))
-15          2.455e+00  2.197e-03  y = (129.26 - ((x₄ + (x₂ * 0.10107)) * ((x₄ * 2991.2) + 16...
-                                      2.3))) - x₂
-16          2.389e+00  2.734e-02  y = ((x₂ - sin((-10.199 - (x₄ * 214.12)) * x₄)) * -18.449)...
-                                       + 129.56
-17          2.204e+00  8.078e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          1.909e+00  1.435e-01  y = cos(x₂) * (129.87 - ((-12.72 - (x₄ * 263.83)) * ((x₄ *...
-                                       -12.692) - x₂)))
-20          1.757e+00  4.149e-02  y = cos(x₂ * 14.795) + (128.84 - (((x₄ * -11.883) - x₂) * ...
-                                      (-13.771 - (x₄ * 263.58))))
-22          1.612e+00  4.314e-02  y = 128.06 - ((((x₄ + (x₂ * 0.064277)) * ((x₄ * 1503.7) + ...
-                                      80.353)) - cos(x₂ / 0.082635)) * 2.0722)
-24          1.565e+00  1.467e-02  y = 128 - ((((x₄ + (x₂ * 0.073386)) * ((x₄ * 1503.8) + 76....
-                                      45)) - cos(x₂ / (0.08997 - x₄))) * 1.9852)
-26          1.555e+00  3.253e-03  y = 128 - (((x₂ + (((x₄ * 1503.8) + 75.62) * ((x₂ * 0.0611...
-                                      84) + x₄))) - cos(x₂ / (0.090366 - x₄))) * 2.0154)
-27          1.469e+00  5.708e-02  y = 128.52 - ((2.1574 * ((x₄ * ((sin(x₃ * x₄) / 0.014202) ...
-                                      + 82.243)) - cos(x₂ / 0.082635))) + (x₂ / 0.098193))
-29          1.349e+00  4.244e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((((sin(x₃ * x₄) /...
-                                       0.014652) + 82.24) * x₄) - cos(x₂ / 0.083649)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-
-Expressions evaluated per second: 1.800e+05
-Progress: 15083 / 15500 total iterations (97.310%)
-════════════════════════════════════════════════════════════════════════════════════════════════════
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.466e+00  3.693e-01  y = 129.26 - (((x₄ * 2991.6) + 162.27) * ((x₂ * 0.10628) +...
-                                       x₄))
-15          2.455e+00  2.197e-03  y = (129.26 - ((x₄ + (x₂ * 0.10107)) * ((x₄ * 2991.2) + 16...
-                                      2.3))) - x₂
-16          2.389e+00  2.736e-02  y = ((x₂ - sin(x₄ * (-10.181 - (x₄ * 213.35)))) * -18.475)...
-                                       + 129.56
-17          2.204e+00  8.077e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          1.894e+00  1.514e-01  y = (129.81 - ((-12.194 - (x₄ * 243.2)) * ((-13.425 * x₄) ...
-                                      - x₂))) * cos(x₂)
-20          1.757e+00  3.753e-02  y = (cos(x₂ * 14.819) + 128.84) - (((x₄ * -11.891) - x₂) *...
-                                       (-13.76 - (x₄ * 263.9)))
-21          1.750e+00  3.857e-03  y = (cos(x₂) * 129.87) - (sin((x₄ * -15.739) - x₂) * (-10....
-                                      968 - (x₄ * 244.14)))
-22          1.612e+00  8.241e-02  y = 128.06 - ((((x₄ + (x₂ * 0.064277)) * ((x₄ * 1503.7) + ...
-                                      80.353)) - cos(x₂ / 0.082635)) * 2.0722)
-24          1.565e+00  1.467e-02  y = 128 - ((((x₄ + (x₂ * 0.073386)) * ((x₄ * 1503.8) + 76....
-                                      45)) - cos(x₂ / (0.08997 - x₄))) * 1.9852)
-26          1.555e+00  3.253e-03  y = 128 - (((x₂ + (((x₄ * 1503.8) + 75.62) * (x₄ + (x₂ * 0...
-                                      .061184)))) - cos(x₂ / (0.090366 - x₄))) * 2.0153)
-27          1.469e+00  5.708e-02  y = 128.52 - ((2.1574 * ((x₄ * ((sin(x₃ * x₄) / 0.014202) ...
-                                      + 82.243)) - cos(x₂ / 0.082635))) + (x₂ / 0.098193))
-29          1.349e+00  4.244e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((((sin(x₃ * x₄) /...
-                                       0.014652) + 82.24) * x₄) - cos(x₂ / 0.083649)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-════════════════════════════════════════════════════════════════════════════════════════════════════
-Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
-───────────────────────────────────────────────────────────────────────────────────────────────────
-Complexity  Loss       Score      Equation
-1           2.228e+01  0.000e+00  y = 126.94
-3           2.197e+01  7.060e-03  y = 126.99 - x₂
-5           8.588e+00  4.696e-01  y = (x₄ * -188.07) - -127.24
-7           8.278e+00  1.838e-02  y = (127.29 - (x₄ * 188.05)) - x₂
-8           7.793e+00  6.041e-02  y = (cos(x₂) - x₄) * 127.88
-9           5.520e+00  3.449e-01  y = 128.47 - ((-0.054941 - x₄) * (x₄ * -3203.5))
-11          5.209e+00  2.893e-02  y = (128.52 - ((x₄ * (-0.054931 - x₄)) * -3203.9)) - x₂
-12          3.568e+00  3.786e-01  y = 140.65 - (exp(x₂ + (x₄ * 14.859)) * 12.143)
-13          2.465e+00  3.698e-01  y = 129.28 - ((x₄ + (x₂ * 0.10597)) * ((x₄ * 3073.6) + 161...
-                                      .79))
-15          2.455e+00  1.962e-03  y = (129.26 - ((x₄ + (x₂ * 0.10107)) * ((x₄ * 2991.2) + 16...
-                                      2.3))) - x₂
-16          2.389e+00  2.736e-02  y = ((x₂ - sin(x₄ * (-10.181 - (x₄ * 213.35)))) * -18.475)...
-                                       + 129.56
-17          2.204e+00  8.077e-02  y = 129.46 - ((((-9.9127 - (x₄ * 170.75)) * x₄) - x₂) * (-...
-                                      16.679 - (x₂ * 20.543)))
-18          1.894e+00  1.515e-01  y = cos(x₂) * (129.81 - (((x₄ * -13.488) - x₂) * (-12.154 ...
-                                      - (x₄ * 242.87))))
-20          1.757e+00  3.747e-02  y = (cos(x₂ * 14.819) + 128.84) - (((x₄ * -11.891) - x₂) *...
-                                       (-13.76 - (x₄ * 263.9)))
-21          1.745e+00  6.859e-03  y = cos(x₂) * (129.88 - (sin((x₄ * -15.551) - x₂) * (-11.2...
-                                      62 - (x₄ * 244.1))))
-22          1.612e+00  7.941e-02  y = 128.06 - ((((x₄ + (x₂ * 0.064277)) * ((x₄ * 1503.7) + ...
-                                      80.353)) - cos(x₂ / 0.082635)) * 2.0722)
-24          1.564e+00  1.518e-02  y = 128.01 - (((((x₄ * 1503.8) + 75.624) * ((x₂ * 0.072992...
-                                      ) + x₄)) - cos(x₂ / (x₄ - 0.089905))) * 1.9997)
-26          1.555e+00  2.739e-03  y = 128 - (((x₂ + (((x₄ * 1503.8) + 75.62) * (x₄ + (x₂ * 0...
-                                      .061184)))) - cos(x₂ / (0.090366 - x₄))) * 2.0153)
-27          1.469e+00  5.708e-02  y = 128.52 - ((2.1574 * ((x₄ * ((sin(x₃ * x₄) / 0.014202) ...
-                                      + 82.243)) - cos(x₂ / 0.082635))) + (x₂ / 0.098193))
-29          1.349e+00  4.244e-02  y = 128.46 - ((x₂ / (0.094679 - x₄)) + (((((sin(x₃ * x₄) /...
-                                       0.014652) + 82.24) * x₄) - cos(x₂ / 0.083649)) * 2.0786))
-───────────────────────────────────────────────────────────────────────────────────────────────────
-</pre></div>
-</div>
-<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Final population:
-[ Info: Results saved to:
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+  warnings.warn(
 </pre></div>
 </div>
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>============================================================
@@ -1039,41 +387,37 @@ SLIME RESULTS
 
 Top 5 equations found by SLIME:
    complexity       loss     score  \
-0           1  22.281480  0.000000   
-1           3  21.969013  0.007061   
-2           5   8.587923  0.469638   
-3           7   8.277921  0.018383   
-4           8   7.792625  0.060414   
-5           9   5.519593  0.344874   
-6          11   5.209317  0.028928   
-7          12   3.567563  0.378566   
-8          13   2.464821  0.369763   
-9          15   2.455169  0.001962   
+0           1  19.923613  0.000000   
+1           3  19.719720  0.005143   
+2           5   7.284615  0.497927   
+3           7   5.556838  0.135368   
+4           9   3.543346  0.224979   
+5          11   3.534709  0.001220   
+6          12   3.521867  0.003640   
+7          13   3.414330  0.031010   
+8          14   3.145898  0.081882   
+9          15   3.119755  0.008345   
 
                                             equation  
-0                                          126.93825  
-1                                     126.98793 - x2  
-2                      (x4 * -188.0651) - -127.24052  
-3                (127.29053 - (x4 * 188.04845)) - x2  
-4                         (cos(x2) - x4) * 127.88329  
-5  128.46983 - ((-0.0549409 - x4) * (x4 * -3203.4...  
-6  (128.5199 - ((x4 * (-0.054930802 - x4)) * -320...  
-7  140.64641 - (exp(x2 + (x4 * 14.858986)) * 12.1...  
-8  129.28294 - ((x4 + (x2 * 0.10596767)) * ((x4 *...  
-9  (129.26242 - ((x4 + (x2 * 0.10107491)) * ((x4 ...  
-  - outputs/20251107_150049_tnhWKM/hall_of_fame.csv
+0                                           126.5054  
+1                                     126.65671 - x2  
+2                        128.73413 - (x4 * 562.5998)  
+3                  128.7587 - ((x2 * 3756.935) * x4)  
+4  ((x2 * -36.319958) + 134.22513) - (x4 * 562.0367)  
+5  (134.2239 - (x2 * 36.2656)) - (x4 * (569.10767...  
+6  134.19476 - ((x2 - sin(x4 * -15.791803)) * 36....  
+7  ((0.13227321 - (x2 * 0.03171085)) - (x4 * (x2 ...  
+8  -302.18643 - (((x2 + x4) * 551.255) - (exp(x2)...  
+9  107.16681 - ((x2 - sin(exp(x4 * -36.104214))) ...  
 </pre></div>
 </div>
 </div>
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the best SLIME equation and convert to a callable function</span>
-<span class="n">slime_func</span><span class="p">,</span> <span class="n">slime_vars</span> <span class="o">=</span> <span class="n">regressor_to_function</span><span class="p">(</span><span class="n">slime_regressor</span><span class="p">)</span>
-<span class="n">best_equation</span> <span class="o">=</span> <span class="n">slime_regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span>
-
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the best SLIME equation</span>
+<span class="n">best_equation</span> <span class="o">=</span> <span class="n">slime_model</span><span class="o">.</span><span class="n">get_equation</span><span class="p">()</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best SLIME equation: </span><span class="si">{</span><span class="n">best_equation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variables used: </span><span class="si">{</span><span class="n">slime_vars</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
 <span class="c1"># Evaluate both models on the sampled neighborhood from LIME</span>
 <span class="n">Z</span> <span class="o">=</span> <span class="n">res_lime</span><span class="p">[</span><span class="s1">&#39;Z&#39;</span><span class="p">]</span>  <span class="c1"># The sampled points around x0</span>
@@ -1084,14 +428,8 @@ Top 5 equations found by SLIME:
 <span class="n">Z_scaled</span> <span class="o">=</span> <span class="n">res_lime</span><span class="p">[</span><span class="s1">&#39;scaler&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
 <span class="n">y_lime_pred</span> <span class="o">=</span> <span class="n">res_lime</span><span class="p">[</span><span class="s1">&#39;surrogate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">Z_scaled</span><span class="p">)</span>
 
-<span class="c1"># SLIME predictions (symbolic equation)</span>
-<span class="c1"># Extract variable indices from variable names (e.g., &#39;x2&#39; -&gt; 2)</span>
-<span class="n">var_indices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">slime_vars</span><span class="p">]</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variable indices used by SLIME: </span><span class="si">{</span><span class="n">var_indices</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-<span class="c1"># Pass only the features that appear in the equation</span>
-<span class="n">Z_slime</span> <span class="o">=</span> <span class="p">[</span><span class="n">Z</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">]</span>
-<span class="n">y_slime_pred</span> <span class="o">=</span> <span class="n">slime_func</span><span class="p">(</span><span class="o">*</span><span class="n">Z_slime</span><span class="p">)</span>
+<span class="c1"># SLIME predictions using the model&#39;s predict method</span>
+<span class="n">y_slime_pred</span> <span class="o">=</span> <span class="n">slime_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">Z</span><span class="p">)</span>
 
 <span class="c1"># Calculate R² and MSE for both models (weighted)</span>
 <span class="n">lime_r2</span> <span class="o">=</span> <span class="n">r2_score</span><span class="p">(</span><span class="n">y_true</span><span class="p">,</span> <span class="n">y_lime_pred</span><span class="p">,</span> <span class="n">sample_weight</span><span class="o">=</span><span class="n">weights</span><span class="p">)</span>
@@ -1107,7 +445,7 @@ Top 5 equations found by SLIME:
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  R²:  </span><span class="si">{</span><span class="n">lime_r2</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  MSE: </span><span class="si">{</span><span class="n">lime_mse</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">SLIME (Symbolic Equation - uses </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">slime_vars</span><span class="p">)</span><span class="si">}</span><span class="s2"> features: </span><span class="si">{</span><span class="p">[</span><span class="n">input_vars</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">var_indices</span><span class="p">]</span><span class="si">}</span><span class="s2">):&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">SLIME (Symbolic Equation):&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  R²:  </span><span class="si">{</span><span class="n">slime_r2</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  MSE: </span><span class="si">{</span><span class="n">slime_mse</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
@@ -1119,7 +457,7 @@ Top 5 equations found by SLIME:
 <span class="c1"># Test predictions at x0</span>
 <span class="n">x0_scaled</span> <span class="o">=</span> <span class="n">res_lime</span><span class="p">[</span><span class="s1">&#39;scaler&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">transform</span><span class="p">(</span><span class="n">x0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
 <span class="n">lime_at_x0</span> <span class="o">=</span> <span class="n">res_lime</span><span class="p">[</span><span class="s1">&#39;surrogate&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">x0_scaled</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">slime_at_x0</span> <span class="o">=</span> <span class="n">slime_func</span><span class="p">(</span><span class="o">*</span><span class="p">[</span><span class="n">x0</span><span class="o">.</span><span class="n">flatten</span><span class="p">()[</span><span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">])</span>
+<span class="n">slime_at_x0</span> <span class="o">=</span> <span class="n">slime_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">x0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
 <span class="n">xgboost_at_x0</span> <span class="o">=</span> <span class="n">xg_boost_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">x0</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))[</span><span class="mi">0</span><span class="p">]</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span> <span class="o">*</span> <span class="mi">60</span><span class="p">)</span>
@@ -1132,31 +470,28 @@ Top 5 equations found by SLIME:
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Best SLIME equation: cos(x2) * (129.81142 - (((x4 * -13.487559) - x2) * (-12.153753 - (x4 * 242.86954))))
-Variables used: [x2, x4]
-Number of variables: 2
-Variable indices used by SLIME: [2, 4]
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Best SLIME equation: -262.2764 - (((x2 + x4) * 503.67322) - ((cos(x4 * 339.53705) + 400.78864) * exp(x2)))
 
 ============================================================
 COMPARISON ON SAMPLED NEIGHBORHOOD (n=10000)
 ============================================================
 
 LIME (Linear Model - uses all 5 features):
-  R²:  0.7322
-  MSE: 3.8528
+  R²:  0.8208
+  MSE: 4.5403
 
-SLIME (Symbolic Equation - uses 2 features: [&#39;Chord_length&#39;, &#39;Suction_side_displacement_thickness&#39;]):
-  R²:  0.8942
-  MSE: 1.5220
+SLIME (Symbolic Equation):
+  R²:  0.8127
+  MSE: 4.7472
 
-✓ SLIME is better by 22.1% in R²
+✓ LIME is better by 1.0% in R²
 
 ============================================================
 PREDICTIONS AT x0
 ============================================================
-XGBoost:  130.7645
-LIME:     127.7400  (error: 3.0245)
-SLIME:    128.7509  (error: 2.0136)
+XGBoost:  125.4337
+LIME:     126.3820  (error: 0.9483)
+SLIME:    125.9531  (error: 0.5194)
 </pre></div>
 </div>
 </div>
@@ -1201,14 +536,15 @@ SLIME:    128.7509  (error: 2.0136)
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/2487b44300c69b323a6c85a1560350f70b1383ecbeb255dc08824b0788b3250f.png" src="../_images/2487b44300c69b323a6c85a1560350f70b1383ecbeb255dc08824b0788b3250f.png" />
+<img alt="../_images/a0ff5062d100f584701f2b39343d322e3517c88a3869c609a729dc514a60b457.png" src="../_images/a0ff5062d100f584701f2b39343d322e3517c88a3869c609a729dc514a60b457.png" />
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Residual Statistics:
-LIME:  Mean = -0.8583, Std = 2.3938
-SLIME: Mean = -0.0063, Std = 1.3606
+LIME:  Mean = -0.1867, Std = 2.5802
+SLIME: Mean = -1.4134, Std = 3.4073
 </pre></div>
 </div>
 </div>
 </div>
+</section>
 </section>
 
 
@@ -1216,7 +552,7 @@ SLIME: Mean = -0.0063, Std = 1.3606
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="pinns_demo.html" class="btn btn-neutral float-left" title="Physics-Informed Neural Network (PINN)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="gnns_demo.html" class="btn btn-neutral float-right" title="Symbolic Distillation of GNNs Demo" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="gnns_demo.html" class="btn btn-neutral float-right" title="Symbolic Distillation of GNNs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

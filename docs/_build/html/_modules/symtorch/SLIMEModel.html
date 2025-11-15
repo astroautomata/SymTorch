@@ -1,0 +1,358 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>symtorch.SLIMEModel &mdash; SymTorch 1.1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+    <link rel="shortcut icon" href="../../_static/symtorch_favicon.png"/>
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=58fbf978"></script>
+      <script src="../../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html">
+            
+              <img src="../../_static/symtorch_favicon.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../api_demos.html">API Demos</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../show_your_work.html">Show Your Work</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">SymTorch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">symtorch.SLIMEModel</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for symtorch.SLIMEModel</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">SymTorch SLIME Module</span>
+
+<span class="sd">This module implements SLIME (SupraLocal Interpretable Model Agnostic Explanations),</span>
+<span class="sd">a model interpretability technique that extends LIME by using symbolic regression</span>
+<span class="sd">instead of linear models for local approximations.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pysr</span><span class="w"> </span><span class="kn">import</span> <span class="n">PySRRegressor</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sympy</span><span class="w"> </span><span class="kn">import</span> <span class="n">lambdify</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.neighbors</span><span class="w"> </span><span class="kn">import</span> <span class="n">NearestNeighbors</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
+
+<span class="n">DEFAULT_PYSR_PARAMS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;binary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;unary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;inv(x) = 1/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sin&quot;</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;extra_sympy_mappings&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;inv&quot;</span><span class="p">:</span> <span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="mi">1</span><span class="o">/</span><span class="n">x</span><span class="p">},</span>
+    <span class="s2">&quot;niterations&quot;</span><span class="p">:</span> <span class="mi">400</span><span class="p">,</span>
+    <span class="s2">&quot;complexity_of_operators&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;sin&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">:</span> <span class="mi">3</span><span class="p">}</span>
+<span class="p">}</span>
+
+<div class="viewcode-block" id="regressor_to_function">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.regressor_to_function">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">regressor_to_function</span><span class="p">(</span><span class="n">regressor</span><span class="p">,</span> <span class="n">complexity</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert a PySR regressor to a callable Python function.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        regressor (PySRRegressor): A fitted PySR regressor containing discovered equations</span>
+<span class="sd">        complexity (int, optional): Specific complexity level of equation to extract.</span>
+<span class="sd">                                   If None, uses the best equation according to PySR scoring.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: A tuple containing:</span>
+<span class="sd">            - f (callable): Numpy-compatible lambda function that evaluates the symbolic expression</span>
+<span class="sd">            - vars_sorted (list): List of sympy symbols representing the input variables</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        ValueError: If specified complexity level is not found in the equation set</span>
+<span class="sd">        RuntimeError: If the symbolic expression cannot be converted to a lambda function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">complexity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">best_str</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s2">&quot;equation&quot;</span><span class="p">]</span>
+        <span class="n">expr</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="s2">&quot;equation&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">best_str</span><span class="p">,</span> <span class="s2">&quot;sympy_format&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">matching_rows</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">complexity</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">matching_rows</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">available_complexities</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No equation found with complexity </span><span class="si">{</span><span class="n">complexity</span><span class="si">}</span><span class="s2">. Available complexities: </span><span class="si">{</span><span class="n">available_complexities</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">expr</span> <span class="o">=</span> <span class="n">matching_rows</span><span class="p">[</span><span class="s2">&quot;sympy_format&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+    <span class="n">vars_sorted</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">expr</span><span class="o">.</span><span class="n">free_symbols</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">s</span><span class="p">))</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">f</span> <span class="o">=</span> <span class="n">lambdify</span><span class="p">(</span><span class="n">vars_sorted</span><span class="p">,</span> <span class="n">expr</span><span class="p">,</span> <span class="s2">&quot;numpy&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">f</span><span class="p">,</span> <span class="n">vars_sorted</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Could not create lambdify function: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="SLIMEModel">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SLIMEModel">[docs]</a>
+<span class="k">class</span><span class="w"> </span><span class="nc">SLIMEModel</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    SLIME (SupraLocal Interpretable Model Agnostic Explanations) model.</span>
+
+<span class="sd">    SLIME extends LIME by using symbolic regression instead of linear models</span>
+<span class="sd">    to approximate black-box model behavior in a local region.</span>
+
+<span class="sd">    Parameters:</span>
+<span class="sd">        J_neighbours (int): Number of nearest neighbors. Default is 10.</span>
+<span class="sd">        num_synthetic (int): Number of synthetic samples. Default is 0.</span>
+<span class="sd">        real_weighting (float): Weight for real samples. Default is 1.0.</span>
+<span class="sd">        nn_metric (str): Distance metric. Default is &#39;euclidean&#39;.</span>
+<span class="sd">        pysr_params (dict): Custom PySR parameters.</span>
+
+<span class="sd">    Attributes (set after fit):</span>
+<span class="sd">        x0_: Point of interest</span>
+<span class="sd">        real_inputs_: Real nearest neighbor inputs</span>
+<span class="sd">        synthetic_samples_: Synthetic samples</span>
+<span class="sd">        weights_: Sample weights</span>
+<span class="sd">        var_: Variance for perturbations</span>
+<span class="sd">        regressor_: Fitted PySRRegressor</span>
+<span class="sd">        equations_: DataFrame of discovered equations</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+<div class="viewcode-block" id="SLIMEModel.__init__">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SLIMEModel.__init__">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">J_neighbours</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">num_synthetic</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">real_weighting</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+                 <span class="n">nn_metric</span><span class="o">=</span><span class="s1">&#39;euclidean&#39;</span><span class="p">,</span> <span class="n">pysr_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">J_neighbours</span> <span class="o">=</span> <span class="n">J_neighbours</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">num_synthetic</span> <span class="o">=</span> <span class="n">num_synthetic</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">real_weighting</span> <span class="o">=</span> <span class="n">real_weighting</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">nn_metric</span> <span class="o">=</span> <span class="n">nn_metric</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_params</span> <span class="o">=</span> <span class="n">pysr_params</span> <span class="k">if</span> <span class="n">pysr_params</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
+
+        <span class="c1"># Set during fit</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">x0_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="o">=</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="SLIMEModel.fit">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SLIMEModel.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">var</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">fit_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Fit SLIME model to approximate function f around point x.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            f (callable): Black-box model function</span>
+<span class="sd">            inputs (np.ndarray): Dataset of input samples</span>
+<span class="sd">            x (np.ndarray, optional): Point of interest</span>
+<span class="sd">            var (np.ndarray, optional): Variance for perturbations</span>
+<span class="sd">            fit_params (dict, optional): Additional fit parameters</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            self</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">real_weighting</span> <span class="o">!=</span> <span class="mf">1.0</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_synthetic</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span><span class="s2">&quot;real_weighting only works with num_synthetic &gt; 0. Setting to 1.0&quot;</span><span class="p">,</span> <span class="ne">UserWarning</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_weighting</span> <span class="o">=</span> <span class="mf">1.0</span>
+
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">num_synthetic</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;num_synthetic must be &gt; 0 when x is specified&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">J_neighbours</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;J_neighbours (</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">J_neighbours</span><span class="si">}</span><span class="s2">) must be &lt; len(inputs) (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">x0_</span> <span class="o">=</span> <span class="n">x</span>
+
+            <span class="c1"># Find nearest neighbors</span>
+            <span class="n">nbrs</span> <span class="o">=</span> <span class="n">NearestNeighbors</span><span class="p">(</span><span class="n">n_neighbors</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">J_neighbours</span><span class="p">,</span> <span class="n">metric</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">nn_metric</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+            <span class="n">_</span><span class="p">,</span> <span class="n">indices</span> <span class="o">=</span> <span class="n">nbrs</span><span class="o">.</span><span class="n">kneighbors</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">))</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span> <span class="o">=</span> <span class="n">inputs</span><span class="p">[</span><span class="n">indices</span><span class="p">[</span><span class="mi">0</span><span class="p">]]</span>
+
+            <span class="c1"># Compute variance (add small epsilon to avoid division by zero)</span>
+            <span class="k">if</span> <span class="n">var</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="c1"># Add small epsilon to avoid zero variance</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">var_</span><span class="p">,</span> <span class="mf">1e-8</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="n">var</span>
+
+            <span class="c1"># Generate synthetic samples (ensure float64 type)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="n">loc</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">var_</span><span class="p">),</span>
+                                                       <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">num_synthetic</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="n">sr_inputs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Fitting SLIME with </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">sr_inputs</span><span class="p">)</span><span class="si">}</span><span class="s2"> points (</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">)</span><span class="si">}</span><span class="s2"> real + </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">num_synthetic</span><span class="si">}</span><span class="s2"> synthetic)&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Fitting SLIME with all inputs&quot;</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">x0_</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span> <span class="o">=</span> <span class="n">inputs</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">sr_inputs</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="n">sr_targets</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">sr_inputs</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+        <span class="c1"># Check for NaN or Inf values</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">sr_inputs</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;NaN values detected in input data&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isnan</span><span class="p">(</span><span class="n">sr_targets</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;NaN values detected in target predictions from black-box function&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isinf</span><span class="p">(</span><span class="n">sr_targets</span><span class="p">)</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Inf values detected in target predictions from black-box function&quot;</span><span class="p">)</span>
+
+        <span class="n">final_pysr_params</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">DEFAULT_PYSR_PARAMS</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">pysr_params</span><span class="p">}</span>
+
+        <span class="c1"># Prepare fit parameters</span>
+        <span class="k">if</span> <span class="n">fit_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fit_params</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Add weights if synthetic samples exist</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">synthetic_distances_sq</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">((</span><span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span> <span class="o">-</span> <span class="n">x</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">var_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">gaussian_weights</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">synthetic_distances_sq</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">([</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">real_weighting</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
+                <span class="n">gaussian_weights</span>
+            <span class="p">])</span>
+            <span class="n">final_pysr_params</span><span class="p">[</span><span class="s1">&#39;elementwise_loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;f(x,y,w) = w * abs(x-y)^2&quot;</span>
+            <span class="n">final_pysr_params</span><span class="p">[</span><span class="s1">&#39;weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span>
+
+        <span class="c1"># Fit symbolic regression</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_pysr_params</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">sr_inputs</span><span class="p">,</span> <span class="n">sr_targets</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+<div class="viewcode-block" id="SLIMEModel.predict">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SLIMEModel.predict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X</span><span class="p">,</span> <span class="n">complexity</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predict using the discovered symbolic equation.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            X (np.ndarray): Input samples</span>
+<span class="sd">            complexity (int, optional): Equation complexity to use</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray: Predictions</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Model not fitted. Call fit() first&quot;</span><span class="p">)</span>
+
+        <span class="n">equation_func</span><span class="p">,</span> <span class="n">equation_vars</span> <span class="o">=</span> <span class="n">regressor_to_function</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span><span class="p">,</span> <span class="n">complexity</span><span class="o">=</span><span class="n">complexity</span><span class="p">)</span>
+        <span class="n">var_indices</span> <span class="o">=</span> <span class="p">[</span><span class="nb">int</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">equation_vars</span><span class="p">]</span>
+
+        <span class="n">X</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_2d</span><span class="p">(</span><span class="n">X</span><span class="p">)</span>
+        <span class="n">X_features</span> <span class="o">=</span> <span class="p">[</span><span class="n">X</span><span class="p">[:,</span> <span class="n">idx</span><span class="p">]</span> <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="n">var_indices</span><span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">equation_func</span><span class="p">(</span><span class="o">*</span><span class="n">X_features</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SLIMEModel.get_equation">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SLIMEModel.get_equation">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_equation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">complexity</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Get the symbolic equation as a string.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Model not fitted. Call fit() first&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">complexity</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s2">&quot;equation&quot;</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">matching</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">complexity</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">matching</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">avail</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No equation with complexity </span><span class="si">{</span><span class="n">complexity</span><span class="si">}</span><span class="s2">. Available: </span><span class="si">{</span><span class="n">avail</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">matching</span><span class="p">[</span><span class="s2">&quot;equation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span></div>
+
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">equations_</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Access the PySR equations DataFrame.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Model not fitted. Call fit() first&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span><span class="o">.</span><span class="n">equations_</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

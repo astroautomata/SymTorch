@@ -1,7 +1,7 @@
 API Reference
 =============
 
-This section contains the complete API reference for SymTorch.
+This section contains the complete API reference for SymTorch. Please see the :doc:`API Demos<api_demos.rst>` for examples on how to use each object or function.
 
 SymbolicMLP
 ~~~~~~~~~~~

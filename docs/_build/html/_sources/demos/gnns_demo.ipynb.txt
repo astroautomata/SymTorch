@@ -2,26 +2,11 @@
   "cells": [
     {
       "cell_type": "markdown",
-      "metadata": {},
-      "source": [
-        "# Symbolic Distillation of GNNs Demo"
-      ]
-    },
-    {
-      "cell_type": "markdown",
-      "metadata": {},
-      "source": [
-        "This demo looks different to the others as it is a Colab notebook! You can run this notebook yourself using this link:\n",
-        "`github.com/elizabethsztan/SymTorch_symbolic_distillation_GNNs/blob/main/demo.ipynb`"
-      ]
-    },
-    {
-      "cell_type": "markdown",
       "metadata": {
         "id": "YyFC40Uhjk0o"
       },
       "source": [
-        "\n",
+        "# Symbolic Distillation of GNNs\n",
         "\n",
         "In this demo, we reproduce the pipeline from the paper [*Discovering Symbolic Models from Deep Learning with Inductive Biases*](https://arxiv.org/abs/2006.11287) by Cranmer et al. (2020). In this paper, the authors train Graph Neural Networks (GNNs) on n-body system particle data (input variables are particle features; target variables are particle accerelations). \\\n",
         "By approximating the edge model with an analytic equation using symbolic regression, it is possible to derive the true interaction force between particles.\\\n",
@@ -48,7 +33,7 @@
         "id": "6g4FxfAvFWey"
       },
       "source": [
-        "# Set up"
+        "## Set up"
       ]
     },
     {
@@ -302,7 +287,6 @@
         "colab": {
           "base_uri": "https://localhost:8080/"
         },
-        "collapsed": true,
         "id": "dBafLXmGOr-M",
         "outputId": "01c9de29-0cec-4bdc-cf48-53cc89871d6c"
       },
@@ -465,7 +449,7 @@
         "id": "SYUOcjD1H9bJ"
       },
       "source": [
-        "# Generate the dataset"
+        "## Generate the dataset"
       ]
     },
     {
@@ -546,7 +530,7 @@
         "id": "mpvPb8TCFNb6"
       },
       "source": [
-        "# Run the models"
+        "## Run the models"
       ]
     },
     {
@@ -602,7 +586,6 @@
         "colab": {
           "base_uri": "https://localhost:8080/"
         },
-        "collapsed": true,
         "id": "LsWHpKIrFeha",
         "outputId": "4cb52c4d-50b5-4f18-ea04-034bb42c7862"
       },
@@ -693,7 +676,7 @@
         "id": "2YmUGxvUDZ_G"
       },
       "source": [
-        "## Model variations\n",
+        "### Model variations\n",
         "\n",
         "It can be mathematically shown that, for a GNN trained to predict accelerations from particle data, the edge messages are linear combinations of true forces if the dimensionality of the edge message matches that of the system. Hence, we want to encourage sparsity in the edge model and we train several variations of the GNN for this.\n",
         "\n",
@@ -809,7 +792,7 @@
         "id": "G9Z1VP0h_lkZ"
       },
       "source": [
-        "# Plot the linear combination of forces"
+        "## Plot the linear combination of forces"
       ]
     },
     {
@@ -981,7 +964,7 @@
         "id": "_Lgq21kPDd-W"
       },
       "source": [
-        "# Symbolic regression"
+        "## Symbolic regression"
       ]
     },
     {
@@ -1033,7 +1016,7 @@
       "source": [
         "# Wrap the model with the MLP_SR wrapper if it's not a pruning model\n",
         "if model_type != 'pruning':\n",
-        "    model.edge_model = SymbolicMLP(model.edge_model, mlp_name=model_type)"
+        "    model.edge_model = MLP_SR(model.edge_model, mlp_name=model_type)"
       ]
     },
     {
@@ -3077,7 +3060,7 @@
       ],
       "source": [
         "# Load the model\n",
-        "loaded_model = SymbolicMLP.load_model('symtorch_model')"
+        "loaded_model = MLP_SR.load_model('symtorch_model')"
       ]
     },
     {
@@ -3103,8 +3086,7 @@
     "accelerator": "GPU",
     "colab": {
       "gpuType": "T4",
-      "provenance": [],
-      "toc_visible": true
+      "provenance": []
     },
     "kernelspec": {
       "display_name": "Python 3",

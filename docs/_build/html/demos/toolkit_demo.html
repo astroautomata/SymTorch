@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Pruning MLPs &mdash; SymTorch 1.0.4 documentation</title>
+  <title>PruningMLP Demo &mdash; SymTorch 1.1.1 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
 
   
+    <link rel="shortcut icon" href="../_static/symtorch_favicon.png"/>
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=71272d9f"></script>
+      <script src="../_static/documentation_options.js?v=58fbf978"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
@@ -23,7 +24,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Physics-Informed Neural Network (PINN)" href="pinns_demo.html" />
-    <link rel="prev" title="Getting Started" href="getting_started_demo.html" /> 
+    <link rel="prev" title="SymbolicMLP Demo" href="getting_started_demo.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -34,8 +35,9 @@
 
           
           
-          <a href="../index.html" class="icon icon-home">
-            SymTorch
+          <a href="../index.html">
+            
+              <img src="../_static/symtorch_favicon.png" class="logo" alt="Logo"/>
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -46,39 +48,33 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">News:</span></p>
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="../news.html">News</a></li>
-</ul>
-<p class="caption" role="heading"><span class="caption-text">Demos:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="getting_started_demo.html">Getting Started</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Pruning MLPs</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#pruning-background">Pruning Background</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#wrapping-a-pytorch-model">Wrapping a PyTorch model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#training-our-model-and-dynamically-reducing-dimensionality">Training our model and dynamically reducing dimensionality</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#interpret-the-mlp">Interpret the MLP</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#switch-to-using-the-equation-instead-in-the-forwards-pass">Switch to Using the Equation Instead in the Forwards Pass</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#switch-to-using-the-mlp-in-the-forwards-pass">Switch to Using the MLP in the Forwards Pass</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api_demos.html">API Demos</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="getting_started_demo.html">SymbolicMLP Demo</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">PruningMLP Demo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pruning-background">Pruning Background</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wrapping-a-pytorch-model">Wrapping a PyTorch model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#training-our-model-and-dynamically-reducing-dimensionality">Training our model and dynamically reducing dimensionality</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#interpret-the-mlp">Interpret the MLP</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#switch-to-using-the-equation-instead-in-the-forwards-pass">Switch to Using the Equation Instead in the Forwards Pass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#switch-to-using-the-mlp-in-the-forwards-pass">Switch to Using the MLP in the Forwards Pass</a></li>
 </ul>
 </li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slime_demo.html#slime-demo">SLIME Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slime_demo.html#fitting-lime">Fitting LIME</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slime_demo.html#fitting-slime">Fitting SLIME</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Extended Demo:</span></p>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs Demo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#set-up">Set up</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#generate-the-dataset">Generate the dataset</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#run-the-models">Run the models</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#plot-the-linear-combination-of-forces">Plot the linear combination of forces</a></li>
-<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html#symbolic-regression">Symbolic regression</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../show_your_work.html">Show Your Work</a></li>
 </ul>
 
         </div>
@@ -95,7 +91,8 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Pruning MLPs</li>
+          <li class="breadcrumb-item"><a href="../api_demos.html">API Demos</a></li>
+      <li class="breadcrumb-item active">PruningMLP Demo</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/demos/toolkit_demo.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
@@ -105,8 +102,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section class="tex2jax_ignore mathjax_ignore" id="pruning-mlps">
-<h1>Pruning MLPs<a class="headerlink" href="#pruning-mlps" title="Link to this heading"></a></h1>
+  <section class="tex2jax_ignore mathjax_ignore" id="pruningmlp-demo">
+<h1>PruningMLP Demo<a class="headerlink" href="#pruningmlp-demo" title="Link to this heading"></a></h1>
 <p>In this demo we will show you how to:</p>
 <ul class="simple">
 <li><p>Wrap a PyTorch model with the <code class="docutils literal notranslate"><span class="pre">PruningMLP</span></code> class</p></li>
@@ -652,7 +649,7 @@ Because <code class="docutils literal notranslate"><span class="pre">g_net</span
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="getting_started_demo.html" class="btn btn-neutral float-left" title="Getting Started" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="getting_started_demo.html" class="btn btn-neutral float-left" title="SymbolicMLP Demo" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="pinns_demo.html" class="btn btn-neutral float-right" title="Physics-Informed Neural Network (PINN)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
