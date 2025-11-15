@@ -80,7 +80,7 @@ class SLIMEModel:
     """
 
     def __init__(self, J_neighbours=10, num_synthetic=0, real_weighting=1.0,
-                 nn_metric='euclidean', pysr_params=None):
+                 nn_metric='euclidean', var = None, pysr_params=None):
         self.J_neighbours = J_neighbours
         self.num_synthetic = num_synthetic
         self.real_weighting = real_weighting
@@ -92,7 +92,6 @@ class SLIMEModel:
         self.real_inputs_ = None
         self.synthetic_samples_ = None
         self.weights_ = None
-        self.var_ = None
         self.regressor_ = None
 
     def fit(self, f, inputs, x=None, var=None, fit_params=None):
@@ -128,7 +127,7 @@ class SLIMEModel:
 
             # Compute variance (add small epsilon to avoid division by zero)
             if var is None:
-                self.var_ = np.var(self.real_inputs_, axis=0, ddof=1)
+                self.var_ = np.var(self.real_inputs_, axis=0, ddof=1)/2
                 # Add small epsilon to avoid zero variance
                 self.var_ = np.maximum(self.var_, 1e-8)
             else:
@@ -171,8 +170,8 @@ class SLIMEModel:
                 np.full(len(self.real_inputs_), self.real_weighting, dtype=np.float64),
                 gaussian_weights
             ])
-            final_pysr_params['elementwise_loss'] = "f(x,y,w) = w * abs(x-y)^2"
-            final_pysr_params['weights'] = self.weights_
+            final_pysr_params['elementwise_loss'] = "loss(prediction, target, weight) = weight * (prediction - target)^2"
+            fit_params['weights'] = self.weights_
 
         # Fit symbolic regression
         self.regressor_ = PySRRegressor(**final_pysr_params).fit(sr_inputs, sr_targets, **fit_params)
