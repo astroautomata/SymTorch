@@ -174,7 +174,7 @@
 <div class="viewcode-block" id="SLIMEModel.__init__">
 <a class="viewcode-back" href="../../api_reference.html#symtorch.SLIMEModel.__init__">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">J_neighbours</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">num_synthetic</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">real_weighting</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
-                 <span class="n">nn_metric</span><span class="o">=</span><span class="s1">&#39;euclidean&#39;</span><span class="p">,</span> <span class="n">pysr_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                 <span class="n">nn_metric</span><span class="o">=</span><span class="s1">&#39;euclidean&#39;</span><span class="p">,</span> <span class="n">var</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">pysr_params</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">J_neighbours</span> <span class="o">=</span> <span class="n">J_neighbours</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">num_synthetic</span> <span class="o">=</span> <span class="n">num_synthetic</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">real_weighting</span> <span class="o">=</span> <span class="n">real_weighting</span>
@@ -186,7 +186,6 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">synthetic_samples_</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
@@ -225,7 +224,7 @@
 
             <span class="c1"># Compute variance (add small epsilon to avoid division by zero)</span>
             <span class="k">if</span> <span class="n">var</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">var</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">ddof</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span>
                 <span class="c1"># Add small epsilon to avoid zero variance</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">var_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">var_</span><span class="p">,</span> <span class="mf">1e-8</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
@@ -268,8 +267,8 @@
                 <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">real_inputs_</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">real_weighting</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">),</span>
                 <span class="n">gaussian_weights</span>
             <span class="p">])</span>
-            <span class="n">final_pysr_params</span><span class="p">[</span><span class="s1">&#39;elementwise_loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;f(x,y,w) = w * abs(x-y)^2&quot;</span>
-            <span class="n">final_pysr_params</span><span class="p">[</span><span class="s1">&#39;weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span>
+            <span class="n">final_pysr_params</span><span class="p">[</span><span class="s1">&#39;elementwise_loss&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;loss(prediction, target, weight) = weight * (prediction - target)^2&quot;</span>
+            <span class="n">fit_params</span><span class="p">[</span><span class="s1">&#39;weights&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">weights_</span>
 
         <span class="c1"># Fit symbolic regression</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">regressor_</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_pysr_params</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">sr_inputs</span><span class="p">,</span> <span class="n">sr_targets</span><span class="p">,</span> <span class="o">**</span><span class="n">fit_params</span><span class="p">)</span>
