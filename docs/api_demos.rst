@@ -6,7 +6,7 @@ All of the following demos are available as Jupyter notebooks on our
 
 - :doc:`SymbolicMLP Demo <demos/getting_started_demo>`
 - SymbolicModel Demo (work in progress)
-- SLIME Demo (work in progress)
+- :doc:`SLIMEModel Demo <demos/slime_api_demo>`
 - :doc:`PruningMLP Demo <demos/toolkit_demo>`
 
 .. toctree::
