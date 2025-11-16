@@ -14,4 +14,5 @@ All of the following demos are available as Jupyter notebooks on our
    :maxdepth: 1
 
    demos/getting_started_demo.ipynb
+   demos/slime_api_demo.ipynb
    demos/toolkit_demo.ipynb

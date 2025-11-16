@@ -41,6 +41,7 @@ SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to a
 ------------------------------------------
 - Model-agnostic approach to approximating model behavior around a single point with a symbolic surrogate model 
 - Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)
+- See the :doc:`SLIMEModel Demo <demos/slime_api_demo>` for usage information.
 
 4. Reducing Model Flexibility (``PruningMLP``)
 ----------------------------------------------
@@ -64,7 +65,7 @@ Contents
    :caption: Examples:
 
    demos/pinns_demo.ipynb
-   demos/slime_demo.ipynb
+   demos/airfoil_demo.ipynb
    demos/gnns_demo.ipynb
 
 .. toctree::
