@@ -64,7 +64,7 @@ class SymbolicModel(nn.Module):
         self.model = model
         self.model_name = model_name or f"model_{id(self)}"
         if not model_name:
-            print(f"� No model name specified. Model label is {self.model_name}.")
+            print(f"No model name specified. Model label is {self.model_name}.")
         self.pysr_regressor = {}
 
     def _create_sr_params(self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -182,9 +182,9 @@ class SymbolicModel(nn.Module):
             # Stack transformed variables into input matrix
             inputs_numpy = np.column_stack(transformed_inputs)
 
-            print(f"= Applied {len(variable_transforms)} variable transformations")
+            print(f"Applied {len(variable_transforms)} variable transformations")
             if variable_names:
-                print(f"   Variable names: {variable_names}")
+                print(f"Variable names: {variable_names}")
         else:
             # Use original inputs
             inputs_numpy = inputs.detach().cpu().numpy()
@@ -207,7 +207,7 @@ class SymbolicModel(nn.Module):
         if not output_dim:
             # If output dimension is not specified, run SR on all dims
             for dim in range(output_dims):
-                print(f"=� Running SR on output dimension {dim} of {output_dims-1}")
+                print(f"=Running SR on output dimension {dim} of {output_dims-1}")
 
                 run_id = f"dim{dim}_{timestamp}"
                 final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -221,10 +221,10 @@ class SymbolicModel(nn.Module):
 
                 pysr_regressors[dim] = regressor
 
-                print(f"=�Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+                print(f"Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
 
         else:
-            print(f"=� Running SR on output dimension {output_dim}.")
+            print(f"Running SR on output dimension {output_dim}.")
 
             run_id = f"dim{output_dim}_{timestamp}"
             final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -237,9 +237,9 @@ class SymbolicModel(nn.Module):
             regressor.fit(*fit_args, **final_fit_params)
             pysr_regressors[output_dim] = regressor
 
-            print(f"=�Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
+            print(f"Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
 
-        print(f"d SR on {self.model_name} complete.")
+        print(f"SR on {self.model_name} complete.")
         self.pysr_regressor = self.pysr_regressor | pysr_regressors
 
         # For backward compatibility, return the regressor or dict of regressors
