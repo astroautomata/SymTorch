@@ -20,6 +20,8 @@ Installation
 
    pip install torch-symbolic
 
+To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>_`.
+
 Overview
 ========
 SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to automatically extract human-readable formulas from trained models. Instead of treating models as black boxes, it reveals the underlying mathematical relationships they've discovered.
