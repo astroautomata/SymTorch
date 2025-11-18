@@ -50,7 +50,6 @@
 <p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
@@ -155,7 +154,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">model_name</span> <span class="o">=</span> <span class="n">model_name</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">&quot;model_</span><span class="si">{</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">model_name</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;� No model name specified. Model label is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No model name specified. Model label is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="p">{}</span></div>
 
 
@@ -279,9 +278,9 @@
             <span class="c1"># Stack transformed variables into input matrix</span>
             <span class="n">inputs_numpy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">transformed_inputs</span><span class="p">)</span>
 
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;= Applied </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2"> variable transformations&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Applied </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2"> variable transformations&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">variable_names</span><span class="p">:</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;   Variable names: </span><span class="si">{</span><span class="n">variable_names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variable names: </span><span class="si">{</span><span class="n">variable_names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="c1"># Use original inputs</span>
             <span class="n">inputs_numpy</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
@@ -304,7 +303,7 @@
         <span class="k">if</span> <span class="ow">not</span> <span class="n">output_dim</span><span class="p">:</span>
             <span class="c1"># If output dimension is not specified, run SR on all dims</span>
             <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">output_dims</span><span class="p">):</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;=� Running SR on output dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">output_dims</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;=Running SR on output dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">output_dims</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
                 <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
                 <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">sr_params</span><span class="p">)</span>
@@ -318,10 +317,10 @@
 
                 <span class="n">pysr_regressors</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
 
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;=�Best equation for output </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> found to be </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation for output </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> found to be </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;=� Running SR on output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running SR on output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
             <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
             <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">sr_params</span><span class="p">)</span>
@@ -334,9 +333,9 @@
             <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
             <span class="n">pysr_regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
 
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;=�Best equation for output </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> found to be </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation for output </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> found to be </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
 
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;d SR on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2"> complete.&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SR on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2"> complete.&quot;</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">|</span> <span class="n">pysr_regressors</span>
 
         <span class="c1"># For backward compatibility, return the regressor or dict of regressors</span>

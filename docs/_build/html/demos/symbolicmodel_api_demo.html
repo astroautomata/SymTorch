@@ -1,0 +1,618 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SymbolicModel Demo &mdash; SymTorch 1.1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+    <link rel="shortcut icon" href="../_static/symtorch_favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=58fbf978"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SupraLocal Interpretable Model Agnostic Explanations (SLIME)" href="slime_api_demo.html" />
+    <link rel="prev" title="SymbolicMLP Demo" href="getting_started_demo.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/symtorch_favicon.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api_demos.html">API Demos</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="getting_started_demo.html">SymbolicMLP Demo</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">SymbolicModel Demo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#wrap-a-pytorch-model">Wrap a PyTorch model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wrap-the-model-with-symbolicmodel">Wrap the model with <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#perform-symbolic-regression-on-the-inputs-and-outputs-of-the-whole-model">Perform symbolic regression on the inputs and outputs of the whole model</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="slime_api_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="toolkit_demo.html">PruningMLP Demo</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../show_your_work.html">Show Your Work</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SymTorch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api_demos.html">API Demos</a></li>
+      <li class="breadcrumb-item active">SymbolicModel Demo</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/demos/symbolicmodel_api_demo.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="symbolicmodel-demo">
+<h1>SymbolicModel Demo<a class="headerlink" href="#symbolicmodel-demo" title="Link to this heading"></a></h1>
+<p>In this demo we show you how to:</p>
+<ul class="simple">
+<li><p>Wrap a whole PyTorch model with <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code></p></li>
+<li><p>Perform symbolic regression with the <code class="docutils literal notranslate"><span class="pre">.distill</span></code> method</p></li>
+</ul>
+<section id="wrap-a-pytorch-model">
+<h2>Wrap a PyTorch model<a class="headerlink" href="#wrap-a-pytorch-model" title="Link to this heading"></a></h2>
+<p>Create a simple PyTorch model.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">MLP</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple MLP.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">MLP</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">Sequential</span><span class="p">(</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.2</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.2</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">ReLU</span><span class="p">(),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Dropout</span><span class="p">(</span><span class="mf">0.2</span><span class="p">),</span>
+            <span class="n">nn</span><span class="o">.</span><span class="n">Linear</span><span class="p">(</span><span class="n">hidden_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">)</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+
+<span class="k">class</span><span class="w"> </span><span class="nc">SimpleModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Simple model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">hidden_dim</span> <span class="o">=</span> <span class="mi">64</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">SimpleModel</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span> <span class="o">=</span> <span class="n">MLP</span><span class="p">(</span><span class="n">input_dim</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">,</span> <span class="n">hidden_dim</span><span class="p">)</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="n">x</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mlp</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">x</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Train the model on some data.</p>
+<div class="math notranslate nohighlight">
+\[
+y = x_0^2 +3 \sin(x_4)-4
+\]</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Make the dataset </span>
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">10_000</span><span class="p">)</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">5</span><span class="p">)])</span><span class="o">.</span><span class="n">T</span>  
+<span class="n">y</span> <span class="o">=</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">3</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">])</span> <span class="o">-</span> <span class="mi">4</span>
+<span class="n">noise</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">normal</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mf">0.05</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">y</span><span class="p">))</span> <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">y</span><span class="p">))])</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">y</span> <span class="o">+</span> <span class="n">noise</span> 
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set up training</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch.optim</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">optim</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">torch.utils.data</span><span class="w"> </span><span class="kn">import</span> <span class="n">DataLoader</span><span class="p">,</span> <span class="n">TensorDataset</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">train_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">dataloader</span><span class="p">,</span> <span class="n">opt</span><span class="p">,</span> <span class="n">criterion</span><span class="p">,</span> <span class="n">epochs</span> <span class="o">=</span> <span class="mi">100</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Train a model for the specified number of epochs.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        model: PyTorch model to train</span>
+<span class="sd">        dataloader: DataLoader for training data</span>
+<span class="sd">        opt: Optimizer</span>
+<span class="sd">        criterion: Loss function</span>
+<span class="sd">        epochs: Number of training epochs</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        tuple: (trained_model, loss_tracker)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">loss_tracker</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">epoch</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">epochs</span><span class="p">):</span>
+        <span class="n">epoch_loss</span> <span class="o">=</span> <span class="mf">0.0</span>
+        
+        <span class="k">for</span> <span class="n">batch_x</span><span class="p">,</span> <span class="n">batch_y</span> <span class="ow">in</span> <span class="n">dataloader</span><span class="p">:</span>
+            <span class="c1"># Forward pass</span>
+            <span class="n">pred</span> <span class="o">=</span> <span class="n">model</span><span class="p">(</span><span class="n">batch_x</span><span class="p">)</span>
+            <span class="n">loss</span> <span class="o">=</span> <span class="n">criterion</span><span class="p">(</span><span class="n">pred</span><span class="p">,</span> <span class="n">batch_y</span><span class="p">)</span>
+            
+            <span class="c1"># Backward pass</span>
+            <span class="n">opt</span><span class="o">.</span><span class="n">zero_grad</span><span class="p">()</span>
+            <span class="n">loss</span><span class="o">.</span><span class="n">backward</span><span class="p">()</span>
+            <span class="n">opt</span><span class="o">.</span><span class="n">step</span><span class="p">()</span>
+            
+            <span class="n">epoch_loss</span> <span class="o">+=</span> <span class="n">loss</span><span class="o">.</span><span class="n">item</span><span class="p">()</span>
+        
+        <span class="n">loss_tracker</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">epoch_loss</span><span class="p">)</span>
+        <span class="k">if</span> <span class="p">(</span><span class="n">epoch</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="mi">5</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="n">avg_loss</span> <span class="o">=</span> <span class="n">epoch_loss</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">dataloader</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;Epoch [</span><span class="si">{</span><span class="n">epoch</span><span class="o">+</span><span class="mi">1</span><span class="si">}</span><span class="s1">/</span><span class="si">{</span><span class="n">epochs</span><span class="si">}</span><span class="s1">], Avg Loss: </span><span class="si">{</span><span class="n">avg_loss</span><span class="si">:</span><span class="s1">.6f</span><span class="si">}</span><span class="s1">&#39;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">model</span><span class="p">,</span> <span class="n">loss_tracker</span>
+
+<span class="c1"># Instantiate the model</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">SimpleModel</span><span class="p">(</span><span class="n">input_dim</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">output_dim</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+
+<span class="c1"># Set up training</span>
+<span class="n">criterion</span> <span class="o">=</span> <span class="n">nn</span><span class="o">.</span><span class="n">MSELoss</span><span class="p">()</span>
+<span class="n">opt</span> <span class="o">=</span> <span class="n">optim</span><span class="o">.</span><span class="n">Adam</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">parameters</span><span class="p">(),</span> <span class="n">lr</span><span class="o">=</span><span class="mf">0.001</span><span class="p">)</span>
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">),</span> <span class="n">test_size</span><span class="o">=</span><span class="mf">0.2</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">290402</span><span class="p">)</span>
+
+<span class="c1"># Set up dataset</span>
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">TensorDataset</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_train</span><span class="p">),</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">y_train</span><span class="p">))</span>
+<span class="n">dataloader</span> <span class="o">=</span> <span class="n">DataLoader</span><span class="p">(</span><span class="n">dataset</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">32</span><span class="p">,</span> <span class="n">shuffle</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Train the model and save the weights</span>
+
+<span class="n">model</span><span class="p">,</span> <span class="n">losses</span> <span class="o">=</span> <span class="n">train_model</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">dataloader</span><span class="p">,</span> <span class="n">opt</span><span class="p">,</span> <span class="n">criterion</span><span class="p">,</span> <span class="mi">20</span><span class="p">)</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="s1">&#39;model_weights.pth&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.086152
+Epoch [10/20], Avg Loss: 0.057278
+Epoch [15/20], Avg Loss: 0.046266
+Epoch [20/20], Avg Loss: 0.035966
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="wrap-the-model-with-symbolicmodel">
+<h2>Wrap the model with <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code><a class="headerlink" href="#wrap-the-model-with-symbolicmodel" title="Link to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicModel</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>� No model name specified. Model label is model_4399178768.
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="perform-symbolic-regression-on-the-inputs-and-outputs-of-the-whole-model">
+<h2>Perform symbolic regression on the inputs and outputs of the whole model<a class="headerlink" href="#perform-symbolic-regression-on-the-inputs-and-outputs-of-the-whole-model" title="Link to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_test</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+  warnings.warn(
+Compiling Julia backend...
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>=� Running SR on output dimension 0 of 0
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Started!
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Expressions evaluated per second: 3.560e+05
+Progress: 2039 / 12400 total iterations (16.444%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           4.968e-01  0.000e+00  y = -2.2854
+3           2.067e-01  4.386e-01  y = x₄ + -2.7857
+5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
+7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
+9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
+10          5.294e-03  4.124e-02  y = (x₀ + -4.0234) + (sin(x₄) * 2.6749)
+11          3.904e-03  3.046e-01  y = (x₄ * 2.291) + (((x₀ * 0.86742) * x₀) + -3.7285)
+12          3.837e-03  1.725e-02  y = ((x₄ * 2.2903) + -3.7399) + (sin(x₀) * x₀)
+13          2.976e-03  2.540e-01  y = inv((exp(x₄) * -0.20925) + -0.045857) + (x₀ * x₀)
+15          1.318e-03  4.073e-01  y = inv((exp(x₄) * -0.21609) + -0.041948) + ((x₀ * x₀) * 0...
+                                      .86682)
+16          1.228e-03  7.050e-02  y = inv((exp(x₄) * -0.21452) + -0.042668) + (sin(x₀) * x₀)
+17          1.016e-03  1.901e-01  y = (x₀ * (x₀ * 0.8622)) + inv((x₄ * 0.069134) + (exp(x₄) ...
+                                      * -0.26129))
+18          9.463e-04  7.062e-02  y = (x₀ * sin(x₀)) + inv((exp(x₄) * -0.26034) + (x₄ * 0.07...
+                                      0611))
+19          9.106e-04  3.846e-02  y = (((x₄ * -2.2226) + 4.7982) * exp(x₄)) + ((x₀ * sin(x₀)...
+                                      ) + -8.6183)
+20          8.712e-04  4.428e-02  y = ((exp(x₄) * -0.85711) + (((x₀ + 0.19297) * (x₀ * 0.731...
+                                      63)) + -3.0055)) + (x₄ * 3.7376)
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+
+Expressions evaluated per second: 3.670e+05
+Progress: 4336 / 12400 total iterations (34.968%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           4.968e-01  0.000e+00  y = -2.2854
+3           2.067e-01  4.386e-01  y = x₄ + -2.7857
+5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
+7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
+9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
+10          5.294e-03  4.124e-02  y = (x₀ + -4.0234) + (sin(x₄) * 2.6749)
+11          3.904e-03  3.046e-01  y = ((x₄ * 2.291) + ((x₀ * x₀) * 0.86744)) + -3.7285
+12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
+14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
+15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + -3.8264) + (x₀ * sin(x₀))
+16          8.887e-04  4.662e-02  y = ((sin(x₄) * 2.6767) + -3.8401) + (((x₀ + 0.19366) * 0....
+                                      73178) * x₀)
+19          8.428e-04  1.767e-02  y = (((sin(x₀) * x₀) + -3.8101) + (x₂ * -0.032591)) + (sin...
+                                      (x₄) * 2.6762)
+23          8.249e-04  5.387e-03  y = ((((x₄ * -2.2124) + 4.7764) * ((x₂ * -0.008441) + exp(...
+                                      x₄))) + -8.5756) + (x₀ * sin(x₀))
+25          7.889e-04  2.232e-02  y = ((((x₂ * -0.0047495) + exp(x₄ * 0.68234)) * ((x₄ * -3....
+                                      0799) + 8.5074)) + -12.322) + (x₀ * sin(x₀))
+27          7.881e-04  4.965e-04  y = (((sin(x₀) + 0.0030303) * x₀) + -12.323) + ((exp(x₄ * ...
+                                      0.68235) + (x₂ * -0.0047641)) * ((x₄ * -3.0797) + 8.5068))
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+
+Expressions evaluated per second: 3.940e+05
+Progress: 6857 / 12400 total iterations (55.298%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           4.968e-01  0.000e+00  y = -2.2854
+3           2.067e-01  4.386e-01  y = x₄ + -2.7857
+5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
+7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
+9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
+10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
+11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
+12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
+14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
+15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + -3.8264) + (x₀ * sin(x₀))
+16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
+                                      ₄) * 2.6767)
+18          8.467e-04  2.426e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
+                                       * 2.575) + -3.8507)
+19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
+                                      )) + -3.8101))
+21          8.342e-04  5.160e-03  y = ((-3.8105 + (sin(x₀) * x₀)) + (sin(x₄) * 2.7158)) + ((...
+                                      x₂ + x₄) * -0.034059)
+23          8.247e-04  5.693e-03  y = (sin(x₀) * x₀) + ((((x₄ * -2.2138) + 4.7787) * ((x₂ * ...
+                                      -0.0086564) + exp(x₄))) + -8.5778)
+25          7.889e-04  2.224e-02  y = ((((x₂ * -0.0047495) + exp(x₄ * 0.68234)) * ((x₄ * -3....
+                                      0799) + 8.5074)) + -12.322) + (x₀ * sin(x₀))
+27          7.880e-04  5.601e-04  y = ((x₀ * sin(x₀)) + (((exp(x₄ * 0.68094) + (x₂ * -0.0047...
+                                      239)) * ((x₄ * -3.0792) + 8.5138)) + -12.317)) * 1.0035
+30          7.880e-04  3.974e-08  y = ((x₀ * sin(x₀)) + (((exp(x₄ * 0.68094) + sin(x₂ * -0.0...
+                                      047239)) * ((x₄ * -3.0792) + 8.5138)) + -12.317)) * 1.0035
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+
+Expressions evaluated per second: 4.090e+05
+Progress: 9426 / 12400 total iterations (76.016%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           4.968e-01  0.000e+00  y = -2.2854
+3           2.067e-01  4.386e-01  y = x₄ + -2.7857
+5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
+7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
+9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
+10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
+11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
+12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
+14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
+15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + -3.8264) + (x₀ * sin(x₀))
+16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
+                                      ₄) * 2.6767)
+18          8.467e-04  2.426e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
+                                       * 2.575) + -3.8507)
+19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
+                                      )) + -3.8101))
+21          8.342e-04  5.161e-03  y = ((x₄ + x₂) * -0.034067) + (((x₀ * sin(x₀)) + -3.8105) ...
+                                      + (sin(x₄) * 2.7158))
+23          8.116e-04  1.372e-02  y = ((x₂ + (x₄ * x₄)) * -0.036053) + (((x₀ * sin(x₀)) + -3...
+                                      .8153) + (sin(x₄) * 2.7172))
+25          7.889e-04  1.421e-02  y = ((((x₄ * -3.0799) + 8.5074) * ((x₂ * -0.004747) + exp(...
+                                      x₄ * 0.68234))) + -12.322) + (x₀ * sin(x₀))
+27          7.880e-04  5.590e-04  y = (((x₀ * sin(x₀)) + (((x₂ * -0.0047235) + exp(x₄ * 0.68...
+                                      094)) * ((x₄ * -3.0792) + 8.5138))) + -12.317) * 1.0035
+29          7.880e-04  9.090e-06  y = (((((x₂ * -0.0047072) + exp(x₄ * 0.68074)) * ((x₄ * -3...
+                                      .079) + 8.5148)) + -12.316) * 1.0039) + ((x₀ * 1.0033) * s...
+                                      in(x₀))
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+
+Expressions evaluated per second: 4.040e+05
+Progress: 11349 / 12400 total iterations (91.524%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           4.968e-01  0.000e+00  y = -2.2854
+3           2.067e-01  4.386e-01  y = x₄ + -2.7857
+5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
+7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
+9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
+10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
+11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
+12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
+14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
+15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + (x₀ * sin(x₀))) + -3.8264
+16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
+                                      ₄) * 2.6767)
+17          8.878e-04  1.021e-03  y = (x₀ * sin(x₀)) + ((sin(x₄ * 1.0606) * 2.5732) + -3.837...
+                                      6)
+18          8.467e-04  4.749e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
+                                       * 2.575) + -3.8507)
+19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
+                                      )) + -3.8101))
+20          8.055e-04  4.529e-02  y = ((2.6764 * sin(x₄)) + -3.8239) + ((x₂ * -0.031773) + (...
+                                      (x₀ * (x₀ + 0.18648)) * 0.73729))
+22          7.973e-04  5.137e-03  y = ((((x₀ + 0.18505) * (x₀ * 0.73811)) + -3.8239) + ((x₂ ...
+                                      + x₄) * -0.033286)) + (sin(x₄) * 2.7148)
+24          7.703e-04  1.723e-02  y = (((x₀ + 0.18553) * x₀) * 0.73907) + (-3.8371 + ((((x₄ ...
+                                      * -0.069494) + 2.7465) * sin(x₄)) + (x₂ * -0.029261)))
+26          7.613e-04  5.836e-03  y = (((((x₀ + 0.22055) * x₀) * 0.73583) + -3.8421) + (x₂ *...
+                                       -0.031699)) + (sin(x₄) * (((x₀ * -0.080288) * x₄) + 2.716...
+                                      1))
+28          7.471e-04  9.465e-03  y = (((((((x₄ + x₀) * -0.045314) * x₄) + 2.7384) * sin(x₄)...
+                                      ) + -3.8421) + (x₂ * -0.0303)) + (((x₀ + 0.19675) * 0.7415...
+                                      7) * x₀)
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           4.968e-01  0.000e+00  y = -2.2854
+3           2.067e-01  4.386e-01  y = x₄ + -2.7857
+5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
+7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
+9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
+10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
+11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
+12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
+14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
+15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + (x₀ * sin(x₀))) + -3.8264
+16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
+                                      ₄) * 2.6767)
+17          8.878e-04  1.021e-03  y = (x₀ * sin(x₀)) + ((sin(x₄ * 1.0606) * 2.5732) + -3.837...
+                                      6)
+18          8.467e-04  4.749e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
+                                       * 2.575) + -3.8507)
+19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
+                                      )) + -3.8101))
+20          8.054e-04  4.541e-02  y = (sin(x₄) * 2.6766) + ((((x₀ * (x₀ + 0.19586)) + (x₂ * ...
+                                      -0.043378)) * 0.73155) + -3.8249)
+22          7.972e-04  5.132e-03  y = ((x₂ + x₄) * -0.033398) + ((((x₀ + 0.18878) * (x₀ * 0....
+                                      73606)) + -3.8249) + (sin(x₄) * 2.7159))
+24          7.680e-04  1.867e-02  y = (sin(x₄) * ((x₄ * -0.082957) + 2.7591)) + (((x₀ + 0.19...
+                                      413) * (x₀ * 0.73218)) + ((x₂ * -0.031855) + -3.8376))
+26          7.580e-04  6.550e-03  y = (((x₀ + 0.22968) * (x₀ * 0.73547)) + (x₂ * -0.031636))...
+                                       + ((sin(x₄) * (((x₄ + x₀) * -0.066475) + 2.7758)) + -3.84...
+                                      96)
+28          7.462e-04  7.813e-03  y = (((((x₄ * (x₀ + x₄)) * -0.047333) + 2.7414) * (sin(x₄)...
+                                       + (x₂ * -0.011585))) + ((x₀ + 0.20367) * (x₀ * 0.73781)))...
+                                       + -3.843
+30          7.451e-04  7.788e-04  y = (((-0.039003 * (x₄ * x₄)) * (x₀ + x₄)) + (((sin(x₄) * ...
+                                      2.7379) + (x₂ * -0.031365)) + -3.8427)) + ((x₀ + 0.20632) ...
+                                      * (x₀ * 0.73515))
+───────────────────────────────────────────────────────────────────────────────────────────────────
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Final population:
+[ Info: Results saved to:
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>=�Best equation for output 0 found to be (((x0 * 0.86457694) * x0) + (sin(x4) * 2.6771722)) + -3.8140268.
+d SR on model_4399178768 complete.
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
+ 	    pick     score                                           equation  \
+ 	0         0.000000                                          -2.285363   
+ 	1         0.438574                                     x4 + -2.785732   
+ 	2         0.520495                       (x4 * 2.2810283) + -3.426758   
+ 	3         1.100268                ((x4 * 2.2893555) + -3.937105) + x0   
+ 	4         0.190844         ((x4 * 2.292543) + -3.7746532) + (x0 * x0)   
+ 	5         0.041235          ((sin(x4) * 2.6749036) + x0) + -4.0233617   
+ 	6         0.304577  ((x0 * 0.86744106) * x0) + ((x4 * 2.2910278) +...   
+ 	7         0.376723    ((sin(x4) * 2.678712) + (x0 * x0)) + -3.8610668   
+ 	8   &gt;&gt;&gt;&gt;  0.495051  (((x0 * 0.86457694) * x0) + (sin(x4) * 2.67717...   
+ 	9         0.066508  ((sin(x4) * 2.6763525) + (x0 * sin(x0))) + -3....   
+ 	10        0.046618  (((x0 * (x0 + 0.19331135)) * 0.7319883) + -3.8...   
+ 	11        0.001021  (x0 * sin(x0)) + ((sin(x4 * 1.0605501) * 2.573...   
+ 	12        0.047492  ((x0 + 0.19148223) * (x0 * 0.73270535)) + ((si...   
+ 	13        0.004506  (x2 * -0.032585565) + ((sin(x4) * 2.6762452) +...   
+ 	14        0.045414  (sin(x4) * 2.6766343) + ((((x0 * (x0 + 0.19586...   
+ 	15        0.005132  ((x2 + x4) * -0.03339828) + ((((x0 + 0.1887847...   
+ 	16        0.018667  (sin(x4) * ((x4 * -0.082956664) + 2.759057)) +...   
+ 	17        0.006550  (((x0 + 0.2296809) * (x0 * 0.7354745)) + (x2 *...   
+ 	18        0.007813  (((((x4 * (x0 + x4)) * -0.047333058) + 2.74142...   
+ 	19        0.000779  (((-0.03900284 * (x4 * x4)) * (x0 + x4)) + (((...   
+ 	
+ 	        loss  complexity  
+ 	0   0.496795           1  
+ 	1   0.206650           3  
+ 	2   0.072969           5  
+ 	3   0.008081           7  
+ 	4   0.005517           9  
+ 	5   0.005294          10  
+ 	6   0.003904          11  
+ 	7   0.002679          12  
+ 	8   0.000995          14  
+ 	9   0.000931          15  
+ 	10  0.000889          16  
+ 	11  0.000888          17  
+ 	12  0.000847          18  
+ 	13  0.000843          19  
+ 	14  0.000805          20  
+ 	15  0.000797          22  
+ 	16  0.000768          24  
+ 	17  0.000758          26  
+ 	18  0.000746          28  
+ 	19  0.000745          30  
+ ]}
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>  - SR_output/model_4399178768/dim0_1763377865/hall_of_fame.csv
+</pre></div>
+</div>
+</div>
+</div>
+<p>Results of the symbolic regression</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">symbolic_model</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s2">&quot;equation&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(((x0 * 0.86457694) * x0) + (sin(x4) * 2.6771722)) + -3.8140268
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clean up </span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
+<span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="s1">&#39;SR_output&#39;</span><span class="p">):</span>
+    <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="s1">&#39;SR_output&#39;</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">remove</span><span class="p">(</span><span class="s1">&#39;model_weights.pth&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="getting_started_demo.html" class="btn btn-neutral float-left" title="SymbolicMLP Demo" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="slime_api_demo.html" class="btn btn-neutral float-right" title="SupraLocal Interpretable Model Agnostic Explanations (SLIME)" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

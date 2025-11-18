@@ -52,7 +52,6 @@
 <p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
@@ -92,7 +91,7 @@
 </a>
 <a class="reference internal image-reference" href="_images/conceptual_pic.png"><img alt="Visual example of SymbolicMLP." src="_images/conceptual_pic.png" style="width: 100%;" />
 </a>
-<p><em>SymTorch</em> allows you to approximate the behaviour of multi-layer perceptrons (MLPs) in deep learning models with symbolic equations using <a class="reference external" href="https://ai.damtp.cam.ac.uk/pysr/">PySR</a>.</p>
+<p><strong>SymTorch</strong> is an interpretability toolkit that uses symbolic regression to reveal the behaviour of black-box models.</p>
 </section>
 <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Link to this heading"></a></h1>
@@ -100,6 +99,7 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch-symbolic
 </pre></div>
 </div>
+<p>To view or install the most recent version of SymTorch, please see our <cite>GitHub &lt;https://github.com/elizabethsztan/SymTorch&gt;_</cite>.</p>
 </section>
 <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
@@ -125,6 +125,7 @@
 <ul class="simple">
 <li><p>Model-agnostic approach to approximating model behavior around a single point with a symbolic surrogate model</p></li>
 <li><p>Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)</p></li>
+<li><p>See the <a class="reference internal" href="demos/slime_api_demo.html"><span class="doc">SLIMEModel Demo</span></a> for usage information.</p></li>
 </ul>
 </section>
 <section id="reducing-model-flexibility-pruningmlp">
@@ -149,7 +150,6 @@
 <p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="demos/slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
 </div>

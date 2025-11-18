@@ -22,7 +22,9 @@
       <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
-    <link rel="search" title="Search" href="../search.html" /> 
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="PruningMLP Demo" href="toolkit_demo.html" />
+    <link rel="prev" title="SymbolicModel Demo" href="symbolicmodel_api_demo.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,14 +48,27 @@
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
-<ul>
+<ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../api_demos.html">API Demos</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../api_demos.html">API Demos</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="getting_started_demo.html">SymbolicMLP Demo</a></li>
+<li class="toctree-l2"><a class="reference internal" href="symbolicmodel_api_demo.html">SymbolicModel Demo</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#conceptual-example">Conceptual example</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#the-dataset">The dataset</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#training-the-model">Training the model</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#interpreting-the-model-outputs-with-slime">Interpreting the model outputs with SLIME</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="toolkit_demo.html">PruningMLP Demo</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="slime_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
@@ -77,6 +92,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../api_demos.html">API Demos</a></li>
       <li class="breadcrumb-item active">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/demos/slime_api_demo.ipynb.txt" rel="nofollow"> View page source</a>
@@ -89,6 +105,12 @@
              
   <section class="tex2jax_ignore mathjax_ignore" id="supralocal-interpretable-model-agnostic-explanations-slime">
 <h1>SupraLocal Interpretable Model Agnostic Explanations (SLIME)<a class="headerlink" href="#supralocal-interpretable-model-agnostic-explanations-slime" title="Link to this heading"></a></h1>
+<p>In this demo we explain the SLIME algorithm and show you how to:</p>
+<ul class="simple">
+<li><p>Set up a <code class="docutils literal notranslate"><span class="pre">SLIMEModel</span></code> instance</p></li>
+<li><p>Approximate local behavior of a black-box model with <code class="docutils literal notranslate"><span class="pre">SLIMEModel.fit</span></code></p></li>
+<li><p>Make predictions with the surrogate symbolic model with <code class="docutils literal notranslate"><span class="pre">SLIMEModel.predict</span></code></p></li>
+</ul>
 <p>SLIME is a very similar model interpretability technique to <a class="reference external" href="https://arxiv.org/pdf/1602.04938">LIME</a> (Local Interpretable Model Agnostic Explanations). Essentially, LIME is a technique that approximates any black box machine learning model with a linear model around a certain point. The surrogate model is fitted with Gaussian perturbed samples around the point.</p>
 <p>SLIME extends this idea. Here, we implement the framework as presented by the <a class="reference external" href="https://dl.acm.org/doi/10.1145/3712255.3726721">SLIME paper</a> (Fong, Motani 2025).</p>
 <p><img alt="SLIME_conceptual_pic" src="../_images/SLIME.png" /></p>
@@ -627,7 +649,10 @@ Epoch 50, loss = 0.0181
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="symbolicmodel_api_demo.html" class="btn btn-neutral float-left" title="SymbolicModel Demo" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="toolkit_demo.html" class="btn btn-neutral float-right" title="PruningMLP Demo" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 

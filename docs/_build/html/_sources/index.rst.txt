@@ -9,8 +9,7 @@ Welcome to the SymTorch Documentation
    :alt: Visual example of SymbolicMLP. 
    :width: 100%
 
-*SymTorch* allows you to approximate the behaviour of multi-layer perceptrons (MLPs) in deep learning models with symbolic equations using `PySR <https://ai.damtp.cam.ac.uk/pysr/>`_.
-
+**SymTorch** is an interpretability toolkit that uses symbolic regression to reveal the behaviour of black-box models.
 
 Installation
 ============
@@ -20,6 +19,8 @@ Installation
 .. code-block:: bash
 
    pip install torch-symbolic
+
+To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>_`.
 
 Overview
 ========
@@ -41,6 +42,7 @@ SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to a
 ------------------------------------------
 - Model-agnostic approach to approximating model behavior around a single point with a symbolic surrogate model 
 - Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)
+- See the :doc:`SLIMEModel Demo <demos/slime_api_demo>` for usage information.
 
 4. Reducing Model Flexibility (``PruningMLP``)
 ----------------------------------------------
@@ -64,7 +66,6 @@ Contents
    :caption: Examples:
 
    demos/pinns_demo.ipynb
-   demos/slime_demo.ipynb
    demos/gnns_demo.ipynb
 
 .. toctree::
