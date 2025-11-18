@@ -66,7 +66,6 @@ Contents
    :caption: Examples:
 
    demos/pinns_demo.ipynb
-   demos/airfoil_demo.ipynb
    demos/gnns_demo.ipynb
 
 .. toctree::
