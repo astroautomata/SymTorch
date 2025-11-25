@@ -53,9 +53,12 @@
 <li class="toctree-l1 current"><a class="reference internal" href="../api_demos.html">API Demos</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="getting_started_demo.html">SymbolicMLP Demo</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">SymbolicModel Demo</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#wrap-a-pytorch-model">Wrap a PyTorch model</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#wrap-the-model-with-symbolicmodel">Wrap the model with <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code></a></li>
-<li class="toctree-l3"><a class="reference internal" href="#perform-symbolic-regression-on-the-inputs-and-outputs-of-the-whole-model">Perform symbolic regression on the inputs and outputs of the whole model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#create-a-pytorch-model">Create a PyTorch Model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#use-symbolicmodel-with-the-model-agnostic-api">Use SymbolicModel with the model-agnostic API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#perform-symbolic-regression-using-fit">Perform symbolic regression using <code class="docutils literal notranslate"><span class="pre">.fit()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#access-the-discovered-symbolic-equation">Access the discovered symbolic equation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#make-predictions-with-the-symbolic-equation">Make predictions with the symbolic equation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-model-agnostic-usage-with-pure-python-function">Example: Model-agnostic usage with pure Python function</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="slime_api_demo.html">SupraLocal Interpretable Model Agnostic Explanations (SLIME)</a></li>
@@ -67,6 +70,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="llm_maths_demo.html">LLM Learned Operations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
@@ -104,12 +108,14 @@
 <h1>SymbolicModel Demo<a class="headerlink" href="#symbolicmodel-demo" title="Link to this heading"></a></h1>
 <p>In this demo we show you how to:</p>
 <ul class="simple">
-<li><p>Wrap a whole PyTorch model with <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code></p></li>
-<li><p>Perform symbolic regression with the <code class="docutils literal notranslate"><span class="pre">.distill</span></code> method</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> with any callable function (model-agnostic)</p></li>
+<li><p>Perform symbolic regression with the <code class="docutils literal notranslate"><span class="pre">.fit()</span></code> method</p></li>
+<li><p>Make predictions with the <code class="docutils literal notranslate"><span class="pre">.predict()</span></code> method</p></li>
+<li><p>Access equations with the <code class="docutils literal notranslate"><span class="pre">.get_equation()</span></code> method</p></li>
 </ul>
-<section id="wrap-a-pytorch-model">
-<h2>Wrap a PyTorch model<a class="headerlink" href="#wrap-a-pytorch-model" title="Link to this heading"></a></h2>
-<p>Create a simple PyTorch model.</p>
+<section id="create-a-pytorch-model">
+<h2>Create a PyTorch Model<a class="headerlink" href="#create-a-pytorch-model" title="Link to this heading"></a></h2>
+<p>We’ll create a simple PyTorch model and train it. SymbolicModel can work with any callable, including PyTorch models.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
@@ -239,42 +245,56 @@ y = x_0^2 +3 \sin(x_4)-4
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.086152
-Epoch [10/20], Avg Loss: 0.057278
-Epoch [15/20], Avg Loss: 0.046266
-Epoch [20/20], Avg Loss: 0.035966
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Epoch [5/20], Avg Loss: 0.083512
+Epoch [10/20], Avg Loss: 0.060172
+Epoch [15/20], Avg Loss: 0.046609
+Epoch [20/20], Avg Loss: 0.038767
 </pre></div>
 </div>
 </div>
 </div>
 </section>
-<section id="wrap-the-model-with-symbolicmodel">
-<h2>Wrap the model with <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code><a class="headerlink" href="#wrap-the-model-with-symbolicmodel" title="Link to this heading"></a></h2>
+<section id="use-symbolicmodel-with-the-model-agnostic-api">
+<h2>Use SymbolicModel with the model-agnostic API<a class="headerlink" href="#use-symbolicmodel-with-the-model-agnostic-api" title="Link to this heading"></a></h2>
+<p>Instead of wrapping the model, we define a callable function and pass it to <code class="docutils literal notranslate"><span class="pre">fit()</span></code>.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicModel</span>
 </pre></div>
 </div>
 </div>
-</div>
-<div class="cell docutils container">
-<div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">model</span><span class="p">)</span>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Detected IPython. Loading juliacall extension. See https://juliapy.github.io/PythonCall.jl/stable/compat/#IPython
 </pre></div>
 </div>
 </div>
-<div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>� No model name specified. Model label is model_4399178768.
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define a callable function that wraps the model</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">f</span><span class="p">(</span><span class="n">inputs</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Black-box function for symbolic regression&quot;&quot;&quot;</span>
+    <span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
+        <span class="c1"># Convert numpy to torch if needed</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">):</span>
+            <span class="n">inputs</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+
+<span class="c1"># Create SymbolicModel instance</span>
+<span class="n">symbolic_model</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">()</span>
 </pre></div>
 </div>
 </div>
 </div>
 </section>
-<section id="perform-symbolic-regression-on-the-inputs-and-outputs-of-the-whole-model">
-<h2>Perform symbolic regression on the inputs and outputs of the whole model<a class="headerlink" href="#perform-symbolic-regression-on-the-inputs-and-outputs-of-the-whole-model" title="Link to this heading"></a></h2>
+<section id="perform-symbolic-regression-using-fit">
+<h2>Perform symbolic regression using <code class="docutils literal notranslate"><span class="pre">.fit()</span></code><a class="headerlink" href="#perform-symbolic-regression-using-fit" title="Link to this heading"></a></h2>
+<p>The new API uses <code class="docutils literal notranslate"><span class="pre">.fit(f,</span> <span class="pre">inputs)</span></code> instead of <code class="docutils literal notranslate"><span class="pre">.distill(inputs)</span></code>.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model</span><span class="o">.</span><span class="n">distill</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_test</span><span class="p">))</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Fit symbolic regression</span>
+<span class="n">symbolic_model</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">f</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">FloatTensor</span><span class="p">(</span><span class="n">X_test</span><span class="p">))</span>
 </pre></div>
 </div>
 </div>
@@ -284,286 +304,394 @@ Epoch [20/20], Avg Loss: 0.035966
 Compiling Julia backend...
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>=� Running SR on output dimension 0 of 0
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Running SR on output dimension 0 of 0
 </pre></div>
 </div>
 <div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Started!
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Expressions evaluated per second: 3.560e+05
-Progress: 2039 / 12400 total iterations (16.444%)
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Expressions evaluated per second: 3.790e+05
+Progress: 2240 / 12400 total iterations (18.065%)
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 Complexity  Loss       Score      Equation
-1           4.968e-01  0.000e+00  y = -2.2854
-3           2.067e-01  4.386e-01  y = x₄ + -2.7857
-5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
-7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
-9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
-10          5.294e-03  4.124e-02  y = (x₀ + -4.0234) + (sin(x₄) * 2.6749)
-11          3.904e-03  3.046e-01  y = (x₄ * 2.291) + (((x₀ * 0.86742) * x₀) + -3.7285)
-12          3.837e-03  1.725e-02  y = ((x₄ * 2.2903) + -3.7399) + (sin(x₀) * x₀)
-13          2.976e-03  2.540e-01  y = inv((exp(x₄) * -0.20925) + -0.045857) + (x₀ * x₀)
-15          1.318e-03  4.073e-01  y = inv((exp(x₄) * -0.21609) + -0.041948) + ((x₀ * x₀) * 0...
-                                      .86682)
-16          1.228e-03  7.050e-02  y = inv((exp(x₄) * -0.21452) + -0.042668) + (sin(x₀) * x₀)
-17          1.016e-03  1.901e-01  y = (x₀ * (x₀ * 0.8622)) + inv((x₄ * 0.069134) + (exp(x₄) ...
-                                      * -0.26129))
-18          9.463e-04  7.062e-02  y = (x₀ * sin(x₀)) + inv((exp(x₄) * -0.26034) + (x₄ * 0.07...
-                                      0611))
-19          9.106e-04  3.846e-02  y = (((x₄ * -2.2226) + 4.7982) * exp(x₄)) + ((x₀ * sin(x₀)...
-                                      ) + -8.6183)
-20          8.712e-04  4.428e-02  y = ((exp(x₄) * -0.85711) + (((x₀ + 0.19297) * (x₀ * 0.731...
-                                      63)) + -3.0055)) + (x₄ * 3.7376)
+1           5.699e-01  0.000e+00  y = -2.2732
+3           2.470e-01  4.182e-01  y = x₄ + -2.7734
+5           8.157e-02  5.539e-01  y = (x₄ * 2.3919) + -3.4697
+7           8.876e-03  1.109e+00  y = ((x₄ * 2.3873) + -3.9596) + x₀
+9           6.655e-03  1.440e-01  y = ((x₄ * 2.3803) + (x₀ * x₀)) + -3.7907
+10          4.830e-03  3.206e-01  y = (sin(x₄) * 2.7931) + (x₀ + -4.0487)
+12          2.412e-03  3.472e-01  y = ((sin(x₄) * 2.7854) + -3.8798) + (x₀ * x₀)
+14          1.745e-03  1.618e-01  y = ((sin(x₄) * 2.7868) + (x₀ * (x₀ * 0.91376))) + -3.8522
+15          1.679e-03  3.847e-02  y = sin(x₀ * x₀) + ((sin(x₄) * 2.7881) + -3.8583)
+16          1.477e-03  1.280e-01  y = (((x₀ * 0.91232) * x₀) + -4.2723) + (sin(x₄ + 0.12879)...
+                                       * 3.018)
+17          1.433e-03  3.077e-02  y = (sin(x₀ * x₀) + (sin(x₄ + 0.12524) * 3.0123)) + -4.266...
+                                      8
+19          1.361e-03  2.558e-02  y = (sin(x₄ + 0.12979) * 3.0212) + (sin((x₀ * x₀) + -0.073...
+                                      471) + -4.2151)
+21          1.324e-03  1.375e-02  y = ((sin(x₀) * (x₀ + 0.059664)) + -3.9475) + ((sin(x₄ + 0...
+                                      .12514) + -0.11179) * 3.0117)
+22          8.611e-04  4.304e-01  y = (((x₄ + x₀) * 0.77478) + sin(((((x₀ + -0.78964) * x₀) ...
+                                      + x₄) + x₄) + -0.47712)) + -3.4131
+24          8.514e-04  5.680e-03  y = ((x₄ + x₀) * 0.78996) + (sin(x₄ + ((((x₀ * (x₀ + -0.80...
+                                      248)) + -0.47018) + x₄) * 0.97297)) + -3.4314)
+25          8.479e-04  4.128e-03  y = sin(((x₄ + (x₀ * sin(x₀ + -0.78434))) + -0.48071) + x₄...
+                                      ) + (((x₄ + x₀) * 0.77624) + -3.4157)
+26          8.477e-04  2.352e-04  y = sin((x₄ + -0.51651) + (x₄ + (0.62972 * (((x₀ * x₀) + -...
+                                      0.56552) * x₀)))) + (((x₀ + x₄) * 0.77636) + -3.4159)
+27          8.384e-04  1.103e-02  y = ((x₄ + x₀) * 0.79273) + (sin(x₄ + (((x₀ * sin(x₀ + -0....
+                                      79886)) + (x₄ + -0.47147)) * 0.97312)) + -3.4365)
+28          8.383e-04  8.500e-05  y = sin(((x₄ + x₄) + -0.48421) + (x₀ * sin(sin(x₀ + -0.779...
+                                      45)))) + (((x₀ + x₄) * 0.7771) + -3.4172)
+29          8.259e-04  1.490e-02  y = ((x₄ + x₀) * 0.77555) + (sin((((x₀ * x₀) + -0.56782) *...
+                                       (sin(x₀) * 0.70398)) + ((x₄ + x₄) + -0.51127)) + -3.4146)
+30          7.975e-04  3.509e-02  y = sin((((x₀ + -0.79446) * (((x₀ * x₄) * x₀) + (x₀ * 0.73...
+                                      011))) + (x₄ + x₄)) + -0.47067) + (((x₀ + x₄) * 0.79634) +...
+                                       -3.445)
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
 
-Expressions evaluated per second: 3.670e+05
-Progress: 4336 / 12400 total iterations (34.968%)
+Expressions evaluated per second: 4.030e+05
+Progress: 4901 / 12400 total iterations (39.524%)
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 Complexity  Loss       Score      Equation
-1           4.968e-01  0.000e+00  y = -2.2854
-3           2.067e-01  4.386e-01  y = x₄ + -2.7857
-5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
-7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
-9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
-10          5.294e-03  4.124e-02  y = (x₀ + -4.0234) + (sin(x₄) * 2.6749)
-11          3.904e-03  3.046e-01  y = ((x₄ * 2.291) + ((x₀ * x₀) * 0.86744)) + -3.7285
-12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
-14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
-15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + -3.8264) + (x₀ * sin(x₀))
-16          8.887e-04  4.662e-02  y = ((sin(x₄) * 2.6767) + -3.8401) + (((x₀ + 0.19366) * 0....
-                                      73178) * x₀)
-19          8.428e-04  1.767e-02  y = (((sin(x₀) * x₀) + -3.8101) + (x₂ * -0.032591)) + (sin...
-                                      (x₄) * 2.6762)
-23          8.249e-04  5.387e-03  y = ((((x₄ * -2.2124) + 4.7764) * ((x₂ * -0.008441) + exp(...
-                                      x₄))) + -8.5756) + (x₀ * sin(x₀))
-25          7.889e-04  2.232e-02  y = ((((x₂ * -0.0047495) + exp(x₄ * 0.68234)) * ((x₄ * -3....
-                                      0799) + 8.5074)) + -12.322) + (x₀ * sin(x₀))
-27          7.881e-04  4.965e-04  y = (((sin(x₀) + 0.0030303) * x₀) + -12.323) + ((exp(x₄ * ...
-                                      0.68235) + (x₂ * -0.0047641)) * ((x₄ * -3.0797) + 8.5068))
+1           5.699e-01  0.000e+00  y = -2.2732
+3           2.470e-01  4.182e-01  y = x₄ + -2.7734
+5           8.157e-02  5.539e-01  y = (x₄ * 2.3919) + -3.4697
+7           8.876e-03  1.109e+00  y = ((x₄ * 2.3873) + -3.9596) + x₀
+9           6.655e-03  1.440e-01  y = ((x₀ * x₀) + (x₄ * 2.3802)) + -3.7907
+10          4.830e-03  3.206e-01  y = (sin(x₄) * 2.7931) + (x₀ + -4.0487)
+12          2.412e-03  3.472e-01  y = ((sin(x₄) * 2.7854) + -3.8798) + (x₀ * x₀)
+14          1.745e-03  1.618e-01  y = ((sin(x₄) * 2.7868) + (x₀ * (x₀ * 0.91376))) + -3.8522
+15          1.679e-03  3.847e-02  y = sin(x₀ * x₀) + ((sin(x₄) * 2.7881) + -3.8583)
+16          1.447e-03  1.490e-01  y = (((x₀ * x₀) * 0.91244) + -3.8799) + (sin(x₄ * 1.1419) ...
+                                      * 2.5601)
+17          1.405e-03  2.934e-02  y = (sin(x₀ * x₀) + (sin(x₄ * 1.1363) * 2.5687)) + -3.8853
+18          1.282e-03  9.184e-02  y = ((sin(x₄ + 0.124) * 3.0093) + -4.2923) + (((x₀ * 0.727...
+                                      91) + 0.19595) * x₀)
+20          1.255e-03  1.072e-02  y = (x₀ * ((x₀ + 0.30131) * 0.71011)) + (((sin(x₄ * 1.1412...
+                                      ) * 1.4464) + -2.2122) * 1.7717)
+22          8.611e-04  1.881e-01  y = (((x₄ + x₀) * 0.77478) + sin(((((x₀ + -0.78964) * x₀) ...
+                                      + x₄) + x₄) + -0.47712)) + -3.4131
+24          8.513e-04  5.740e-03  y = sin(x₄ + (((((x₀ + -0.80507) * x₀) + x₄) + -0.46708) *...
+                                       0.97245)) + (-3.4346 + ((x₄ + x₀) * 0.79175))
+25          8.479e-04  4.008e-03  y = sin(((x₄ + (x₀ * sin(x₀ + -0.78434))) + -0.48071) + x₄...
+                                      ) + (((x₄ + x₀) * 0.77624) + -3.4157)
+26          8.477e-04  2.404e-04  y = (((x₀ + x₄) * 0.77649) + sin(x₄ + (((x₀ * ((x₀ * x₀) +...
+                                       -0.56586)) * 0.62992) + (-0.51614 + x₄)))) + -3.4163
+27          8.384e-04  1.102e-02  y = sin(x₄ + ((x₄ + ((x₀ * sin(x₀ + -0.79916)) + -0.47112)...
+                                      ) * 0.9727)) + (((x₄ + x₀) * 0.79307) + -3.4371)
+28          7.974e-04  5.010e-02  y = (sin((x₄ + x₄) + (((((x₀ * x₄) + 0.73032) * x₀) * (x₀ ...
+                                      + -0.79407)) + -0.47044)) + -3.4454) + ((x₀ + x₄) * 0.7963...
+                                      9)
+30          7.897e-04  4.863e-03  y = (((x₄ + x₀) * 0.78792) + -3.4326) + sin(((x₄ + ((x₀ + ...
+                                      -0.78536) * ((((x₄ * x₀) * x₀) + x₀) * 0.77375))) + x₄) + ...
+                                      -0.47948)
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
 
-Expressions evaluated per second: 3.940e+05
-Progress: 6857 / 12400 total iterations (55.298%)
+Expressions evaluated per second: 4.320e+05
+Progress: 7742 / 12400 total iterations (62.435%)
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 Complexity  Loss       Score      Equation
-1           4.968e-01  0.000e+00  y = -2.2854
-3           2.067e-01  4.386e-01  y = x₄ + -2.7857
-5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
-7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
-9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
-10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
-11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
-12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
-14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
-15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + -3.8264) + (x₀ * sin(x₀))
-16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
-                                      ₄) * 2.6767)
-18          8.467e-04  2.426e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
-                                       * 2.575) + -3.8507)
-19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
-                                      )) + -3.8101))
-21          8.342e-04  5.160e-03  y = ((-3.8105 + (sin(x₀) * x₀)) + (sin(x₄) * 2.7158)) + ((...
-                                      x₂ + x₄) * -0.034059)
-23          8.247e-04  5.693e-03  y = (sin(x₀) * x₀) + ((((x₄ * -2.2138) + 4.7787) * ((x₂ * ...
-                                      -0.0086564) + exp(x₄))) + -8.5778)
-25          7.889e-04  2.224e-02  y = ((((x₂ * -0.0047495) + exp(x₄ * 0.68234)) * ((x₄ * -3....
-                                      0799) + 8.5074)) + -12.322) + (x₀ * sin(x₀))
-27          7.880e-04  5.601e-04  y = ((x₀ * sin(x₀)) + (((exp(x₄ * 0.68094) + (x₂ * -0.0047...
-                                      239)) * ((x₄ * -3.0792) + 8.5138)) + -12.317)) * 1.0035
-30          7.880e-04  3.974e-08  y = ((x₀ * sin(x₀)) + (((exp(x₄ * 0.68094) + sin(x₂ * -0.0...
-                                      047239)) * ((x₄ * -3.0792) + 8.5138)) + -12.317)) * 1.0035
+1           5.699e-01  0.000e+00  y = -2.2732
+3           2.470e-01  4.182e-01  y = x₄ + -2.7734
+5           8.157e-02  5.539e-01  y = (x₄ * 2.3919) + -3.4697
+7           8.876e-03  1.109e+00  y = ((x₄ * 2.3873) + -3.9596) + x₀
+9           6.655e-03  1.440e-01  y = ((x₀ * x₀) + (x₄ * 2.3802)) + -3.7907
+10          4.830e-03  3.206e-01  y = (sin(x₄) * 2.7931) + (x₀ + -4.0487)
+12          2.412e-03  3.472e-01  y = ((sin(x₄) * 2.7854) + -3.8798) + (x₀ * x₀)
+14          1.745e-03  1.618e-01  y = ((sin(x₄) * 2.7868) + (x₀ * (x₀ * 0.91376))) + -3.8522
+15          1.679e-03  3.847e-02  y = sin(x₀ * x₀) + ((sin(x₄) * 2.7881) + -3.8583)
+16          1.447e-03  1.490e-01  y = (sin(x₄ * 1.1419) * 2.5602) + ((x₀ * (x₀ * 0.91243)) +...
+                                       -3.8799)
+17          1.405e-03  2.934e-02  y = (sin(x₀ * x₀) + (sin(x₄ * 1.1361) * 2.5691)) + -3.8852
+18          1.256e-03  1.122e-01  y = (sin(x₄ * 1.1477) * 2.5496) + ((((x₀ * 0.72721) + 0.19...
+                                      861) * x₀) + -3.9167)
+19          1.094e-03  1.382e-01  y = (sin(x₄) * 2.8703) + ((sin(x₄ + 1.3122) * (x₀ * x₀)) +...
+                                       -3.896)
+21          9.370e-04  7.738e-02  y = (((x₀ * x₀) * sin((x₄ * x₀) + 1.3889)) + -3.8915) + (s...
+                                      in(x₄) * 2.8457)
+22          8.611e-04  8.439e-02  y = (((x₄ + x₀) * 0.77478) + sin(((((x₀ + -0.78964) * x₀) ...
+                                      + x₄) + x₄) + -0.47712)) + -3.4131
+24          8.513e-04  5.740e-03  y = (sin(x₄ + (((x₄ + (x₀ * (x₀ + -0.80502))) + -0.46703) ...
+                                      * 0.97242)) + -3.4346) + ((x₄ + x₀) * 0.79175)
+25          8.479e-04  4.007e-03  y = sin(((x₄ + (x₀ * sin(x₀ + -0.78434))) + -0.48071) + x₄...
+                                      ) + (((x₄ + x₀) * 0.77624) + -3.4157)
+26          8.477e-04  2.408e-04  y = (((x₀ + x₄) * 0.77649) + -3.4163) + sin((x₄ + ((((x₀ *...
+                                       x₀) + -0.56586) * 0.62992) * x₀)) + (x₄ + -0.51614))
+27          8.384e-04  1.102e-02  y = sin(x₄ + ((x₄ + ((x₀ * sin(x₀ + -0.79916)) + -0.47112)...
+                                      ) * 0.9727)) + (((x₄ + x₀) * 0.79307) + -3.4371)
+28          7.974e-04  5.010e-02  y = (sin((x₄ + x₄) + (((((x₀ * x₄) + 0.73032) * x₀) * (x₀ ...
+                                      + -0.79407)) + -0.47044)) + -3.4454) + ((x₀ + x₄) * 0.7963...
+                                      9)
+30          7.897e-04  4.863e-03  y = (((x₄ + x₀) * 0.78792) + -3.4326) + sin(((x₄ + ((x₀ + ...
+                                      -0.78536) * ((((x₄ * x₀) * x₀) + x₀) * 0.77375))) + x₄) + ...
+                                      -0.47948)
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
 
-Expressions evaluated per second: 4.090e+05
-Progress: 9426 / 12400 total iterations (76.016%)
+Expressions evaluated per second: 4.400e+05
+Progress: 10261 / 12400 total iterations (82.750%)
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 Complexity  Loss       Score      Equation
-1           4.968e-01  0.000e+00  y = -2.2854
-3           2.067e-01  4.386e-01  y = x₄ + -2.7857
-5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
-7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
-9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
-10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
-11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
-12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
-14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
-15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + -3.8264) + (x₀ * sin(x₀))
-16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
-                                      ₄) * 2.6767)
-18          8.467e-04  2.426e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
-                                       * 2.575) + -3.8507)
-19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
-                                      )) + -3.8101))
-21          8.342e-04  5.161e-03  y = ((x₄ + x₂) * -0.034067) + (((x₀ * sin(x₀)) + -3.8105) ...
-                                      + (sin(x₄) * 2.7158))
-23          8.116e-04  1.372e-02  y = ((x₂ + (x₄ * x₄)) * -0.036053) + (((x₀ * sin(x₀)) + -3...
-                                      .8153) + (sin(x₄) * 2.7172))
-25          7.889e-04  1.421e-02  y = ((((x₄ * -3.0799) + 8.5074) * ((x₂ * -0.004747) + exp(...
-                                      x₄ * 0.68234))) + -12.322) + (x₀ * sin(x₀))
-27          7.880e-04  5.590e-04  y = (((x₀ * sin(x₀)) + (((x₂ * -0.0047235) + exp(x₄ * 0.68...
-                                      094)) * ((x₄ * -3.0792) + 8.5138))) + -12.317) * 1.0035
-29          7.880e-04  9.090e-06  y = (((((x₂ * -0.0047072) + exp(x₄ * 0.68074)) * ((x₄ * -3...
-                                      .079) + 8.5148)) + -12.316) * 1.0039) + ((x₀ * 1.0033) * s...
-                                      in(x₀))
+1           5.699e-01  0.000e+00  y = -2.2732
+3           2.470e-01  4.182e-01  y = x₄ + -2.7734
+5           8.157e-02  5.539e-01  y = (x₄ * 2.3919) + -3.4697
+7           8.876e-03  1.109e+00  y = x₀ + ((x₄ * 2.3874) + -3.9596)
+9           6.655e-03  1.440e-01  y = ((x₀ * x₀) + (x₄ * 2.3802)) + -3.7907
+10          4.830e-03  3.206e-01  y = (sin(x₄) * 2.7931) + (x₀ + -4.0487)
+11          4.816e-03  2.837e-03  y = (((x₄ * -0.83764) + 3.2227) * x₄) + (x₀ + -4.0963)
+12          2.412e-03  6.915e-01  y = ((sin(x₄) * 2.7854) + -3.8798) + (x₀ * x₀)
+13          2.353e-03  2.477e-02  y = (x₀ * x₀) + ((((x₄ * -0.86228) + 3.2401) * x₄) + -3.93...
+                                      14)
+14          1.745e-03  2.989e-01  y = ((sin(x₄) * 2.7868) + (x₀ * (x₀ * 0.91376))) + -3.8522
+15          1.469e-03  1.720e-01  y = (((x₄ * -0.75662) + 3.2111) * (x₄ + ((x₀ * x₀) * 0.322...
+                                      39))) + -3.9238
+16          1.447e-03  1.543e-02  y = (sin(x₄ * 1.1416) * 2.5606) + (((x₀ * x₀) * 0.91245) +...
+                                       -3.8799)
+17          1.405e-03  2.934e-02  y = (sin(x₀ * x₀) + (sin(x₄ * 1.1361) * 2.5691)) + -3.8852
+18          1.252e-03  1.150e-01  y = (sin(x₄ * 1.1378) * 2.5668) + (-3.9157 + (((x₀ * 0.728...
+                                      65) + 0.19528) * x₀))
+19          1.094e-03  1.354e-01  y = (sin(x₄) * 2.8703) + (((x₀ * sin(x₄ + 1.3122)) * x₀) +...
+                                       -3.896)
+21          9.370e-04  7.738e-02  y = ((sin(x₄) * 2.8457) + -3.8915) + ((sin((x₄ * x₀) + 1.3...
+                                      889) * x₀) * x₀)
+22          8.611e-04  8.439e-02  y = (((x₄ + x₀) * 0.77478) + sin(((((x₀ + -0.78964) * x₀) ...
+                                      + x₄) + x₄) + -0.47712)) + -3.4131
+24          8.513e-04  5.740e-03  y = (sin(x₄ + (((x₄ + (x₀ * (x₀ + -0.80502))) + -0.46703) ...
+                                      * 0.97242)) + -3.4346) + ((x₄ + x₀) * 0.79175)
+25          8.479e-04  4.007e-03  y = sin(((x₄ + (x₀ * sin(x₀ + -0.78434))) + -0.48071) + x₄...
+                                      ) + (((x₄ + x₀) * 0.77624) + -3.4157)
+26          8.327e-04  1.814e-02  y = ((sin(x₄ + (((((x₀ + -0.78086) * x₀) + x₄) + -0.46803)...
+                                       * 0.91329)) * 1.0427) + ((x₄ + x₀) * 0.77588)) + -3.4489
+28          7.974e-04  2.162e-02  y = (sin((x₄ + x₄) + (((((x₀ * x₄) + 0.73032) * x₀) * (x₀ ...
+                                      + -0.79407)) + -0.47044)) + -3.4454) + ((x₀ + x₄) * 0.7963...
+                                      9)
+30          7.895e-04  5.028e-03  y = (((x₀ + x₄) * 0.78716) + -3.4314) + sin(x₄ + (((x₀ + -...
+                                      0.78499) * (x₀ * ((x₀ * (x₄ * 0.73908)) + 0.78246))) + (x₄...
+                                       + -0.47986)))
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
 
-Expressions evaluated per second: 4.040e+05
-Progress: 11349 / 12400 total iterations (91.524%)
+Expressions evaluated per second: 4.330e+05
+Progress: 12299 / 12400 total iterations (99.185%)
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 Complexity  Loss       Score      Equation
-1           4.968e-01  0.000e+00  y = -2.2854
-3           2.067e-01  4.386e-01  y = x₄ + -2.7857
-5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
-7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
-9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
-10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
-11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
-12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
-14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
-15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + (x₀ * sin(x₀))) + -3.8264
-16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
-                                      ₄) * 2.6767)
-17          8.878e-04  1.021e-03  y = (x₀ * sin(x₀)) + ((sin(x₄ * 1.0606) * 2.5732) + -3.837...
-                                      6)
-18          8.467e-04  4.749e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
-                                       * 2.575) + -3.8507)
-19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
-                                      )) + -3.8101))
-20          8.055e-04  4.529e-02  y = ((2.6764 * sin(x₄)) + -3.8239) + ((x₂ * -0.031773) + (...
-                                      (x₀ * (x₀ + 0.18648)) * 0.73729))
-22          7.973e-04  5.137e-03  y = ((((x₀ + 0.18505) * (x₀ * 0.73811)) + -3.8239) + ((x₂ ...
-                                      + x₄) * -0.033286)) + (sin(x₄) * 2.7148)
-24          7.703e-04  1.723e-02  y = (((x₀ + 0.18553) * x₀) * 0.73907) + (-3.8371 + ((((x₄ ...
-                                      * -0.069494) + 2.7465) * sin(x₄)) + (x₂ * -0.029261)))
-26          7.613e-04  5.836e-03  y = (((((x₀ + 0.22055) * x₀) * 0.73583) + -3.8421) + (x₂ *...
-                                       -0.031699)) + (sin(x₄) * (((x₀ * -0.080288) * x₄) + 2.716...
-                                      1))
-28          7.471e-04  9.465e-03  y = (((((((x₄ + x₀) * -0.045314) * x₄) + 2.7384) * sin(x₄)...
-                                      ) + -3.8421) + (x₂ * -0.0303)) + (((x₀ + 0.19675) * 0.7415...
-                                      7) * x₀)
+1           5.699e-01  0.000e+00  y = -2.2732
+3           2.470e-01  4.182e-01  y = x₄ + -2.7734
+5           8.157e-02  5.539e-01  y = (x₄ * 2.3919) + -3.4697
+7           8.876e-03  1.109e+00  y = x₀ + ((x₄ * 2.3874) + -3.9596)
+9           6.655e-03  1.440e-01  y = ((x₀ * x₀) + (x₄ * 2.3802)) + -3.7907
+10          4.830e-03  3.206e-01  y = (sin(x₄) * 2.7931) + (x₀ + -4.0487)
+11          4.816e-03  2.837e-03  y = (((x₄ * -0.83764) + 3.2227) * x₄) + (x₀ + -4.0963)
+12          2.412e-03  6.915e-01  y = ((sin(x₄) * 2.7854) + -3.8798) + (x₀ * x₀)
+13          2.353e-03  2.477e-02  y = (x₀ * x₀) + ((((x₄ * -0.86228) + 3.2401) * x₄) + -3.93...
+                                      14)
+14          1.745e-03  2.989e-01  y = ((sin(x₄) * 2.7868) + (x₀ * (x₀ * 0.91375))) + -3.8522
+15          1.427e-03  2.010e-01  y = ((((x₀ * 0.31642) * x₀) + x₄) * ((x₄ * -0.8374) + 3.30...
+                                      17)) + -3.9416
+17          1.405e-03  7.874e-03  y = (sin(x₀ * x₀) + (sin(x₄ * 1.1361) * 2.5691)) + -3.8852
+18          1.138e-03  2.104e-01  y = (sin(x₄ + 1.2556) * ((x₀ * x₀) + ((x₄ + -0.33801) * 2....
+                                      7571))) + -2.9624
+19          1.094e-03  3.996e-02  y = (sin(x₄) * 2.8703) + (((x₀ * sin(x₄ + 1.3122)) * x₀) +...
+                                       -3.896)
+21          9.370e-04  7.738e-02  y = ((sin(x₄) * 2.8457) + -3.8915) + ((sin((x₄ * x₀) + 1.3...
+                                      889) * x₀) * x₀)
+22          8.611e-04  8.439e-02  y = (((x₄ + x₀) * 0.77478) + sin(((((x₀ + -0.78964) * x₀) ...
+                                      + x₄) + x₄) + -0.47712)) + -3.4131
+24          8.513e-04  5.740e-03  y = (((x₄ + x₀) * 0.79175) + -3.4346) + sin(((x₄ + ((x₀ * ...
+                                      (x₀ + -0.80502)) + -0.46703)) * 0.97242) + x₄)
+25          8.479e-04  4.007e-03  y = sin(((x₄ + x₄) + -0.48071) + (sin(x₀ + -0.78434) * x₀)...
+                                      ) + (-3.4157 + ((x₀ + x₄) * 0.77624))
+26          8.263e-04  2.579e-02  y = ((sin(x₄ + ((((x₀ + -0.76523) * x₀) + (x₄ + -0.46997))...
+                                       * 0.8706)) * 1.072) + ((x₄ + x₀) * 0.76571)) + -3.458
+27          7.907e-04  4.409e-02  y = sin(((x₀ + -0.74758) * x₀) + (sin(x₄ * 1.1408) + (x₄ +...
+                                       -0.61121))) + (((x₀ + x₄) * 0.73402) + -3.3006)
+29          7.741e-04  1.058e-02  y = (((x₀ + x₄) * 0.72699) + -3.3465) + (sin(((sin(x₄) + x...
+                                      ₄) + ((x₀ * 0.8856) * (x₀ + -0.72165))) + -0.5363) * 1.055...
+                                      2)
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 ════════════════════════════════════════════════════════════════════════════════════════════════════
 Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
 ───────────────────────────────────────────────────────────────────────────────────────────────────
 Complexity  Loss       Score      Equation
-1           4.968e-01  0.000e+00  y = -2.2854
-3           2.067e-01  4.386e-01  y = x₄ + -2.7857
-5           7.297e-02  5.205e-01  y = (x₄ * 2.281) + -3.4268
-7           8.081e-03  1.100e+00  y = ((x₄ * 2.2894) + -3.9371) + x₀
-9           5.517e-03  1.908e-01  y = ((x₄ * 2.2925) + -3.7747) + (x₀ * x₀)
-10          5.294e-03  4.124e-02  y = ((sin(x₄) * 2.6749) + x₀) + -4.0234
-11          3.904e-03  3.046e-01  y = ((x₀ * 0.86744) * x₀) + ((x₄ * 2.291) + -3.7285)
-12          2.679e-03  3.767e-01  y = ((sin(x₄) * 2.6787) + (x₀ * x₀)) + -3.8611
-14          9.952e-04  4.951e-01  y = (((x₀ * 0.86458) * x₀) + (sin(x₄) * 2.6772)) + -3.814
-15          9.312e-04  6.651e-02  y = ((sin(x₄) * 2.6764) + (x₀ * sin(x₀))) + -3.8264
-16          8.887e-04  4.662e-02  y = (((x₀ * (x₀ + 0.19331)) * 0.73199) + -3.8401) + (sin(x...
-                                      ₄) * 2.6767)
-17          8.878e-04  1.021e-03  y = (x₀ * sin(x₀)) + ((sin(x₄ * 1.0606) * 2.5732) + -3.837...
-                                      6)
-18          8.467e-04  4.749e-02  y = ((x₀ + 0.19148) * (x₀ * 0.73271)) + ((sin(x₄ * 1.0596)...
-                                       * 2.575) + -3.8507)
-19          8.428e-04  4.506e-03  y = (x₂ * -0.032586) + ((sin(x₄) * 2.6762) + ((x₀ * sin(x₀...
-                                      )) + -3.8101))
-20          8.054e-04  4.541e-02  y = (sin(x₄) * 2.6766) + ((((x₀ * (x₀ + 0.19586)) + (x₂ * ...
-                                      -0.043378)) * 0.73155) + -3.8249)
-22          7.972e-04  5.132e-03  y = ((x₂ + x₄) * -0.033398) + ((((x₀ + 0.18878) * (x₀ * 0....
-                                      73606)) + -3.8249) + (sin(x₄) * 2.7159))
-24          7.680e-04  1.867e-02  y = (sin(x₄) * ((x₄ * -0.082957) + 2.7591)) + (((x₀ + 0.19...
-                                      413) * (x₀ * 0.73218)) + ((x₂ * -0.031855) + -3.8376))
-26          7.580e-04  6.550e-03  y = (((x₀ + 0.22968) * (x₀ * 0.73547)) + (x₂ * -0.031636))...
-                                       + ((sin(x₄) * (((x₄ + x₀) * -0.066475) + 2.7758)) + -3.84...
-                                      96)
-28          7.462e-04  7.813e-03  y = (((((x₄ * (x₀ + x₄)) * -0.047333) + 2.7414) * (sin(x₄)...
-                                       + (x₂ * -0.011585))) + ((x₀ + 0.20367) * (x₀ * 0.73781)))...
-                                       + -3.843
-30          7.451e-04  7.788e-04  y = (((-0.039003 * (x₄ * x₄)) * (x₀ + x₄)) + (((sin(x₄) * ...
-                                      2.7379) + (x₂ * -0.031365)) + -3.8427)) + ((x₀ + 0.20632) ...
-                                      * (x₀ * 0.73515))
+1           5.699e-01  0.000e+00  y = -2.2732
+3           2.470e-01  4.182e-01  y = x₄ + -2.7734
+5           8.157e-02  5.539e-01  y = (x₄ * 2.3919) + -3.4697
+7           8.876e-03  1.109e+00  y = x₀ + ((x₄ * 2.3874) + -3.9596)
+9           6.655e-03  1.440e-01  y = ((x₀ * x₀) + (x₄ * 2.3802)) + -3.7907
+10          4.830e-03  3.206e-01  y = (sin(x₄) * 2.7931) + (x₀ + -4.0487)
+11          4.816e-03  2.837e-03  y = (((x₄ * -0.83764) + 3.2227) * x₄) + (x₀ + -4.0963)
+12          2.412e-03  6.915e-01  y = ((sin(x₄) * 2.7854) + -3.8798) + (x₀ * x₀)
+13          2.353e-03  2.477e-02  y = (x₀ * x₀) + ((((x₄ * -0.86228) + 3.2401) * x₄) + -3.93...
+                                      14)
+14          1.745e-03  2.989e-01  y = ((sin(x₄) * 2.7868) + (x₀ * (x₀ * 0.91375))) + -3.8522
+15          1.427e-03  2.010e-01  y = ((((x₀ * 0.31642) * x₀) + x₄) * ((x₄ * -0.8374) + 3.30...
+                                      17)) + -3.9416
+17          1.405e-03  7.874e-03  y = (sin(x₀ * x₀) + (sin(x₄ * 1.1361) * 2.5691)) + -3.8852
+18          1.138e-03  2.104e-01  y = (sin(x₄ + 1.2556) * ((x₀ * x₀) + ((x₄ + -0.33801) * 2....
+                                      7571))) + -2.9624
+19          1.094e-03  3.996e-02  y = (sin(x₄) * 2.8703) + (((x₀ * sin(x₄ + 1.3122)) * x₀) +...
+                                       -3.896)
+21          9.370e-04  7.738e-02  y = ((sin(x₄) * 2.8457) + -3.8915) + ((sin((x₄ * x₀) + 1.3...
+                                      889) * x₀) * x₀)
+22          8.611e-04  8.439e-02  y = (((x₄ + x₀) * 0.77478) + sin(((((x₀ + -0.78964) * x₀) ...
+                                      + x₄) + x₄) + -0.47712)) + -3.4131
+24          8.513e-04  5.740e-03  y = (((x₄ + x₀) * 0.79175) + -3.4346) + sin(((x₄ + ((x₀ * ...
+                                      (x₀ + -0.80502)) + -0.46703)) * 0.97242) + x₄)
+25          8.479e-04  4.007e-03  y = sin(((x₄ + x₄) + -0.48071) + (sin(x₀ + -0.78434) * x₀)...
+                                      ) + (-3.4157 + ((x₀ + x₄) * 0.77624))
+26          8.261e-04  2.610e-02  y = (((x₄ + x₀) * 0.76407) + (sin(x₄ + ((((x₀ + -0.76438) ...
+                                      * x₀) + (x₄ + -0.46775)) * 0.86902)) * 1.0754)) + -3.4598
+27          7.907e-04  4.379e-02  y = (((x₀ + x₄) * 0.73393) + -3.3006) + sin(((x₀ + -0.7471...
+                                      1) * x₀) + (sin(x₄ * 1.141) + (x₄ + -0.61148)))
+29          7.741e-04  1.058e-02  y = ((x₄ + x₀) * 0.72699) + ((sin((sin(x₄) + (x₄ + (((x₀ +...
+                                       -0.72165) * x₀) * 0.8856))) + -0.5363) * 1.0552) + -3.346...
+                                      5)
 ───────────────────────────────────────────────────────────────────────────────────────────────────
+Best equation for output 0: (sin(x4 + 1.2555817) * ((x0 * x0) + ((x4 + -0.3380143) * 2.7570567))) + -2.9624221
+Symbolic regression complete.
 </pre></div>
 </div>
 <div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Final population:
 [ Info: Results saved to:
 </pre></div>
 </div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>=�Best equation for output 0 found to be (((x0 * 0.86457694) * x0) + (sin(x4) * 2.6771722)) + -3.8140268.
-d SR on model_4399178768 complete.
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;symtorch.SymbolicModel.SymbolicModel at 0x37e4aa090&gt;
 </pre></div>
 </div>
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
- 	    pick     score                                           equation  \
- 	0         0.000000                                          -2.285363   
- 	1         0.438574                                     x4 + -2.785732   
- 	2         0.520495                       (x4 * 2.2810283) + -3.426758   
- 	3         1.100268                ((x4 * 2.2893555) + -3.937105) + x0   
- 	4         0.190844         ((x4 * 2.292543) + -3.7746532) + (x0 * x0)   
- 	5         0.041235          ((sin(x4) * 2.6749036) + x0) + -4.0233617   
- 	6         0.304577  ((x0 * 0.86744106) * x0) + ((x4 * 2.2910278) +...   
- 	7         0.376723    ((sin(x4) * 2.678712) + (x0 * x0)) + -3.8610668   
- 	8   &gt;&gt;&gt;&gt;  0.495051  (((x0 * 0.86457694) * x0) + (sin(x4) * 2.67717...   
- 	9         0.066508  ((sin(x4) * 2.6763525) + (x0 * sin(x0))) + -3....   
- 	10        0.046618  (((x0 * (x0 + 0.19331135)) * 0.7319883) + -3.8...   
- 	11        0.001021  (x0 * sin(x0)) + ((sin(x4 * 1.0605501) * 2.573...   
- 	12        0.047492  ((x0 + 0.19148223) * (x0 * 0.73270535)) + ((si...   
- 	13        0.004506  (x2 * -0.032585565) + ((sin(x4) * 2.6762452) +...   
- 	14        0.045414  (sin(x4) * 2.6766343) + ((((x0 * (x0 + 0.19586...   
- 	15        0.005132  ((x2 + x4) * -0.03339828) + ((((x0 + 0.1887847...   
- 	16        0.018667  (sin(x4) * ((x4 * -0.082956664) + 2.759057)) +...   
- 	17        0.006550  (((x0 + 0.2296809) * (x0 * 0.7354745)) + (x2 *...   
- 	18        0.007813  (((((x4 * (x0 + x4)) * -0.047333058) + 2.74142...   
- 	19        0.000779  (((-0.03900284 * (x4 * x4)) * (x0 + x4)) + (((...   
- 	
- 	        loss  complexity  
- 	0   0.496795           1  
- 	1   0.206650           3  
- 	2   0.072969           5  
- 	3   0.008081           7  
- 	4   0.005517           9  
- 	5   0.005294          10  
- 	6   0.003904          11  
- 	7   0.002679          12  
- 	8   0.000995          14  
- 	9   0.000931          15  
- 	10  0.000889          16  
- 	11  0.000888          17  
- 	12  0.000847          18  
- 	13  0.000843          19  
- 	14  0.000805          20  
- 	15  0.000797          22  
- 	16  0.000768          24  
- 	17  0.000758          26  
- 	18  0.000746          28  
- 	19  0.000745          30  
- ]}
-</pre></div>
-</div>
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>  - SR_output/model_4399178768/dim0_1763377865/hall_of_fame.csv
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>  - SR_output/SymbolicModel/dim0_1763552257/hall_of_fame.csv
 </pre></div>
 </div>
 </div>
 </div>
-<p>Results of the symbolic regression</p>
+</section>
+<section id="access-the-discovered-symbolic-equation">
+<h2>Access the discovered symbolic equation<a class="headerlink" href="#access-the-discovered-symbolic-equation" title="Link to this heading"></a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">.get_equation()</span></code> to see the discovered equation.</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">symbolic_model</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s2">&quot;equation&quot;</span><span class="p">])</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get the best equation</span>
+<span class="n">equation</span> <span class="o">=</span> <span class="n">symbolic_model</span><span class="o">.</span><span class="n">get_equation</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Discovered equation: </span><span class="si">{</span><span class="n">equation</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># You can also access equations for multi-output models</span>
+<span class="c1"># equation_output_0 = symbolic_model.get_equation(output_idx=0)</span>
+
+<span class="c1"># Or get a simpler equation at a specific complexity level</span>
+<span class="n">simple_equation</span> <span class="o">=</span> <span class="n">symbolic_model</span><span class="o">.</span><span class="n">get_equation</span><span class="p">(</span><span class="n">complexity</span><span class="o">=</span><span class="mi">14</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">simple_equation</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>(((x0 * 0.86457694) * x0) + (sin(x4) * 2.6771722)) + -3.8140268
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Discovered equation: (sin(x4 + 1.2555817) * ((x0 * x0) + ((x4 + -0.3380143) * 2.7570567))) + -2.9624221
+((sin(x4) * 2.7867591) + (x0 * (x0 * 0.9137458))) + -3.852188
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="make-predictions-with-the-symbolic-equation">
+<h2>Make predictions with the symbolic equation<a class="headerlink" href="#make-predictions-with-the-symbolic-equation" title="Link to this heading"></a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">.predict()</span></code> to make predictions with the discovered symbolic equation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Make predictions using the symbolic equation</span>
+<span class="n">predictions</span> <span class="o">=</span> <span class="n">symbolic_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Predictions shape: </span><span class="si">{</span><span class="n">predictions</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Compare with original model</span>
+<span class="n">original_predictions</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+<span class="n">mse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">predictions</span> <span class="o">-</span> <span class="n">original_predictions</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;MSE between symbolic and original model: </span><span class="si">{</span><span class="n">mse</span><span class="si">:</span><span class="s2">.6f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Predictions shape: (2000,)
+MSE between symbolic and original model: 0.001138
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="example-model-agnostic-usage-with-pure-python-function">
+<h2>Example: Model-agnostic usage with pure Python function<a class="headerlink" href="#example-model-agnostic-usage-with-pure-python-function" title="Link to this heading"></a></h2>
+<p>SymbolicModel works with ANY callable function, not just PyTorch models!</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Define a pure Python/NumPy function</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">my_function</span><span class="p">(</span><span class="n">x</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple mathematical function: x0^2 + 3*sin(x4) - 4&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">x</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">**</span><span class="mi">2</span> <span class="o">+</span> <span class="mi">3</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">[:,</span> <span class="mi">4</span><span class="p">])</span> <span class="o">-</span> <span class="mi">4</span>
+
+<span class="c1"># Generate test data</span>
+<span class="n">X_func_test</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="mi">100</span><span class="p">,</span> <span class="mi">5</span><span class="p">))</span>
+
+<span class="c1"># Fit symbolic regression directly to the function</span>
+<span class="n">symbolic_func</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">sr_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">200</span><span class="p">})</span>
+<span class="n">symbolic_func</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">my_function</span><span class="p">,</span> <span class="n">X_func_test</span><span class="p">)</span>
+
+<span class="c1"># Get the equation</span>
+<span class="n">discovered_eq</span> <span class="o">=</span> <span class="n">symbolic_func</span><span class="o">.</span><span class="n">get_equation</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Original function: x0^2 + 3*sin(x4) - 4&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Discovered equation: </span><span class="si">{</span><span class="n">discovered_eq</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Make predictions</span>
+<span class="n">func_predictions</span> <span class="o">=</span> <span class="n">symbolic_func</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_func_test</span><span class="p">)</span>
+<span class="n">true_values</span> <span class="o">=</span> <span class="n">my_function</span><span class="p">(</span><span class="n">X_func_test</span><span class="p">)</span>
+<span class="n">mse</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">((</span><span class="n">func_predictions</span> <span class="o">-</span> <span class="n">true_values</span><span class="p">)</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;MSE: </span><span class="si">{</span><span class="n">mse</span><span class="si">:</span><span class="s2">.8f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Running SR on output dimension 0 of 0
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+  warnings.warn(
+[ Info: Started!
+[ Info: Final population:
+[ Info: Results saved to:
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           7.453e-01  0.000e+00  y = -2.2744
+3           3.440e-01  3.866e-01  y = x₄ + -2.7814
+5           7.904e-02  7.354e-01  y = (x₄ * 2.7073) + -3.6471
+7           8.500e-03  1.115e+00  y = (x₄ * 2.5718) + (x₀ + -4.0834)
+9           2.720e-03  5.698e-01  y = (x₀ * x₀) + ((x₄ * 2.5666) + -3.9095)
+11          2.702e-03  3.311e-03  y = (x₄ * 2.5687) + (((x₀ + -0.015278) * x₀) + -3.9028)
+12          1.297e-14  2.606e+01  y = (x₀ * x₀) + ((sin(x₄) * 3) + -4)
+14          9.628e-15  1.489e-01  y = (((sin(x₄) + -0.46359) * 3) + (x₀ * x₀)) + -2.6092
+19          8.207e-15  3.194e-02  y = (((sin(x₄) + (x₀ * x₀)) + -1.1619) + (sin(x₄) * 2)) + ...
+                                      -2.8381
+23          8.065e-15  4.367e-03  y = ((sin(x₄ + ((x₀ * x₀) * -3.648e-08)) + (x₀ * x₀)) + (s...
+                                      in(x₄) * 2)) + -4
+25          7.780e-15  1.794e-02  y = (((x₀ * x₀) + (sin(x₄) * 2)) + sin(x₄ + ((x₃ + (x₄ * x...
+                                      ₄)) * 3.5146e-08))) + -4
+27          7.496e-15  1.861e-02  y = ((sin(x₄ + ((x₀ * -3.648e-08) * x₀)) * 2) + ((x₀ * x₀)...
+                                       + sin((x₁ * 4.4617e-08) + x₄))) + -4
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Best equation for output 0: (((sin(x4) + -0.4635907) * 3.0) + (x0 * x0)) + -2.609228
+Symbolic regression complete.
+Original function: x0^2 + 3*sin(x4) - 4
+Discovered equation: (((sin(x4) + -0.4635907) * 3.0) + (x0 * x0)) + -2.609228
+MSE: 0.00000000
+  - SR_output/SymbolicModel/dim0_1763552337/hall_of_fame.csv
 </pre></div>
 </div>
 </div>

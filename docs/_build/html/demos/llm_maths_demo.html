@@ -1,0 +1,812 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LLM Learned Operations &mdash; SymTorch 1.1.1 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+      <link rel="stylesheet" type="text/css" href="../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+
+  
+    <link rel="shortcut icon" href="../_static/symtorch_favicon.png"/>
+      <script src="../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../_static/documentation_options.js?v=58fbf978"></script>
+      <script src="../_static/doctools.js?v=9bcbadda"></script>
+      <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+      <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Release Notes" href="../release_notes.html" />
+    <link rel="prev" title="Symbolic Distillation of GNNs" href="gnns_demo.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html">
+            
+              <img src="../_static/symtorch_favicon.png" class="logo" alt="Logo"/>
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Documentation:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_demos.html">API Demos</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">LLM Learned Operations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#set-up">Set-up</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#addition">Addition</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multiplication">Multiplication</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#counting">Counting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#temperature-conversion">Temperature conversion</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Development:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../release_notes.html">Release Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../contributions.html">Contributing to SymTorch</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../show_your_work.html">Show Your Work</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">SymTorch</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">LLM Learned Operations</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/demos/llm_maths_demo.ipynb.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section class="tex2jax_ignore mathjax_ignore" id="llm-learned-operations">
+<h1>LLM Learned Operations<a class="headerlink" href="#llm-learned-operations" title="Link to this heading"></a></h1>
+<p>Small LLMs are notoriously bad with maths (which is funny because one forward pass through a transfomer model has many many matrix multiplications and additions!). We can use our <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> to probe what functions a small LLM is actually using when carrying out mathematical operations.</p>
+<p>In this demo, we use the small model Llama-3.2-1B-Instruct. Depending on your laptop, you should be able to run this whole notebook locally!</p>
+<section id="set-up">
+<h2>Set-up<a class="headerlink" href="#set-up" title="Link to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoTokenizer</span><span class="p">,</span> <span class="n">AutoModelForCausalLM</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">torch</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">re</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Detected IPython. Loading juliacall extension. See https://juliapy.github.io/PythonCall.jl/stable/compat/#IPython
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/tqdm/auto.py:21: TqdmWarning: IProgress not found. Please update jupyter and ipywidgets. See https://ipywidgets.readthedocs.io/en/stable/user_install.html
+  from .autonotebook import tqdm as notebook_tqdm
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># This is the model we are going to use</span>
+<span class="n">model_name</span> <span class="o">=</span> <span class="s2">&quot;meta-llama/Llama-3.2-1B-Instruct&quot;</span>
+
+<span class="c1"># Load the tokenizer and the model</span>
+<span class="n">tok</span> <span class="o">=</span> <span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">model</span> <span class="o">=</span> <span class="n">AutoModelForCausalLM</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">model_name</span><span class="p">)</span>
+<span class="n">model</span><span class="o">.</span><span class="n">generation_config</span><span class="o">.</span><span class="n">pad_token_id</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">eos_token_id</span>
+
+<span class="n">torch</span><span class="o">.</span><span class="n">manual_seed</span><span class="p">(</span><span class="mi">290402</span><span class="p">)</span>
+<span class="c1"># For our experiment, we want a deterministic model</span>
+<span class="n">torch</span><span class="o">.</span><span class="n">use_deterministic_algorithms</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Function which calls our LLM</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">llm_call</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">max_tokens</span> <span class="o">=</span> <span class="mi">250</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">inputs</span> <span class="o">=</span> <span class="n">tok</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;pt&quot;</span><span class="p">)</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span>
+        <span class="o">**</span><span class="n">inputs</span><span class="p">,</span>
+        <span class="n">max_new_tokens</span><span class="o">=</span><span class="n">max_tokens</span><span class="p">,</span>
+        <span class="n">do_sample</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>          <span class="c1"># greedy</span>
+    <span class="p">)</span>
+    <span class="n">new_tokens</span> <span class="o">=</span> <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="n">inputs</span><span class="p">[</span><span class="s1">&#39;input_ids&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]:]</span>
+    <span class="k">return</span> <span class="n">tok</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">new_tokens</span><span class="p">,</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Let’s try out our LLM to see how it performs at basic addition.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is 12+7=?&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>.
+
+## Step 1: We need to add 12 and 7 together.
+## Step 2: The result of the addition is 19.
+## Step 3: We need to put the result in the format $boxed$.
+## Step 4: The final answer is $\boxed{19}$.
+
+The final answer is: $\boxed{19}$
+</pre></div>
+</div>
+</div>
+</div>
+<p>For smaller numbers it can perform reasonably well. Let’s see it’s behvaiour for larger (3 digit) numbers.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is 972+373=?&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;True answer = &quot;</span><span class="p">,</span> <span class="mi">972</span><span class="o">+</span><span class="mi">373</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Setting `pad_token_id` to `eos_token_id`:128001 for open-end generation.
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>## Step 1: Add the two numbers together
+First, we need to add 972 and 373 together.
+
+## Step 2: Calculate the sum
+972 + 373 = 1445
+
+## Step 3: Format the answer
+The answer should be in the format $boxed{1445}$.
+
+The final answer is: $\boxed{1445}$
+True answer =  1345
+</pre></div>
+</div>
+</div>
+</div>
+<p>No longer performs that great!</p>
+<p>We can use <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> to approximate the functions that the LLM is using when performing maths.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get out the number outputted by llm as float</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">extract_boxed_number</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">parse_number</span><span class="p">(</span><span class="n">s</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s1">&#39;,&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">))</span>
+    
+    <span class="c1"># Try $\boxed{...}$ format first</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\$</span><span class="se">\\</span><span class="s1">boxed\{([^}]+)\}\$&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Try $boxed{...}$ format (without backslash)</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\$boxed\{([^}]+)\}\$&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Try \boxed{...} without dollar signs</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;</span><span class="se">\\</span><span class="s1">boxed\{([^}]+)\}&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Try boxed{...} without anything</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;boxed\{([^}]+)\}&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Try $number$ format (without boxed)</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;\$([0-9,.]+)\$&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Fallback: try to find any number after an equals sign</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;=\s*([\d,]+)&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="c1"># Fallback: try to find &quot;Answer: number&quot;</span>
+    <span class="n">match</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s1">&#39;Answer:\s*([\d,.]+)&#39;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">match</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">parse_number</span><span class="p">(</span><span class="n">match</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">))</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No boxed number found in: </span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+<span class="c1"># Function to create a dataset of random number pairs </span>
+<span class="k">def</span><span class="w"> </span><span class="nf">random_number_pairs</span><span class="p">(</span><span class="n">N</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">maximum</span> <span class="o">=</span> <span class="mi">999</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">maximum</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="addition">
+<h2>Addition<a class="headerlink" href="#addition" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> is model-agnostic. You just need to pass a function that is of the form <code class="docutils literal notranslate"><span class="pre">f(inputs)</span> <span class="pre">=</span> <span class="pre">outputs</span></code>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a function that the SymbolicModel expects </span>
+<span class="k">def</span><span class="w"> </span><span class="nf">llm_addition</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># X is of shape (N,2)</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">n</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="si">}</span><span class="s2">+</span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="si">}</span><span class="s2">=?&quot;</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Create a random dataset of numbers to add.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="mi">290402</span><span class="p">)</span>
+
+<span class="n">X</span> <span class="o">=</span> <span class="n">random_number_pairs</span><span class="p">(</span><span class="mi">50</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<p>Example of the numbers in our dataset.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nb">print</span><span class="p">(</span><span class="n">X</span><span class="p">[:</span><span class="mi">5</span><span class="p">,:])</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[[451  41]
+ [871 582]
+ [237 193]
+ [661 992]
+ [417 724]]
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialise our model</span>
+<span class="n">symbolic_model_addition</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">sr_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;constraints&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">},</span> <span class="s1">&#39;niterations&#39;</span> <span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">#Perform SR on our model</span>
+<span class="n">symbolic_model_addition</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">llm_addition</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model_addition</span><span class="o">.</span><span class="n">get_equation</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;(x0 + ((inv(x0 + -938.28375) * x1) + x1)) + (inv(sin(x0) + 0.1123411) * 1.4623601)&#39;
+</pre></div>
+</div>
+</div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">symbolic_model_addition</span></code> contains a list of equations. The more complex equations fit the inputs <span class="math notranslate nohighlight">\(\rightarrow\)</span> outputs better, but may overfit. The ‘best equation’ is the one that balances complexity and accuracy the most (largest gain in accuracy per increase in complexity).</p>
+<p>Let’s see how the LLM performs other tasks.</p>
+</section>
+<section id="multiplication">
+<h2>Multiplication<a class="headerlink" href="#multiplication" title="Link to this heading"></a></h2>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">llm_multiplication</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># X is of shape (N,2)</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">n</span><span class="p">,</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">a</span><span class="p">)</span><span class="si">}</span><span class="s2"> * </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="p">)</span><span class="si">}</span><span class="s2">=?&quot;</span><span class="p">)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialise our model</span>
+<span class="n">symbolic_model_multiplication</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">sr_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;constraints&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">},</span> <span class="s1">&#39;niterations&#39;</span> <span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1">#Perform SR on our model</span>
+<span class="n">symbolic_model_multiplication</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">llm_multiplication</span><span class="p">,</span> <span class="n">X</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model_multiplication</span><span class="o">.</span><span class="n">get_equation</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;x0 * ((inv(-0.94997066 + ((x0 + -0.016344598) * inv(x1))) * -0.11236402) + x1)&#39;
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="counting">
+<h2>Counting<a class="headerlink" href="#counting" title="Link to this heading"></a></h2>
+<p>What does the LLM return when counting the number of 1s in a string of 1s and 0s?</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">llm_call</span><span class="p">(</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. How many 1s are there in the string 000101&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span> <span class="mi">250</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>4.0
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">random_number_string_01</span><span class="p">(</span><span class="n">N</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">len_sequence</span> <span class="o">=</span> <span class="mi">4</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="n">len_sequence</span><span class="p">))</span>
+
+<span class="n">X_counts_01</span> <span class="o">=</span> <span class="n">random_number_string_01</span><span class="p">(</span><span class="n">N</span> <span class="o">=</span> <span class="mi">25</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">llm_counting</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># X is of shape (N,10)</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">sequence</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">X</span><span class="p">[</span><span class="n">n</span><span class="p">,:]))</span>
+        <span class="c1"># print(sequence)</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. How many 1s are there in the string </span><span class="si">{</span><span class="n">sequence</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">250</span><span class="p">)</span>
+        <span class="c1"># print(f&quot;Return only the numeric answer in the format $boxed$. How many 1s are there in the string {sequence}&quot;)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No boxed number found. Trying again with more tokens.&quot;</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. How many 1s are there in the string </span><span class="si">{</span><span class="n">sequence</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">500</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialise our model</span>
+<span class="n">symbolic_model_counting</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">sr_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;constraints&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">},</span> <span class="s1">&#39;niterations&#39;</span> <span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model_counting</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">llm_counting</span><span class="p">,</span> <span class="n">X_counts_01</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>The following generation flags are not valid and may be ignored: [&#39;temperature&#39;, &#39;top_p&#39;]. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+  warnings.warn(
+Compiling Julia backend...
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Running SR on output dimension 0 of 0
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Started!
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Expressions evaluated per second: 1.960e+06
+Progress: 11291 / 31000 total iterations (36.423%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           1.840e+00  0.000e+00  y = 2.4
+5           1.484e+00  5.369e-02  y = (x₃ * -1.2013) + 2.9286
+7           1.426e+00  1.999e-02  y = ((x₁ + -1.474) * x₃) + 2.9286
+9           1.350e+00  2.732e-02  y = (x₃ * -1.0066) + ((x₁ * x₀) + 2.6429)
+11          1.138e+00  8.536e-02  y = (((x₁ + x₀) + -1.8974) * (x₃ + x₁)) + 3.1539
+12          5.530e-01  7.221e-01  y = (inv(x₃ + (x₁ + -0.36405)) * (x₀ + -0.71498)) + 2.5049
+14          5.160e-01  3.467e-02  y = (((x₁ + -0.75314) * inv((x₀ + x₃) + -0.30124)) + x₀) +...
+                                       2.0312
+16          4.302e-01  9.090e-02  y = (inv((x₀ + (x₃ * (0.75411 + x₂))) + -0.32153) * (x₁ + ...
+                                      -0.62165)) + 2.529
+18          2.416e-01  2.885e-01  y = ((x₁ + -0.58706) * inv((x₀ + -0.31956) + (((x₂ * -1.02...
+                                      21) + 0.71509) * x₃))) + 2.584
+20          1.794e-01  1.487e-01  y = ((x₁ + -0.60274) * inv((x₀ + ((x₃ + -0.1762) * ((-1.23...
+                                      16 * x₂) + 0.86995))) + -0.31505)) + 2.5887
+22          1.270e-01  1.730e-01  y = ((inv((((x₃ + -0.11855) * ((x₂ * -1.5102) + 1.1316)) +...
+                                       x₀) + -0.30187) * (x₁ + -0.75648)) + x₀) + 2.0645
+24          1.055e-01  9.263e-02  y = (inv((x₀ + (((x₂ * -1.5733) + 1.1247) * ((x₁ + -0.0640...
+                                      84) + x₃))) + -0.22657) * (x₁ + -0.6306)) + (x₀ + 1.8038)
+26          7.547e-02  1.675e-01  y = ((inv(((x₃ + (x₁ + -0.085792)) * ((x₂ * -1.694) + 1.38...
+                                      21)) + (x₀ + -0.2862)) * ((x₁ * 1.3153) + -0.81508)) + x₀)...
+                                       + 1.8767
+28          7.397e-02  1.004e-02  y = ((((x₁ * 1.333) + -0.84645) * (inv((((x₂ * -1.6393) + ...
+                                      1.3227) * ((x₃ + -0.11325) + x₁)) + (x₀ + -0.31967)) + -0....
+                                      15676)) + x₀) + 1.9008
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+
+Expressions evaluated per second: 1.870e+06
+Progress: 21796 / 31000 total iterations (70.310%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           1.840e+00  0.000e+00  y = 2.4
+5           1.484e+00  5.369e-02  y = (x₃ * -1.2013) + 2.9286
+7           1.426e+00  1.999e-02  y = ((x₁ + -1.474) * x₃) + 2.9286
+9           1.350e+00  2.732e-02  y = (x₃ * -1.0066) + ((x₁ * x₀) + 2.6429)
+11          1.138e+00  8.536e-02  y = ((x₁ + (x₀ + -1.8974)) * (x₁ + x₃)) + 3.1538
+12          5.530e-01  7.221e-01  y = (inv(x₃ + (x₁ + -0.36405)) * (x₀ + -0.71498)) + 2.5049
+14          5.160e-01  3.467e-02  y = ((x₁ + -0.75312) * inv((x₀ + x₃) + -0.30121)) + (x₀ + ...
+                                      2.0311)
+16          4.302e-01  9.090e-02  y = ((x₁ + -0.62151) * inv((((x₂ + 0.75424) * x₃) + x₀) + ...
+                                      -0.3217)) + 2.5289
+18          2.415e-01  2.887e-01  y = ((x₁ + -0.585) * inv((x₀ + -0.31878) + (x₃ * ((x₂ * -1...
+                                      .0144) + 0.7152)))) + 2.5765
+20          1.793e-01  1.488e-01  y = ((x₁ + -0.60041) * inv(x₀ + ((((x₂ * -1.2244) + 0.8610...
+                                      5) * (x₃ + -0.16943)) + -0.31445))) + 2.5887
+22          1.270e-01  1.726e-01  y = (inv((((x₃ + -0.11856) * ((x₂ * -1.5104) + 1.1318)) + ...
+                                      -0.30185) + x₀) * (x₁ + -0.75645)) + (x₀ + 2.0645)
+24          1.053e-01  9.371e-02  y = x₀ + ((inv(((((x₃ + x₁) + -0.064514) * ((x₂ * -1.5345)...
+                                       + 1.086)) + -0.22571) + x₀) * (x₁ + -0.62739)) + 1.8054)
+26          7.547e-02  1.664e-01  y = ((inv((x₀ + (((x₁ + x₃) + -0.085731) * ((x₂ * -1.6955)...
+                                       + 1.3834))) + -0.2862) * ((x₁ * 1.3153) + -0.81522)) + 1....
+                                      8765) + x₀
+28          6.467e-02  7.717e-02  y = (inv((((x₂ * -1.6717) + 1.2862) * ((x₁ + x₃) + -0.0845...
+                                      5)) + (x₀ + -0.27759)) * ((x₁ * (x₃ + 1.18)) + -0.77369)) ...
+                                      + (x₀ + 1.8826)
+30          5.965e-02  4.047e-02  y = ((((inv((((x₂ * -1.5608) + 1.2319) * ((x₀ * x₁) + (x₃ ...
+                                      + -0.18892))) + (x₀ + -0.3925)) + -0.31611) * (x₁ + -0.713...
+                                      17)) * 1.1948) + x₀) + 2.1103
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           1.840e+00  0.000e+00  y = 2.4
+5           1.484e+00  5.369e-02  y = (x₃ * -1.2013) + 2.9286
+7           1.426e+00  1.999e-02  y = ((x₁ + -1.474) * x₃) + 2.9286
+9           1.350e+00  2.732e-02  y = (x₃ * -1.0066) + ((x₁ * x₀) + 2.6429)
+11          1.138e+00  8.536e-02  y = ((x₁ + (x₀ + -1.8974)) * (x₁ + x₃)) + 3.1538
+12          5.530e-01  7.221e-01  y = (inv(x₃ + (x₁ + -0.36405)) * (x₀ + -0.71498)) + 2.5049
+14          5.160e-01  3.467e-02  y = ((x₁ + -0.75312) * inv((x₀ + x₃) + -0.30121)) + (x₀ + ...
+                                      2.0311)
+16          4.302e-01  9.090e-02  y = ((x₁ + -0.62151) * inv((((x₂ + 0.75424) * x₃) + x₀) + ...
+                                      -0.3217)) + 2.5289
+18          2.415e-01  2.887e-01  y = ((x₁ + -0.585) * inv((x₀ + -0.31878) + (x₃ * ((x₂ * -1...
+                                      .0144) + 0.7152)))) + 2.5765
+20          1.793e-01  1.488e-01  y = ((x₁ + -0.60041) * inv(x₀ + ((((x₂ * -1.2244) + 0.8610...
+                                      5) * (x₃ + -0.16943)) + -0.31445))) + 2.5887
+22          1.270e-01  1.726e-01  y = (inv((((x₃ + -0.11856) * ((x₂ * -1.5104) + 1.1318)) + ...
+                                      -0.30185) + x₀) * (x₁ + -0.75645)) + (x₀ + 2.0645)
+24          1.053e-01  9.371e-02  y = x₀ + ((inv(((((x₃ + x₁) + -0.064514) * ((x₂ * -1.5345)...
+                                       + 1.086)) + -0.22571) + x₀) * (x₁ + -0.62739)) + 1.8054)
+26          7.547e-02  1.664e-01  y = ((((x₁ * 1.3155) + -0.81517) * inv((x₀ + ((x₃ + (x₁ + ...
+                                      -0.085671)) * ((x₂ * -1.6955) + 1.3834))) + -0.28616)) + x...
+                                      ₀) + 1.8765
+28          6.467e-02  7.717e-02  y = (inv((((x₂ * -1.6717) + 1.2862) * ((x₁ + x₃) + -0.0845...
+                                      5)) + (x₀ + -0.27759)) * ((x₁ * (x₃ + 1.18)) + -0.77369)) ...
+                                      + (x₀ + 1.8826)
+30          5.853e-02  4.996e-02  y = ((((((x₃ * 0.60621) + 1.2375) * x₁) + -0.7965) * inv((...
+                                      (((x₂ * -1.6667) + 1.3178) * (x₃ + (x₁ + -0.087071))) + x₀...
+                                      ) + -0.28395)) + x₀) + 1.889
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Best equation for output 0: ((((x1 * 1.3154923) + -0.81516516) * inv((x0 + ((x3 + (x1 + -0.085671134)) * ((x2 * -1.6954852) + 1.3834041))) + -0.28615704)) + x0) + 1.8765043
+Symbolic regression complete.
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Final population:
+[ Info: Results saved to:
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;symtorch.SymbolicModel.SymbolicModel at 0x353724290&gt;
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>  - SR_output/SymbolicModel/dim0_1763996946/hall_of_fame.csv
+</pre></div>
+</div>
+</div>
+</div>
+<p>The LLM is really terrible at counting! The equations it learns are not remotely what you would expect (<span class="math notranslate nohighlight">\(x_0+x_1+...+x_N\)</span>).</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model_counting</span><span class="o">.</span><span class="n">get_equation</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;((((x1 * 1.3154923) + -0.81516516) * inv((x0 + ((x3 + (x1 + -0.085671134)) * ((x2 * -1.6954852) + 1.3834041))) + -0.28615704)) + x0) + 1.8765043&#39;
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+<section id="temperature-conversion">
+<h2>Temperature conversion<a class="headerlink" href="#temperature-conversion" title="Link to this heading"></a></h2>
+<p>Let’s see how the LLM calculates Celsius to Fahrenheit. We would expect <span class="math notranslate nohighlight">\(y = \frac{9}{5}x + 32\)</span>.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">llm_call</span><span class="p">(</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is 30 degrees Celsius in Fahrenheit?&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&quot;To convert Celsius to Fahrenheit, multiply the Celsius temperature by 9/5 and add 32. Here&#39;s the formula: $F = \\frac{9}{5}C + 32$ where $C$ is the temperature in Celsius. Plug in the value of $C$ and solve for $F$. $F = \\frac{9}{5}(30) + 32$ $F = \\frac{270}{5} + 32$ $F = 54 + 32$ $F = 86$ Therefore, 30 degrees Celsius is equal to 86 degrees Fahrenheit.&quot;
+</pre></div>
+</div>
+</div>
+</div>
+<p>First, let’s try with temperatures that are within a regular range (ie. between -20 and 200C).</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">llm_C_to_F</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="n">outputs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="c1"># X is of shape (N,1)</span>
+    <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
+        <span class="n">temp_C</span> <span class="o">=</span> <span class="n">X</span><span class="p">[</span><span class="n">n</span><span class="p">,</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">temp_C</span><span class="p">)</span><span class="si">}</span><span class="s2"> degreees Celsius in Fahrenheit?&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No boxed number found. Trying again with more tokens.&quot;</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">llm_call</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Return only the numeric answer in the format $boxed$. What is </span><span class="si">{</span><span class="nb">int</span><span class="p">(</span><span class="n">temp_C</span><span class="p">)</span><span class="si">}</span><span class="s2"> degreees Celsius in Fahrenheit?&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span> <span class="mi">500</span><span class="p">)</span>
+            <span class="n">output</span> <span class="o">=</span> <span class="n">extract_boxed_number</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+        <span class="n">outputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">random_numbers</span><span class="p">(</span><span class="n">N</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">minimum</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">maximum</span> <span class="o">=</span> <span class="mi">999</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">randint</span><span class="p">(</span><span class="n">minimum</span><span class="p">,</span> <span class="n">maximum</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="p">(</span><span class="n">N</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">X_temps</span> <span class="o">=</span> <span class="n">random_numbers</span> <span class="p">(</span><span class="n">N</span> <span class="o">=</span> <span class="mi">50</span><span class="p">,</span> <span class="n">minimum</span><span class="o">=-</span><span class="mi">20</span><span class="p">,</span> <span class="n">maximum</span><span class="o">=</span><span class="mi">200</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Initialise our model</span>
+<span class="n">symbolic_model_C_to_F</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">sr_params</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;constraints&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">},</span> <span class="s1">&#39;niterations&#39;</span> <span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+</pre></div>
+</div>
+</div>
+</div>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model_C_to_F</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">llm_C_to_F</span><span class="p">,</span> <span class="n">X_temps</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>No boxed number found. Trying again with more tokens.
+Running SR on output dimension 0 of 0
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+  warnings.warn(
+[ Info: Started!
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Expressions evaluated per second: 2.370e+06
+Progress: 11855 / 31000 total iterations (38.242%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           1.811e+04  0.000e+00  y = x₀
+3           4.590e+03  6.854e-01  y = x₀ * 1.9589
+5           4.344e+03  2.732e-02  y = (x₀ + 15.5) * 1.7728
+9           4.330e+03  6.803e-04  y = ((x₀ * 0.0010398) + 1.5588) * (x₀ + 20.15)
+10          4.124e+03  4.819e-02  y = (x₀ * (sin(x₀) + 7.4295)) * 0.26173
+11          2.794e+03  3.891e-01  y = inv(sin(x₀) + 0.1888) + (x₀ * 2.0244)
+13          2.481e+03  5.916e-02  y = ((x₀ * 1.7999) + 33.902) + inv(sin(x₀) + 0.18878)
+15          2.480e+03  1.371e-04  y = (inv(sin(x₀) + 0.1888) + ((x₀ + x₀) * 0.93322)) + 27.4...
+                                      11
+17          2.475e+03  9.538e-04  y = (x₀ * -0.15978) + (((inv(sin(x₀) + 0.18881) + x₀) + 30...
+                                      .379) + x₀)
+19          2.138e+03  7.303e-02  y = (x₀ + (inv(sin(x₀) + 0.1888) + x₀)) + inv(sin(x₀) + 0....
+                                      5965)
+21          1.817e+03  8.118e-02  y = x₀ + ((inv(sin(x₀) + 0.5965) + x₀) + (inv(sin(x₀) + 0....
+                                      1888) + 17.904))
+23          1.773e+03  1.211e-02  y = (inv(sin(x₀) + 0.59635) + inv(sin(x₀) + 0.1888)) + ((x...
+                                      ₀ + (x₀ * 0.92082)) + 25.68)
+27          1.760e+03  1.847e-03  y = ((((0.0074704 * x₀) * inv(sin(x₀) + 0.59524)) + (x₀ + ...
+                                      x₀)) * 0.96682) + (24.405 + inv(sin(x₀) + 0.1888))
+29          1.760e+03  2.137e-05  y = ((((((inv(sin(x₀) + 0.59524) + -0.59897) * x₀) * 0.007...
+                                      4704) + x₀) + x₀) * 0.96682) + (inv(sin(x₀) + 0.1888) + 24...
+                                      .405)
+30          1.758e+03  8.132e-04  y = (((inv(sin(x₀) + 0.59524) * 1.3532) + (x₀ + x₀)) * (in...
+                                      v(x₀ + -1.1171) + 0.96682)) + (inv(sin(x₀) + 0.1888) + 22....
+                                      585)
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+
+Expressions evaluated per second: 2.460e+06
+Progress: 23166 / 31000 total iterations (74.729%)
+════════════════════════════════════════════════════════════════════════════════════════════════════
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           1.811e+04  0.000e+00  y = x₀
+3           4.590e+03  6.854e-01  y = x₀ * 1.9589
+5           4.344e+03  2.732e-02  y = (x₀ + 15.5) * 1.7728
+9           4.330e+03  6.804e-04  y = (((x₀ * 0.0010383) + 1.58) * x₀) + 31.414
+10          3.069e+03  3.438e-01  y = inv((x₀ * 0.017138) + -2.7215) + (x₀ + x₀)
+11          2.790e+03  9.514e-02  y = (x₀ * 2.0551) + inv(sin(x₀) + 0.1888)
+13          2.481e+03  5.846e-02  y = ((x₀ * 1.7999) + 33.902) + inv(sin(x₀) + 0.18878)
+15          2.433e+03  9.689e-03  y = (x₀ + 17.132) * (inv((sin(x₀) * x₀) + 24.259) + 1.8319...
+                                      )
+18          1.316e+03  2.047e-01  y = ((inv((x₀ * 0.014502) + -2.3021) + inv(sin(x₀) + 0.188...
+                                      76)) + x₀) + x₀
+20          1.221e+03  3.757e-02  y = (inv(sin(x₀) + 0.1888) + inv((x₀ * 0.014502) + -2.3021...
+                                      )) + ((x₀ + x₀) + 9.8811)
+22          9.516e+02  1.245e-01  y = ((inv(sin(x₀) + 0.1888) + inv((x₀ * 0.014502) + -2.302...
+                                      1)) + 30.615) + ((x₀ + x₀) * 0.89113)
+24          9.508e+02  3.695e-04  y = inv(sin(x₀) + 0.1888) + (((inv((x₀ * 0.014502) + -2.30...
+                                      21) + 31.439) + ((x₀ + x₀) * 0.89103)) + 0.050968)
+29          9.289e+02  4.654e-03  y = inv(sin(x₀) + 0.1888) + ((sin(x₀) * (inv((x₀ * 0.01450...
+                                      2) + -2.3021) + 9.3246)) + (((x₀ + x₀) + 29.419) * 0.91087...
+                                      ))
+───────────────────────────────────────────────────────────────────────────────────────────────────
+════════════════════════════════════════════════════════════════════════════════════════════════════
+Press &#39;q&#39; and then &lt;enter&gt; to stop execution early.
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Complexity  Loss       Score      Equation
+1           1.811e+04  0.000e+00  y = x₀
+3           4.590e+03  6.854e-01  y = x₀ * 1.9589
+5           4.344e+03  2.732e-02  y = (x₀ + 15.5) * 1.7728
+9           4.330e+03  6.804e-04  y = (((x₀ * 0.0010383) + 1.58) * x₀) + 31.414
+10          2.788e+03  4.396e-01  y = x₀ + (inv((x₀ * 0.04733) + -6.1103) + x₀)
+12          2.655e+03  2.434e-02  y = (x₀ + (x₀ + inv((x₀ * 0.030913) + -3.9924))) + 12.29
+13          2.481e+03  6.751e-02  y = ((x₀ * 1.7999) + 33.902) + inv(sin(x₀) + 0.18878)
+15          2.433e+03  9.689e-03  y = (x₀ + 17.132) * (inv((sin(x₀) * x₀) + 24.259) + 1.8319...
+                                      )
+18          1.306e+03  2.074e-01  y = (inv((x₀ * 0.017138) + -2.7215) + x₀) + (inv(sin(x₀) +...
+                                       0.18872) + x₀)
+20          1.220e+03  3.404e-02  y = (inv((x₀ * 0.017138) + -2.7215) + (x₀ + (x₀ + 9.3262))...
+                                      ) + inv(sin(x₀) + 0.18877)
+22          9.508e+02  1.244e-01  y = (inv(sin(x₀) + 0.1888) + ((x₀ + x₀) * 0.89103)) + (inv...
+                                      ((x₀ * 0.014502) + -2.3021) + 31.49)
+25          9.508e+02  -0.000e+00  y = ((((x₀ + x₀) + inv(0.25244)) * 0.87109) + (inv(sin(x₀...
+                                       ) + 0.1888) + inv(-2.3021 + (0.014502 * x₀)))) + 32.309
+26          6.157e+02  4.345e-01  y = ((inv(sin(x₀) + 0.18877) + inv(sin(x₀) + 0.59662)) + (...
+                                      x₀ + inv((x₀ * 0.017138) + -2.7215))) + x₀
+28          4.419e+02  1.657e-01  y = (inv(sin(x₀) + 0.1888) + inv((x₀ * 0.014502) + -2.3021...
+                                      )) + ((x₀ + (x₀ + 13.589)) + inv(sin(x₀) + 0.59702))
+30          3.135e+02  1.717e-01  y = inv(sin(x₀) + 0.1888) + ((0.90722 * ((x₀ + inv(0.59763...
+                                       + sin(x₀))) + x₀)) + (inv(-2.3021 + (x₀ * 0.014502)) + 32...
+                                      .309))
+───────────────────────────────────────────────────────────────────────────────────────────────────
+Best equation for output 0: inv(sin(x0) + 0.18879834) + ((0.90721655 * ((x0 + inv(0.59763473 + sin(x0))) + x0)) + (inv(-2.3021264 + (x0 * 0.014502415)) + 32.309185))
+Symbolic regression complete.
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>[ Info: Final population:
+[ Info: Results saved to:
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&lt;symtorch.SymbolicModel.SymbolicModel at 0x45d2e9610&gt;
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>  - SR_output/SymbolicModel/dim0_1764000373/hall_of_fame.csv
+</pre></div>
+</div>
+</div>
+</div>
+<p>It has learnt a decent approximation.</p>
+<div class="cell docutils container">
+<div class="cell_input docutils container">
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">symbolic_model_C_to_F</span><span class="o">.</span><span class="n">get_equation</span><span class="p">(</span><span class="n">complexity</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;(x0 + 15.500419) * 1.7727895&#39;
+</pre></div>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="gnns_demo.html" class="btn btn-neutral float-left" title="Symbolic Distillation of GNNs" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="../release_notes.html" class="btn btn-neutral float-right" title="Release Notes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright .</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

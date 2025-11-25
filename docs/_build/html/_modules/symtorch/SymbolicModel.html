@@ -51,6 +51,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../demos/llm_maths_demo.html">LLM Learned Operations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
@@ -87,8 +88,8 @@
 <span></span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">InterpretSR SymbolicModel Module</span>
 
-<span class="sd">This module provides a wrapper for entire PyTorch models that adds symbolic regression</span>
-<span class="sd">capabilities using PySR (Python Symbolic Regression).</span>
+<span class="sd">This module provides a model-agnostic symbolic regression wrapper that can work with</span>
+<span class="sd">any callable function using PySR (Python Symbolic Regression).</span>
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">&quot;torch was imported before juliacall&quot;</span><span class="p">)</span>
@@ -97,40 +98,58 @@
 <span class="kn">import</span><span class="w"> </span><span class="nn">torch.nn</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">nn</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Union</span>
 
 
 <div class="viewcode-block" id="SymbolicModel">
 <a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel">[docs]</a>
-<span class="k">class</span><span class="w"> </span><span class="nc">SymbolicModel</span><span class="p">(</span><span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">):</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SymbolicModel</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    A PyTorch module wrapper that adds symbolic regression capabilities to entire models.</span>
+<span class="sd">    A model-agnostic symbolic regression wrapper for discovering symbolic expressions.</span>
 
-<span class="sd">    This class wraps any PyTorch model and provides a method to discover symbolic expressions</span>
-<span class="sd">    that approximate the model&#39;s input-output behavior using PySR. Unlike SymbolicMLP, this</span>
-<span class="sd">    operates on the entire model rather than individual layers.</span>
+<span class="sd">    This class works with any callable function (PyTorch models, scikit-learn models,</span>
+<span class="sd">    TensorFlow models, or any Python function) to discover symbolic expressions that</span>
+<span class="sd">    approximate the function&#39;s input-output behavior using PySR.</span>
 
 <span class="sd">    Attributes:</span>
-<span class="sd">        model (nn.Module): The wrapped PyTorch model</span>
-<span class="sd">        model_name (str): Human-readable name for the model instance</span>
-<span class="sd">        pysr_regressor (dict): Dictionary of fitted symbolic regression models per output dimension</span>
+<span class="sd">        pysr_regressor (list): List of fitted PySRRegressor objects per output dimension</span>
+<span class="sd">        equations_ (list): List of equation DataFrames from PySR for each output dimension</span>
+<span class="sd">        sr_params (dict): PySR parameters used for fitting</span>
 
 <span class="sd">    Example:</span>
-<span class="sd">        &gt;&gt;&gt; import torch</span>
-<span class="sd">        &gt;&gt;&gt; import torch.nn as nn</span>
 <span class="sd">        &gt;&gt;&gt; from symtorch import SymbolicModel</span>
+<span class="sd">        &gt;&gt;&gt; import numpy as np</span>
 <span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # Create and train your model</span>
-<span class="sd">        &gt;&gt;&gt; model = MyComplexModel(input_dim=5, output_dim=2)</span>
-<span class="sd">        &gt;&gt;&gt; model = training_function(model, dataloader, num_steps)</span>
+<span class="sd">        &gt;&gt;&gt; # Define any callable function</span>
+<span class="sd">        &gt;&gt;&gt; def my_function(x):</span>
+<span class="sd">        ...     return x[:, 0]**2 + 3*np.sin(x[:, 4]) - 4</span>
 <span class="sd">        &gt;&gt;&gt;</span>
-<span class="sd">        &gt;&gt;&gt; # Wrap the model with SymbolicModel</span>
-<span class="sd">        &gt;&gt;&gt; symbolic_model = SymbolicModel(model, model_name=&quot;MyModel&quot;)</span>
-<span class="sd">        &gt;&gt;&gt; # Apply symbolic regression to the inputs and outputs</span>
-<span class="sd">        &gt;&gt;&gt; regressor = symbolic_model.distill(sample_inputs)</span>
+<span class="sd">        &gt;&gt;&gt; # Fit symbolic regression</span>
+<span class="sd">        &gt;&gt;&gt; symbolic_model = SymbolicModel()</span>
+<span class="sd">        &gt;&gt;&gt; symbolic_model.fit(my_function, training_data)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Get the discovered equation</span>
+<span class="sd">        &gt;&gt;&gt; equation = symbolic_model.get_equation()</span>
+<span class="sd">        &gt;&gt;&gt; print(equation)</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Make predictions with the symbolic equation</span>
+<span class="sd">        &gt;&gt;&gt; predictions = symbolic_model.predict(test_data)</span>
+
+<span class="sd">    Example with PyTorch:</span>
+<span class="sd">        &gt;&gt;&gt; import torch</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; # Use with any PyTorch model</span>
+<span class="sd">        &gt;&gt;&gt; pytorch_model = MyComplexModel()</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; def f(x):</span>
+<span class="sd">        ...     with torch.no_grad():</span>
+<span class="sd">        ...         return pytorch_model(torch.tensor(x, dtype=torch.float32))</span>
+<span class="sd">        &gt;&gt;&gt;</span>
+<span class="sd">        &gt;&gt;&gt; symbolic_model = SymbolicModel(sr_params={&#39;niterations&#39;: 500})</span>
+<span class="sd">        &gt;&gt;&gt; symbolic_model.fit(f, training_data)</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="c1"># Default PySR parameters (same as SymbolicMLP)</span>
+    <span class="c1"># Default PySR parameters</span>
     <span class="n">DEFAULT_SR_PARAMS</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s2">&quot;binary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;+&quot;</span><span class="p">,</span> <span class="s2">&quot;*&quot;</span><span class="p">],</span>
         <span class="s2">&quot;unary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;inv(x) = 1/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sin&quot;</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">],</span>
@@ -141,38 +160,38 @@
 
 <div class="viewcode-block" id="SymbolicModel.__init__">
 <a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel.__init__">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">model</span><span class="p">:</span> <span class="n">nn</span><span class="o">.</span><span class="n">Module</span><span class="p">,</span> <span class="n">model_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">sr_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Initialize the SymbolicModel wrapper.</span>
+<span class="sd">        Initialize the SymbolicModel.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            model (nn.Module): The PyTorch model to wrap</span>
-<span class="sd">            model_name (str, optional): Human-readable name for this model instance.</span>
-<span class="sd">                                       If None, generates a unique name based on object ID.</span>
+<span class="sd">            sr_params (Dict[str, Any], optional): Custom PySR parameters to override defaults.</span>
+<span class="sd">                Common parameters include:</span>
+<span class="sd">                - niterations (int): Number of iterations for PySR (default: 400)</span>
+<span class="sd">                - binary_operators (list): Binary operators to use (default: [&quot;+&quot;, &quot;*&quot;])</span>
+<span class="sd">                - unary_operators (list): Unary operators to use (default: [&quot;inv(x) = 1/x&quot;, &quot;sin&quot;, &quot;exp&quot;])</span>
+<span class="sd">                - complexity_of_operators (dict): Complexity penalties for operators</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span> <span class="o">=</span> <span class="n">model</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model_name</span> <span class="o">=</span> <span class="n">model_name</span> <span class="ow">or</span> <span class="sa">f</span><span class="s2">&quot;model_</span><span class="si">{</span><span class="nb">id</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">model_name</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No model name specified. Model label is </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="p">{}</span></div>
+        <span class="bp">self</span><span class="o">.</span><span class="n">sr_params</span> <span class="o">=</span> <span class="n">sr_params</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">equations_</span> <span class="o">=</span> <span class="kc">None</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_create_sr_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">run_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">custom_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_create_sr_params</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">run_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">custom_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Create SR parameters by merging defaults with custom parameters.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            save_path (str): Output directory path for SR results</span>
+<span class="sd">            save_path (str, optional): Output directory path for SR results</span>
 <span class="sd">            run_id (str): Unique run identifier</span>
 <span class="sd">            custom_params (Dict[str, Any], optional): Custom parameters to override defaults</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Dict[str, Any]: Final SR parameters for PySRRegressor</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">output_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SR_output/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">output_name</span> <span class="o">=</span> <span class="s2">&quot;SR_output/SymbolicModel&quot;</span>
         <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">output_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">output_name</span> <span class="o">=</span> <span class="n">save_path</span>
 
         <span class="n">base_params</span> <span class="o">=</span> <span class="p">{</span>
             <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">DEFAULT_SR_PARAMS</span><span class="p">,</span>
@@ -185,77 +204,77 @@
 
         <span class="k">return</span> <span class="n">base_params</span>
 
-<div class="viewcode-block" id="SymbolicModel.forward">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel.forward">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+<div class="viewcode-block" id="SymbolicModel.fit">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel.fit">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">f</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">inputs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span>
+            <span class="n">outputs</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">output_dim</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">variable_transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">variable_names</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">save_path</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Forward pass through the model.</span>
+<span class="sd">        Fit symbolic regression to approximate a black-box function.</span>
 
 <span class="sd">        Args:</span>
-<span class="sd">            x (torch.Tensor): Input tensor</span>
-
-<span class="sd">        Returns:</span>
-<span class="sd">            torch.Tensor: Output tensor from the wrapped model</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">x</span><span class="p">)</span></div>
-
-
-<div class="viewcode-block" id="SymbolicModel.distill">
-<a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel.distill">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">distill</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">,</span> <span class="n">output_dim</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                <span class="n">variable_transforms</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">Callable</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                <span class="n">sr_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-                <span class="n">fit_params</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">        Discover symbolic expressions that approximate the entire model&#39;s behavior.</span>
-
-<span class="sd">        Uses PySR to find mathematical expressions that best fit the model&#39;s input-output</span>
-<span class="sd">        relationship. Unlike SymbolicMLP.distill(), this operates on the entire model</span>
-<span class="sd">        without needing a parent_model parameter.</span>
-
-<span class="sd">        Args:</span>
-<span class="sd">            inputs (torch.Tensor): Input data for symbolic regression fitting</span>
-<span class="sd">            output_dim (int, optional): The output dimension to run PySR on. If None, PySR runs on all outputs. Default: None.</span>
+<span class="sd">            f (Callable): Black-box function that takes inputs and returns outputs.</span>
+<span class="sd">                         Can be a model, function, or any callable.</span>
+<span class="sd">            inputs (np.ndarray or torch.Tensor): Input data for symbolic regression fitting</span>
+<span class="sd">            outputs (np.ndarray or torch.Tensor, optional): Pre-computed outputs. If None, will call f(inputs)</span>
+<span class="sd">            output_dim (int, optional): Specific output dimension to run PySR on. If None, runs on all outputs.</span>
 <span class="sd">            variable_transforms (List[Callable], optional): List of functions to transform input variables.</span>
 <span class="sd">                                                           Each function should take the full input tensor and return</span>
 <span class="sd">                                                           a transformed tensor. Example: [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]</span>
-<span class="sd">            save_path (str, optional): Custom base directory for PySR outputs.</span>
-<span class="sd">                                     If None, uses default &quot;SR_output/&quot; directory.</span>
-<span class="sd">            sr_params (Dict[str, Any], optional): Parameters passed to PySRRegressor. Defaults:</span>
-<span class="sd">                - binary_operators (list): [&quot;+&quot;, &quot;*&quot;]</span>
-<span class="sd">                - unary_operators (list): [&quot;inv(x) = 1/x&quot;, &quot;sin&quot;, &quot;exp&quot;]</span>
-<span class="sd">                - niterations (int): 400</span>
-<span class="sd">                - output_directory (str): &quot;{save_path}/{model_name}&quot; or &quot;SR_output/{model_name}&quot;</span>
-<span class="sd">                - run_id (str): &quot;{timestamp}&quot;</span>
-<span class="sd">            fit_params (Dict[str, Any], optional): Parameters passed to the regressor.fit() method. Defaults:</span>
-<span class="sd">                - variable_names (List[str]): Custom names for variables if variable_transforms is used.</span>
-<span class="sd">                                             If provided, must match the length of variable_transforms.</span>
+<span class="sd">            variable_names (List[str], optional): Custom names for variables. If variable_transforms is used,</span>
+<span class="sd">                                                 must match its length.</span>
+<span class="sd">            save_path (str, optional): Custom directory for PySR outputs. If None, uses &quot;SR_output/SymbolicModel&quot;</span>
+<span class="sd">            **kwargs: Additional parameters to override default PySR parameters</span>
 
 <span class="sd">        Returns:</span>
-<span class="sd">            PySRRegressor or dict: Fitted symbolic regression model(s)</span>
+<span class="sd">            self: Returns self for method chaining</span>
 
 <span class="sd">        Example:</span>
-<span class="sd">            &gt;&gt;&gt; # Basic usage</span>
-<span class="sd">            &gt;&gt;&gt; symbolic_model.distill(sample_inputs, sr_params={&#39;niterations&#39;: 1000})</span>
+<span class="sd">            &gt;&gt;&gt; # Basic usage with any function</span>
+<span class="sd">            &gt;&gt;&gt; def f(x):</span>
+<span class="sd">            ...     return x[:, 0]**2 + 3*np.sin(x[:, 4]) - 4</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; symbolic_model = SymbolicModel()</span>
+<span class="sd">            &gt;&gt;&gt; symbolic_model.fit(f, training_data)</span>
+<span class="sd">            &gt;&gt;&gt; equation = symbolic_model.get_equation()</span>
+
+<span class="sd">            &gt;&gt;&gt; # With PyTorch model</span>
+<span class="sd">            &gt;&gt;&gt; pytorch_model = MyModel()</span>
+<span class="sd">            &gt;&gt;&gt; def f(x):</span>
+<span class="sd">            ...     with torch.no_grad():</span>
+<span class="sd">            ...         return pytorch_model(torch.tensor(x, dtype=torch.float32))</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; symbolic_model.fit(f, training_data, niterations=1000)</span>
 
 <span class="sd">            &gt;&gt;&gt; # With variable transformations</span>
 <span class="sd">            &gt;&gt;&gt; transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]</span>
 <span class="sd">            &gt;&gt;&gt; names = [&quot;x0_minus_x1&quot;, &quot;x2_squared&quot;]</span>
-<span class="sd">            &gt;&gt;&gt; symbolic_model.distill(train_inputs,</span>
-<span class="sd">            ...                        variable_transforms=transforms,</span>
-<span class="sd">            ...                        fit_params={&#39;variable_names&#39;: names})</span>
+<span class="sd">            &gt;&gt;&gt; symbolic_model.fit(f, training_data,</span>
+<span class="sd">            ...                   variable_transforms=transforms,</span>
+<span class="sd">            ...                   variable_names=names)</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="c1"># Get model outputs</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">eval</span><span class="p">()</span>
-        <span class="k">with</span> <span class="n">torch</span><span class="o">.</span><span class="n">no_grad</span><span class="p">():</span>
-            <span class="n">output</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">model</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+        <span class="c1"># Convert inputs to numpy if needed</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="s1">&#39;detach&#39;</span><span class="p">):</span>  <span class="c1"># torch tensor</span>
+            <span class="n">inputs_np</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">inputs_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
 
-        <span class="c1"># Extract fit parameters</span>
-        <span class="k">if</span> <span class="n">fit_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">fit_params</span> <span class="o">=</span> <span class="p">{}</span>
-
-        <span class="n">variable_names</span> <span class="o">=</span> <span class="n">fit_params</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;variable_names&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="c1"># Get outputs from the black-box function</span>
+        <span class="k">if</span> <span class="n">outputs</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">outputs_raw</span> <span class="o">=</span> <span class="n">f</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">outputs_raw</span><span class="p">,</span> <span class="s1">&#39;detach&#39;</span><span class="p">):</span>  <span class="c1"># torch tensor</span>
+                <span class="n">outputs_np</span> <span class="o">=</span> <span class="n">outputs_raw</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">outputs_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">outputs_raw</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">outputs</span><span class="p">,</span> <span class="s1">&#39;detach&#39;</span><span class="p">):</span>
+                <span class="n">outputs_np</span> <span class="o">=</span> <span class="n">outputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">outputs_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">outputs</span><span class="p">)</span>
 
         <span class="c1"># Apply variable transformations if provided</span>
         <span class="k">if</span> <span class="n">variable_transforms</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -267,82 +286,198 @@
             <span class="n">transformed_inputs</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">transform_func</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">):</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transform_func</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+                    <span class="c1"># Handle both numpy and torch inputs</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                        <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transform_func</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">transformed_var</span><span class="p">,</span> <span class="s1">&#39;detach&#39;</span><span class="p">):</span>
+                            <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+                        <span class="k">else</span><span class="p">:</span>
+                            <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">transformed_var</span><span class="p">)</span>
+                    <span class="k">else</span><span class="p">:</span>
+                        <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transform_func</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">)</span>
+                        <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">transformed_var</span><span class="p">)</span>
+
                     <span class="c1"># Ensure the result is 1D (batch_size,)</span>
-                    <span class="k">if</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">ndim</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
                         <span class="n">transformed_var</span> <span class="o">=</span> <span class="n">transformed_var</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-                    <span class="n">transformed_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_var</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">())</span>
+                    <span class="n">transformed_inputs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">transformed_var</span><span class="p">)</span>
                 <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                     <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Error applying transformation </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
             <span class="c1"># Stack transformed variables into input matrix</span>
-            <span class="n">inputs_numpy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">transformed_inputs</span><span class="p">)</span>
+            <span class="n">inputs_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">transformed_inputs</span><span class="p">)</span>
 
             <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Applied </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">variable_transforms</span><span class="p">)</span><span class="si">}</span><span class="s2"> variable transformations&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">variable_names</span><span class="p">:</span>
                 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Variable names: </span><span class="si">{</span><span class="n">variable_names</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="c1"># Use original inputs</span>
-            <span class="n">inputs_numpy</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
-
-        <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
 
         <span class="c1"># Handle both 1D and 2D outputs</span>
-        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">dim</span><span class="p">()</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">output</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">unsqueeze</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">outputs_np</span><span class="o">.</span><span class="n">ndim</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">outputs_np</span> <span class="o">=</span> <span class="n">outputs_np</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">output_dims</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Number of output dimensions</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">output_dims</span> <span class="o">=</span> <span class="n">output_dims</span>  <span class="c1"># Save this</span>
+        <span class="n">output_dims</span> <span class="o">=</span> <span class="n">outputs_np</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>  <span class="c1"># Number of output dimensions</span>
+        <span class="n">timestamp</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
 
-        <span class="n">pysr_regressors</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Merge SR parameters</span>
+        <span class="n">final_sr_params_base</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">sr_params</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">}</span>
 
-        <span class="c1"># Extract sr_params with defaults</span>
-        <span class="k">if</span> <span class="n">sr_params</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">sr_params</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="c1"># Fit symbolic regression</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">equations_</span> <span class="o">=</span> <span class="p">[]</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">output_dim</span><span class="p">:</span>
-            <span class="c1"># If output dimension is not specified, run SR on all dims</span>
+        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Run on all output dimensions</span>
             <span class="k">for</span> <span class="n">dim</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">output_dims</span><span class="p">):</span>
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;=Running SR on output dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">output_dims</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running SR on output dimension </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> of </span><span class="si">{</span><span class="n">output_dims</span><span class="o">-</span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
                 <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
-                <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">sr_params</span><span class="p">)</span>
+                <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">final_sr_params_base</span><span class="p">)</span>
                 <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_sr_params</span><span class="p">)</span>
 
-                <span class="c1"># Prepare fit arguments</span>
-                <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">inputs_numpy</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">detach</span><span class="p">()[:,</span> <span class="n">dim</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
-                <span class="n">final_fit_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fit_params</span><span class="p">)</span>  <span class="c1"># Copy to avoid modifying original</span>
+                <span class="c1"># Fit with optional variable names</span>
+                <span class="k">if</span> <span class="n">variable_names</span><span class="p">:</span>
+                    <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">,</span> <span class="n">outputs_np</span><span class="p">[:,</span> <span class="n">dim</span><span class="p">],</span> <span class="n">variable_names</span><span class="o">=</span><span class="n">variable_names</span><span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">,</span> <span class="n">outputs_np</span><span class="p">[:,</span> <span class="n">dim</span><span class="p">])</span>
 
-                <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regressor</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">)</span>
 
-                <span class="n">pysr_regressors</span><span class="p">[</span><span class="n">dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
-
-                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation for output </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2"> found to be </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation for output </span><span class="si">{</span><span class="n">dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="k">else</span><span class="p">:</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running SR on output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="c1"># Run on specific output dimension</span>
+            <span class="k">if</span> <span class="n">output_dim</span> <span class="o">&gt;=</span> <span class="n">output_dims</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;output_dim </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> is out of range for outputs with </span><span class="si">{</span><span class="n">output_dims</span><span class="si">}</span><span class="s2"> dimensions&quot;</span><span class="p">)</span>
+
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Running SR on output dimension </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
             <span class="n">run_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;dim</span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">timestamp</span><span class="si">}</span><span class="s2">&quot;</span>
-            <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">sr_params</span><span class="p">)</span>
+            <span class="n">final_sr_params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_create_sr_params</span><span class="p">(</span><span class="n">save_path</span><span class="p">,</span> <span class="n">run_id</span><span class="p">,</span> <span class="n">final_sr_params_base</span><span class="p">)</span>
             <span class="n">regressor</span> <span class="o">=</span> <span class="n">PySRRegressor</span><span class="p">(</span><span class="o">**</span><span class="n">final_sr_params</span><span class="p">)</span>
 
-            <span class="c1"># Prepare fit arguments</span>
-            <span class="n">fit_args</span> <span class="o">=</span> <span class="p">[</span><span class="n">inputs_numpy</span><span class="p">,</span> <span class="n">output</span><span class="o">.</span><span class="n">detach</span><span class="p">()[:,</span> <span class="n">output_dim</span><span class="p">]</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()]</span>
-            <span class="n">final_fit_params</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">fit_params</span><span class="p">)</span>  <span class="c1"># Copy to avoid modifying original</span>
+            <span class="c1"># Fit with optional variable names</span>
+            <span class="k">if</span> <span class="n">variable_names</span><span class="p">:</span>
+                <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">,</span> <span class="n">outputs_np</span><span class="p">[:,</span> <span class="n">output_dim</span><span class="p">],</span> <span class="n">variable_names</span><span class="o">=</span><span class="n">variable_names</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">,</span> <span class="n">outputs_np</span><span class="p">[:,</span> <span class="n">output_dim</span><span class="p">])</span>
 
-            <span class="n">regressor</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="o">*</span><span class="n">fit_args</span><span class="p">,</span> <span class="o">**</span><span class="n">final_fit_params</span><span class="p">)</span>
-            <span class="n">pysr_regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span> <span class="o">=</span> <span class="n">regressor</span>
+            <span class="c1"># Store as single-element list for consistency</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="p">[</span><span class="n">regressor</span><span class="p">]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">equations_</span> <span class="o">=</span> <span class="p">[</span><span class="n">regressor</span><span class="o">.</span><span class="n">equations_</span><span class="p">]</span>
 
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation for output </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2"> found to be </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">.&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Best equation for output </span><span class="si">{</span><span class="n">output_dim</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">regressor</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SR on </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">model_name</span><span class="si">}</span><span class="s2"> complete.&quot;</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="o">|</span> <span class="n">pysr_regressors</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Symbolic regression complete.&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
-        <span class="c1"># For backward compatibility, return the regressor or dict of regressors</span>
-        <span class="k">if</span> <span class="n">output_dim</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pysr_regressors</span><span class="p">[</span><span class="n">output_dim</span><span class="p">]</span>
+
+<div class="viewcode-block" id="SymbolicModel.predict">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel.predict">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">inputs</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">],</span> <span class="n">complexity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Predict using the discovered symbolic equations.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            inputs (np.ndarray or torch.Tensor): Input data for prediction</span>
+<span class="sd">            complexity (int, optional): Specific complexity value to use from the Pareto frontier.</span>
+<span class="sd">                                       If None, uses the best equation.</span>
+<span class="sd">                                       Note: This filters by complexity value (e.g., complexity=5),</span>
+<span class="sd">                                       not by row index.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            np.ndarray: Predictions from symbolic equations. Shape: (n_samples, n_outputs)</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If model has not been fitted yet or complexity not found</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; symbolic_model.fit(f, training_data)</span>
+<span class="sd">            &gt;&gt;&gt; predictions = symbolic_model.predict(test_data)</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # Use equation with complexity=5</span>
+<span class="sd">            &gt;&gt;&gt; predictions = symbolic_model.predict(test_data, complexity=5)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Model not fitted yet. Call fit() first.&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Convert to numpy</span>
+        <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="s1">&#39;detach&#39;</span><span class="p">):</span>
+            <span class="n">inputs_np</span> <span class="o">=</span> <span class="n">inputs</span><span class="o">.</span><span class="n">detach</span><span class="p">()</span><span class="o">.</span><span class="n">cpu</span><span class="p">()</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pysr_regressors</span></div>
+            <span class="n">inputs_np</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">inputs</span><span class="p">)</span>
+
+        <span class="c1"># Predict with each regressor</span>
+        <span class="n">predictions</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">regressor</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">complexity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># Find the row index for the given complexity value</span>
+                <span class="n">matching</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">complexity</span><span class="p">]</span>
+                <span class="k">if</span> <span class="n">matching</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                    <span class="n">avail</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">idx</span><span class="p">][</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No equation with complexity </span><span class="si">{</span><span class="n">complexity</span><span class="si">}</span><span class="s2"> for output </span><span class="si">{</span><span class="n">idx</span><span class="si">}</span><span class="s2">. Available: </span><span class="si">{</span><span class="n">avail</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+                <span class="c1"># Get the DataFrame index (row number) for this complexity</span>
+                <span class="n">row_idx</span> <span class="o">=</span> <span class="n">matching</span><span class="o">.</span><span class="n">index</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="n">pred</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">row_idx</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">pred</span> <span class="o">=</span> <span class="n">regressor</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">inputs_np</span><span class="p">)</span>
+            <span class="n">predictions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">pred</span><span class="p">)</span>
+
+        <span class="c1"># Stack predictions</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">predictions</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">(</span><span class="n">predictions</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SymbolicModel.get_equation">
+<a class="viewcode-back" href="../../api_reference.html#symtorch.SymbolicModel.get_equation">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_equation</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">output_idx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span> <span class="n">complexity</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Get the symbolic equation for a specific output dimension.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            output_idx (int, optional): Index of the output dimension (default: 0)</span>
+<span class="sd">            complexity (int, optional): Specific complexity value from the Pareto frontier.</span>
+<span class="sd">                                       If None, returns the best equation.</span>
+<span class="sd">                                       Note: This filters by complexity value (e.g., complexity=5),</span>
+<span class="sd">                                       not by row index.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            str: The symbolic equation as a string</span>
+
+<span class="sd">        Raises:</span>
+<span class="sd">            ValueError: If model has not been fitted yet, output_idx is out of range,</span>
+<span class="sd">                       or complexity not found</span>
+
+<span class="sd">        Example:</span>
+<span class="sd">            &gt;&gt;&gt; symbolic_model.fit(f, training_data)</span>
+<span class="sd">            &gt;&gt;&gt; equation = symbolic_model.get_equation()</span>
+<span class="sd">            &gt;&gt;&gt; print(f&quot;Discovered equation: {equation}&quot;)</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # For multi-output models</span>
+<span class="sd">            &gt;&gt;&gt; eq0 = symbolic_model.get_equation(output_idx=0)</span>
+<span class="sd">            &gt;&gt;&gt; eq1 = symbolic_model.get_equation(output_idx=1)</span>
+<span class="sd">            &gt;&gt;&gt;</span>
+<span class="sd">            &gt;&gt;&gt; # Get equation with complexity=3</span>
+<span class="sd">            &gt;&gt;&gt; simple_eq = symbolic_model.get_equation(complexity=3)</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Model not fitted yet. Call fit() first.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">output_idx</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;output_idx </span><span class="si">{</span><span class="n">output_idx</span><span class="si">}</span><span class="s2"> is out of range. Model has </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">)</span><span class="si">}</span><span class="s2"> outputs.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">complexity</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="c1"># Filter by actual complexity value, not index</span>
+            <span class="n">matching</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">output_idx</span><span class="p">][</span><span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">output_idx</span><span class="p">][</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">complexity</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">matching</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="n">avail</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">equations_</span><span class="p">[</span><span class="n">output_idx</span><span class="p">][</span><span class="s2">&quot;complexity&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">())</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;No equation with complexity </span><span class="si">{</span><span class="n">complexity</span><span class="si">}</span><span class="s2">. Available: </span><span class="si">{</span><span class="n">avail</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">matching</span><span class="p">[</span><span class="s2">&quot;equation&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">[</span><span class="n">output_idx</span><span class="p">]</span><span class="o">.</span><span class="n">get_best</span><span class="p">()[</span><span class="s1">&#39;equation&#39;</span><span class="p">]</span></div>
 </div>
 
 </pre></div>

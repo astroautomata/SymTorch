@@ -53,6 +53,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/llm_maths_demo.html">LLM Learned Operations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
@@ -99,7 +100,7 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>torch-symbolic
 </pre></div>
 </div>
-<p>To view or install the most recent version of SymTorch, please see our <cite>GitHub &lt;https://github.com/elizabethsztan/SymTorch&gt;_</cite>.</p>
+<p>To view or install the most recent version of SymTorch, please see our <a class="reference external" href="https://github.com/elizabethsztan/SymTorch">GitHub</a>.</p>
 </section>
 <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
@@ -107,7 +108,7 @@
 <section id="layer-level-analysis-symbolicmlp">
 <h2>1. Layer-Level Analysis (<code class="docutils literal notranslate"><span class="pre">SymbolicMLP</span></code>)<a class="headerlink" href="#layer-level-analysis-symbolicmlp" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>Wraps individual MLP layers within larger deep learning models</p></li>
+<li><p>Wraps individual PyTorch MLP layers within larger deep learning models</p></li>
 <li><p>Discovers symbolic equations approximating the behavior of individual layers</p></li>
 <li><p>Can switch between the MLP and the symbolic model during both forward pass and model training</p></li>
 <li><p>See the <a class="reference internal" href="demos/getting_started_demo.html"><span class="doc">SymbolicMLP Demo</span></a> for usage information</p></li>
@@ -116,8 +117,9 @@
 <section id="model-level-analysis-symbolicmodel">
 <h2>2. Model-Level Analysis (<code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code>)<a class="headerlink" href="#model-level-analysis-symbolicmodel" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>Wraps entire PyToch models end-to-end</p></li>
+<li><p>Wraps entire models end-to-end</p></li>
 <li><p>Approximates the behavior of entire models with a symbolic model</p></li>
+<li><p>See the <span class="xref std std-doc">SymbolicModel Demo</span> for usage information</p></li>
 </ul>
 </section>
 <section id="local-interpretability-slimemodel">
@@ -131,7 +133,7 @@
 <section id="reducing-model-flexibility-pruningmlp">
 <h2>4. Reducing Model Flexibility (<code class="docutils literal notranslate"><span class="pre">PruningMLP</span></code>)<a class="headerlink" href="#reducing-model-flexibility-pruningmlp" title="Link to this heading"></a></h2>
 <ul class="simple">
-<li><p>Automatically identifies and removes less important output dimensions on a MLP layer-level basis</p></li>
+<li><p>Automatically identifies and removes less important output dimensions on a PyTorch MLP layer-level basis</p></li>
 <li><p>May encourage models to learn simpler and more interpretable patterns</p></li>
 <li><p>See the <a class="reference internal" href="demos/toolkit_demo.html"><span class="doc">PruningMLP Demo</span></a> for usage information</p></li>
 </ul>
@@ -151,6 +153,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/llm_maths_demo.html">LLM Learned Operations</a></li>
 </ul>
 </div>
 <div class="toctree-wrapper compound">

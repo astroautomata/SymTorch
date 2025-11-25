@@ -20,7 +20,7 @@ Installation
 
    pip install torch-symbolic
 
-To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>_`.
+To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>`_.
 
 Overview
 ========
@@ -28,15 +28,16 @@ SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to a
 
 1. Layer-Level Analysis (``SymbolicMLP``)
 -----------------------------------------
-- Wraps individual MLP layers within larger deep learning models 
+- Wraps individual PyTorch MLP layers within larger deep learning models 
 - Discovers symbolic equations approximating the behavior of individual layers 
 - Can switch between the MLP and the symbolic model during both forward pass and model training
 - See the :doc:`SymbolicMLP Demo <demos/getting_started_demo>` for usage information
 
 2. Model-Level Analysis (``SymbolicModel``)
 -------------------------------------------
-- Wraps entire PyToch models end-to-end 
+- Wraps entire models end-to-end 
 - Approximates the behavior of entire models with a symbolic model 
+- See the :doc:`SymbolicModel Demo<demos/symbolicmodel_api_demo.ipynb>` for usage information
 
 3. Local Interpretability (``SLIMEModel``)
 ------------------------------------------
@@ -46,7 +47,7 @@ SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to a
 
 4. Reducing Model Flexibility (``PruningMLP``)
 ----------------------------------------------
-- Automatically identifies and removes less important output dimensions on a MLP layer-level basis
+- Automatically identifies and removes less important output dimensions on a PyTorch MLP layer-level basis
 - May encourage models to learn simpler and more interpretable patterns 
 - See the :doc:`PruningMLP Demo <demos/toolkit_demo>` for usage information
 
@@ -67,6 +68,7 @@ Contents
 
    demos/pinns_demo.ipynb
    demos/gnns_demo.ipynb
+   demos/llm_maths_demo.ipynb
 
 .. toctree::
    :maxdepth: 1

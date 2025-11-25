@@ -51,6 +51,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="demos/pinns_demo.html">Physics-Informed Neural Network (PINN)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="demos/gnns_demo.html">Symbolic Distillation of GNNs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="demos/llm_maths_demo.html">LLM Learned Operations</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Development:</span></p>
 <ul>
@@ -139,8 +140,6 @@
       <li><a href="api_reference.html#symtorch.SymbolicMLP.distill">distill() (symtorch.SymbolicMLP method)</a>
 
       <ul>
-        <li><a href="api_reference.html#symtorch.SymbolicModel.distill">(symtorch.SymbolicModel method)</a>
-</li>
         <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.distill">(symtorch.toolkit.PruningMLP method)</a>
 </li>
       </ul></li>
@@ -151,7 +150,11 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#symtorch.SLIMEModel.equations_">equations_ (symtorch.SLIMEModel property)</a>
+
+      <ul>
+        <li><a href="api_reference.html#symtorch.SymbolicModel.equations_">(symtorch.SymbolicModel attribute)</a>
 </li>
+      </ul></li>
   </ul></td>
 </tr></table>
 
@@ -159,12 +162,16 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#symtorch.SLIMEModel.fit">fit() (symtorch.SLIMEModel method)</a>
+
+      <ul>
+        <li><a href="api_reference.html#symtorch.SymbolicModel.fit">(symtorch.SymbolicModel method)</a>
 </li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#symtorch.SymbolicMLP.forward">forward() (symtorch.SymbolicMLP method)</a>
 
       <ul>
-        <li><a href="api_reference.html#symtorch.SymbolicModel.forward">(symtorch.SymbolicModel method)</a>
-</li>
         <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.forward">(symtorch.toolkit.PruningMLP method)</a>
 </li>
       </ul></li>
@@ -177,7 +184,11 @@
       <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.get_active_dimensions">get_active_dimensions() (symtorch.toolkit.PruningMLP method)</a>
 </li>
       <li><a href="api_reference.html#symtorch.SLIMEModel.get_equation">get_equation() (symtorch.SLIMEModel method)</a>
+
+      <ul>
+        <li><a href="api_reference.html#symtorch.SymbolicModel.get_equation">(symtorch.SymbolicModel method)</a>
 </li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#symtorch.SymbolicMLP.get_importance">get_importance() (symtorch.SymbolicMLP method)</a>
@@ -227,27 +238,25 @@
 </li>
       </ul></li>
   </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="api_reference.html#symtorch.SymbolicModel.model">model (symtorch.SymbolicModel attribute)</a>
-</li>
-      <li><a href="api_reference.html#symtorch.SymbolicModel.model_name">model_name (symtorch.SymbolicModel attribute)</a>
-</li>
-  </ul></td>
 </tr></table>
 
 <h2 id="P">P</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="api_reference.html#symtorch.SLIMEModel.predict">predict() (symtorch.SLIMEModel method)</a>
+
+      <ul>
+        <li><a href="api_reference.html#symtorch.SymbolicModel.predict">(symtorch.SymbolicModel method)</a>
 </li>
+      </ul></li>
       <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.prune">prune() (symtorch.toolkit.PruningMLP method)</a>
 </li>
       <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.pruning_mask">pruning_mask (symtorch.toolkit.PruningMLP attribute)</a>
 </li>
-      <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.pruning_schedule">pruning_schedule (symtorch.toolkit.PruningMLP attribute)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.pruning_schedule">pruning_schedule (symtorch.toolkit.PruningMLP attribute)</a>
+</li>
       <li><a href="api_reference.html#symtorch.toolkit.PruningMLP">PruningMLP (class in symtorch.toolkit)</a>
 </li>
       <li><a href="api_reference.html#symtorch.SymbolicMLP.pysr_regressor">pysr_regressor (symtorch.SymbolicMLP attribute)</a>
@@ -281,6 +290,8 @@
       <li><a href="api_reference.html#symtorch.toolkit.PruningMLP.set_schedule">set_schedule() (symtorch.toolkit.PruningMLP method)</a>
 </li>
       <li><a href="api_reference.html#symtorch.SLIMEModel">SLIMEModel (class in symtorch)</a>
+</li>
+      <li><a href="api_reference.html#symtorch.SymbolicModel.sr_params">sr_params (symtorch.SymbolicModel attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
