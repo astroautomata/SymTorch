@@ -68,6 +68,7 @@ Contents
 
    demos/pinns_demo.ipynb
    demos/gnns_demo.ipynb
+   demos/llm_maths_demo.ipynb
 
 .. toctree::
    :maxdepth: 1
