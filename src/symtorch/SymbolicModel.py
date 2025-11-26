@@ -1,64 +1,25 @@
 """
-InterpretSR SymbolicModel Module
+SymTorch SymbolicModel Module
 
-This module provides a model-agnostic symbolic regression wrapper that can work with
-any callable function using PySR (Python Symbolic Regression).
+This module provides a wrapper for components of (or whole) ML models that adds symbolic regression
+capabilities using PySR (Python Symbolic Regression).
 """
 import warnings
 warnings.filterwarnings("ignore", message="torch was imported before juliacall")
-from pysr import PySRRegressor
-import torch
+from pysr import *
+import torch 
 import torch.nn as nn
 import time
+import sympy
+from sympy import lambdify
 import numpy as np
-from typing import List, Callable, Optional, Dict, Any, Union
+import os
+import pickle
+from typing import List, Callable, Optional, Union, Dict, Any
+from contextlib import contextmanager
 
 
-class SymbolicModel:
-    """
-    A model-agnostic symbolic regression wrapper for discovering symbolic expressions.
-
-    This class works with any callable function (PyTorch models, scikit-learn models,
-    TensorFlow models, or any Python function) to discover symbolic expressions that
-    approximate the function's input-output behavior using PySR.
-
-    Attributes:
-        pysr_regressor (list): List of fitted PySRRegressor objects per output dimension
-        equations_ (list): List of equation DataFrames from PySR for each output dimension
-        sr_params (dict): PySR parameters used for fitting
-
-    Example:
-        >>> from symtorch import SymbolicModel
-        >>> import numpy as np
-        >>>
-        >>> # Define any callable function
-        >>> def my_function(x):
-        ...     return x[:, 0]**2 + 3*np.sin(x[:, 4]) - 4
-        >>>
-        >>> # Fit symbolic regression
-        >>> symbolic_model = SymbolicModel()
-        >>> symbolic_model.fit(my_function, training_data)
-        >>>
-        >>> # Get the discovered equation
-        >>> equation = symbolic_model.get_equation()
-        >>> print(equation)
-        >>>
-        >>> # Make predictions with the symbolic equation
-        >>> predictions = symbolic_model.predict(test_data)
-
-    Example with PyTorch:
-        >>> import torch
-        >>>
-        >>> # Use with any PyTorch model
-        >>> pytorch_model = MyComplexModel()
-        >>>
-        >>> def f(x):
-        ...     with torch.no_grad():
-        ...         return pytorch_model(torch.tensor(x, dtype=torch.float32))
-        >>>
-        >>> symbolic_model = SymbolicModel(sr_params={'niterations': 500})
-        >>> symbolic_model.fit(f, training_data)
-    """
+class SymbolicModel(nn.Module):
 
     # Default PySR parameters
     DEFAULT_SR_PARAMS = {
@@ -69,312 +30,428 @@ class SymbolicModel:
         "complexity_of_operators": {"sin": 3, "exp": 3}
     }
 
-    def __init__(self, sr_params: Optional[Dict[str, Any]] = None):
-        """
-        Initialize the SymbolicModel.
+    def __init__(self, block: Union[nn.Module, Callable], block_name: str = None):
 
-        Args:
-            sr_params (Dict[str, Any], optional): Custom PySR parameters to override defaults.
-                Common parameters include:
-                - niterations (int): Number of iterations for PySR (default: 400)
-                - binary_operators (list): Binary operators to use (default: ["+", "*"])
-                - unary_operators (list): Unary operators to use (default: ["inv(x) = 1/x", "sin", "exp"])
-                - complexity_of_operators (dict): Complexity penalties for operators
-        """
-        self.sr_params = sr_params or {}
-        self.pysr_regressor = None
-        self.equations_ = None
+        super().__init__()
+        self.symtorch_block = block 
+        self.block_name = block_name or f"block_{id(self)}"
 
-    def _create_sr_params(self, save_path: Optional[str], run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        if not block_name:
+            print(f"No name specified for this block. Label is {self.block_name}.")
+
+        self.pysr_regressor = {}
+
+    def _create_sr_params(self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Create SR parameters by merging defaults with custom parameters.
-
+        
         Args:
-            save_path (str, optional): Output directory path for SR results
+            save_path (str): Output directory path for SR results
             run_id (str): Unique run identifier
             custom_params (Dict[str, Any], optional): Custom parameters to override defaults
-
+            
         Returns:
             Dict[str, Any]: Final SR parameters for PySRRegressor
         """
-        output_name = "SR_output/SymbolicModel"
+        output_name = f"SR_output/{self.block_name}"
         if save_path is not None:
-            output_name = save_path
-
+            output_name = f"{save_path}/{self.block_name}"
+        
         base_params = {
             **self.DEFAULT_SR_PARAMS,
             "output_directory": output_name,
             "run_id": run_id
         }
-
+        
         if custom_params:
             base_params.update(custom_params)
-
+            
         return base_params
-
-    def fit(self, f: Callable, inputs: Union[np.ndarray, torch.Tensor],
-            outputs: Optional[Union[np.ndarray, torch.Tensor]] = None,
-            output_dim: Optional[int] = None,
-            variable_transforms: Optional[List[Callable]] = None,
-            variable_names: Optional[List[str]] = None,
-            save_path: Optional[str] = None,
-            **kwargs):
+    
+    @contextmanager
+    def _capture_layer_output(self, parent_model, inputs):
         """
-        Fit symbolic regression to approximate a black-box function.
+        Context manager to capture inputs and outputs from this layer.
 
         Args:
-            f (Callable): Black-box function that takes inputs and returns outputs.
-                         Can be a model, function, or any callable.
-            inputs (np.ndarray or torch.Tensor): Input data for symbolic regression fitting
-            outputs (np.ndarray or torch.Tensor, optional): Pre-computed outputs. If None, will call f(inputs)
-            output_dim (int, optional): Specific output dimension to run PySR on. If None, runs on all outputs.
-            variable_transforms (List[Callable], optional): List of functions to transform input variables.
-                                                           Each function should take the full input tensor and return
-                                                           a transformed tensor. Example: [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]
-            variable_names (List[str], optional): Custom names for variables. If variable_transforms is used,
-                                                 must match its length.
-            save_path (str, optional): Custom directory for PySR outputs. If None, uses "SR_output/SymbolicModel"
-            **kwargs: Additional parameters to override default PySR parameters
+            parent_model (nn.Module): Parent model containing this SymbolicMLP instance
+            inputs (torch.Tensor): Input tensor to pass through parent model
 
-        Returns:
-            self: Returns self for method chaining
-
-        Example:
-            >>> # Basic usage with any function
-            >>> def f(x):
-            ...     return x[:, 0]**2 + 3*np.sin(x[:, 4]) - 4
-            >>>
-            >>> symbolic_model = SymbolicModel()
-            >>> symbolic_model.fit(f, training_data)
-            >>> equation = symbolic_model.get_equation()
-
-            >>> # With PyTorch model
-            >>> pytorch_model = MyModel()
-            >>> def f(x):
-            ...     with torch.no_grad():
-            ...         return pytorch_model(torch.tensor(x, dtype=torch.float32))
-            >>>
-            >>> symbolic_model.fit(f, training_data, niterations=1000)
-
-            >>> # With variable transformations
-            >>> transforms = [lambda x: x[:, 0] - x[:, 1], lambda x: x[:, 2]**2]
-            >>> names = ["x0_minus_x1", "x2_squared"]
-            >>> symbolic_model.fit(f, training_data,
-            ...                   variable_transforms=transforms,
-            ...                   variable_names=names)
+        Yields:
+            tuple: (layer_inputs, layer_outputs) lists containing captured tensors
         """
-        # Convert inputs to numpy if needed
-        if hasattr(inputs, 'detach'):  # torch tensor
-            inputs_np = inputs.detach().cpu().numpy()
+        layer_inputs = []
+        layer_outputs = []
+        
+        def hook_fn(module, input, output):
+            if module is self.symtorch_block: # Only captures layer data for the layers we want to distil
+                layer_inputs.append(input[0].clone())
+                layer_outputs.append(output.clone())
+        
+        # Register forward hook
+        hook = self.symtorch_block.register_forward_hook(hook_fn)
+        
+        try:
+            # Run parent model to capture intermediate activations
+            parent_model.eval()
+            with torch.no_grad():
+                _ = parent_model(inputs)
+            
+            yield layer_inputs, layer_outputs
+        finally:
+            # Always remove hook
+            hook.remove()
+    
+    def _extract_variables_for_equation(self, x: torch.Tensor, var_indices: List[int], dim: int) -> List[torch.Tensor]:
+        """
+        Extract and transform variables needed for a specific equation dimension.
+        Each output dimension may only depend on a subset of the input variables.
+        
+        Args:
+            x (torch.Tensor): Input tensor
+            var_indices (List[int]): List of variable indices needed
+            dim (int): Output dimension being processed
+            
+        Returns:
+            List[torch.Tensor]: List of extracted/transformed variables
+            
+        Raises:
+            ValueError: If required variables/transforms are not available
+        """
+        selected_inputs = []
+        
+        if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+            # Apply transformations and select needed variables
+            for idx in var_indices:
+                if idx < len(self._variable_transforms):
+                    transformed_var = self._variable_transforms[idx](x)
+                    if transformed_var.dim() > 1:
+                        transformed_var = transformed_var.flatten()
+                    selected_inputs.append(transformed_var)
+                else:
+                    raise ValueError(f"Equation for dimension {dim} requires transform {idx} but only {len(self._variable_transforms)} transforms available")
         else:
-            inputs_np = np.array(inputs)
+            # Original behavior - extract by column index
+            for idx in var_indices:
+                if idx < x.shape[1]:
+                    selected_inputs.append(x[:, idx])
+                else:
+                    raise ValueError(f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions")
+        
+        return selected_inputs
+    
+    def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
+        """
+        Map symbolic variables to their corresponding indices.
+        Method used during the forward pass when the model is in equation mode to determine 
+        which input columns/transforms to extract and pass to each discovered symbolic equation.
+        
+        Args:
+            vars_sorted (List): List of symbolic variables from equation
+            dim (int): Output dimension being processed
+            
+        Returns:
+            List[int]: List of variable indices
+            
+        Raises:
+            ValueError: If variables cannot be mapped to indices
+        """
+        var_indices = []
+        
+        for var in vars_sorted:
+            var_str = str(var)
+            idx = None
+            
+            # Try to match with custom variable names first
+            if hasattr(self, '_variable_names') and self._variable_names:
+                try:
+                    idx = self._variable_names.index(var_str)
+                except ValueError:
+                    pass  # Variable not found in custom names, try other methods
+            
+            # If not found in custom names, try default x0, x1, etc. format
+            if idx is None and var_str.startswith('x'):
+                try:
+                    idx = int(var_str[1:])
+                    # With transforms, validate index is within range
+                    if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+                        if idx >= len(self._variable_transforms):
+                            raise ValueError(f"Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}")
+                except ValueError as e:
+                    if "exceeds available transforms" in str(e):
+                        raise e
+                    pass  # Not a valid x-numbered variable
+            
+            if idx is None:
+                error_msg = f"Could not map variable '{var_str}' for dimension {dim}"
+                if hasattr(self, '_variable_names') and self._variable_names:
+                    error_msg += f"\n   Available custom names: {self._variable_names}"
+                if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+                    error_msg += f"\n   Available transforms: {len(self._variable_transforms)}"
+                else:
+                    error_msg += f"\n   Expected format: x0, x1, x2, etc."
+                raise ValueError(error_msg)
+            
+            var_indices.append(idx)
+        
+        return var_indices
+    
+    def distill(self, inputs, output_dim: int = None, parent_model=None,
+                 variable_transforms: Optional[List[Callable]] = None,
+                 save_path: str = None,
+                 sr_params: Optional[Dict[str, Any]] = None,
+                 fit_params: Optional[Dict[str, Any]] = None):
+        
+        if isinstance(self.symtorch_block, Callable) and not isinstance(self.symtorch_block, nn.Module) and parent_model is not None:
+            raise ValueError(
+                "Cannot use parent_model with Callable functions. "
+                "Hooks are only supported for nn.Module objects. "
+                "Please call distill() without parent_model argument and pass inputs directly to the function."
+            )
+        # Extract inputs and outputs at this layer level
+        if isinstance(self.symtorch_block, nn.Module):
 
-        # Get outputs from the black-box function
-        if outputs is None:
-            outputs_raw = f(inputs)
+            if parent_model is not None:
+                with self._capture_layer_output(parent_model, inputs) as (layer_inputs, layer_outputs):
+                    pass
+                
+                # Use captured intermediate data
+                if layer_inputs and layer_outputs:
+                    actual_inputs = layer_inputs[0]
+                    output = layer_outputs[0]
+                else:
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance.")
+        
+            else:
+                # Original behavior - use block directly 
+                actual_inputs = inputs
+                self.symtorch_block.eval()
+                with torch.no_grad():
+                    output = self.symtorch_block(inputs)
+
+            # Extract fit parameters
+            if fit_params is None:
+                fit_params = {}
+
+            variable_names = fit_params.get('variable_names', None)
+
+            # Extract sr_params with defaults
+            if sr_params is None:
+                sr_params = {}
+            
+            # Apply variable transformations if provided
+            if variable_transforms is not None:
+                # Validate inputs - variable_names is optional
+                if variable_names is not None and len(variable_names) != len(variable_transforms):
+                    raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
+                
+                # Apply transformations
+                transformed_inputs = []
+                for i, transform_func in enumerate(variable_transforms):
+                    try:
+                        transformed_var = transform_func(actual_inputs)
+                        # Ensure the result is 1D (batch_size,)
+                        if transformed_var.dim() > 1:
+                            transformed_var = transformed_var.flatten()
+                        transformed_inputs.append(transformed_var.detach().cpu().numpy())
+                    except Exception as e:
+                        raise ValueError(f"Error applying transformation {i}: {e}")
+                
+                # Stack transformed variables into input matrix
+                actual_inputs_numpy = np.column_stack(transformed_inputs)
+                
+                # Store transformation info for later use in switch_to_equation
+                self._variable_transforms = variable_transforms
+                self._variable_names = variable_names
+                
+                print(f"🔄 Applied {len(variable_transforms)} variable transformations")
+                if variable_names:
+                    print(f"   Variable names: {variable_names}")
+            else:
+                # Use original inputs
+                actual_inputs_numpy = actual_inputs.detach().cpu().numpy()
+                self._variable_transforms = None
+                # Still store variable names even without transforms for switch_to_equation
+                self._variable_names = variable_names
+
+            timestamp = int(time.time())
+
+            output_dims = output.shape[1] # Number of output dimensions
+            self.output_dims = output_dims # Save this 
+
+            pysr_regressors = {}
+
+            if not output_dim:
+                #If output dimension is not specified, run SR on all dims
+
+                for dim in range(output_dims):
+
+                    print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
+            
+                    run_id = f"dim{dim}_{timestamp}"
+                    final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
+                    regressor = PySRRegressor(**final_sr_params)
+
+                    # Prepare fit arguments
+                    fit_args = [actual_inputs_numpy, output.detach()[:, dim].cpu().numpy()]
+                    final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+                    
+                    regressor.fit(*fit_args, **final_fit_params)
+
+                    pysr_regressors[dim] = regressor
+
+                    print(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+            
+            else:
+                
+                print(f"🛠️ Running SR on output dimension {output_dim}.")
+
+                run_id = f"dim{output_dim}_{timestamp}"
+                final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
+                regressor = PySRRegressor(**final_sr_params)
+
+                # Prepare fit arguments
+                fit_args = [actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy()]
+                final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+                
+                regressor.fit(*fit_args, **final_fit_params)
+                pysr_regressors[output_dim] = regressor
+
+                print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
+
+            print(f"❤️ SR on {self.block_name} complete.")
+            self.pysr_regressor = self.pysr_regressor | pysr_regressors
+            
+            # For backward compatibility, return the regressor or dict of regressors
+            if output_dim is not None:
+                return pysr_regressors[output_dim]
+            else:
+                return pysr_regressors
+            
+        else: #code for Callable function
+            # Extract fit parameters
+            if fit_params is None:
+                fit_params = {}
+
+            variable_names = fit_params.get('variable_names', None)
+
+            # Extract sr_params with defaults
+            if sr_params is None:
+                sr_params = {}
+
+            # Convert inputs to numpy if needed
+            if hasattr(inputs, 'detach'):  # torch tensor
+                inputs_np = inputs.detach().cpu().numpy()
+            else:
+                inputs_np = np.array(inputs)
+
+            # Get outputs from the black-box function
+            outputs_raw = self.symtorch_block(inputs)
             if hasattr(outputs_raw, 'detach'):  # torch tensor
                 outputs_np = outputs_raw.detach().cpu().numpy()
             else:
                 outputs_np = np.array(outputs_raw)
-        else:
-            if hasattr(outputs, 'detach'):
-                outputs_np = outputs.detach().cpu().numpy()
-            else:
-                outputs_np = np.array(outputs)
 
-        # Apply variable transformations if provided
-        if variable_transforms is not None:
-            # Validate inputs
-            if variable_names is not None and len(variable_names) != len(variable_transforms):
-                raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
+            # Apply variable transformations if provided
+            if variable_transforms is not None:
+                # Validate inputs
+                if variable_names is not None and len(variable_names) != len(variable_transforms):
+                    raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
 
-            # Apply transformations
-            transformed_inputs = []
-            for i, transform_func in enumerate(variable_transforms):
-                try:
-                    # Handle both numpy and torch inputs
-                    if isinstance(inputs, torch.Tensor):
-                        transformed_var = transform_func(inputs)
-                        if hasattr(transformed_var, 'detach'):
-                            transformed_var = transformed_var.detach().cpu().numpy()
+                # Apply transformations
+                transformed_inputs = []
+                for i, transform_func in enumerate(variable_transforms):
+                    try:
+                        # Handle both numpy and torch inputs
+                        if isinstance(inputs, torch.Tensor):
+                            transformed_var = transform_func(inputs)
+                            if hasattr(transformed_var, 'detach'):
+                                transformed_var = transformed_var.detach().cpu().numpy()
+                            else:
+                                transformed_var = np.array(transformed_var)
                         else:
+                            transformed_var = transform_func(inputs_np)
                             transformed_var = np.array(transformed_var)
-                    else:
-                        transformed_var = transform_func(inputs_np)
-                        transformed_var = np.array(transformed_var)
 
-                    # Ensure the result is 1D (batch_size,)
-                    if transformed_var.ndim > 1:
-                        transformed_var = transformed_var.flatten()
-                    transformed_inputs.append(transformed_var)
-                except Exception as e:
-                    raise ValueError(f"Error applying transformation {i}: {e}")
+                        # Ensure the result is 1D (batch_size,)
+                        if transformed_var.ndim > 1:
+                            transformed_var = transformed_var.flatten()
+                        transformed_inputs.append(transformed_var)
+                    except Exception as e:
+                        raise ValueError(f"Error applying transformation {i}: {e}")
 
-            # Stack transformed variables into input matrix
-            inputs_np = np.column_stack(transformed_inputs)
+                # Stack transformed variables into input matrix
+                inputs_np = np.column_stack(transformed_inputs)
 
-            print(f"Applied {len(variable_transforms)} variable transformations")
-            if variable_names:
-                print(f"Variable names: {variable_names}")
+                # Store transformation info for later use in switch_to_equation
+                self._variable_transforms = variable_transforms
+                self._variable_names = variable_names
 
-        # Handle both 1D and 2D outputs
-        if outputs_np.ndim == 1:
-            outputs_np = outputs_np.reshape(-1, 1)
+                print(f"🔄 Applied {len(variable_transforms)} variable transformations")
+                if variable_names:
+                    print(f"   Variable names: {variable_names}")
+            else:
+                # No transforms used
+                self._variable_transforms = None
+                # Still store variable names even without transforms for switch_to_equation
+                self._variable_names = variable_names
 
-        output_dims = outputs_np.shape[1]  # Number of output dimensions
-        timestamp = int(time.time())
+            # Handle both 1D and 2D outputs
+            if outputs_np.ndim == 1:
+                outputs_np = outputs_np.reshape(-1, 1)
 
-        # Merge SR parameters
-        final_sr_params_base = {**self.sr_params, **kwargs}
+            output_dims = outputs_np.shape[1]  # Number of output dimensions
+            self.output_dims = output_dims  # Save this
+            timestamp = int(time.time())
 
-        # Fit symbolic regression
-        self.pysr_regressor = []
-        self.equations_ = []
+            # Use dict for consistency with nn.Module branch
+            pysr_regressors = {}
 
-        if output_dim is None:
-            # Run on all output dimensions
-            for dim in range(output_dims):
-                print(f"Running SR on output dimension {dim} of {output_dims-1}")
+            if output_dim is None:
+                # Run on all output dimensions
+                for dim in range(output_dims):
+                    print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
 
-                run_id = f"dim{dim}_{timestamp}"
-                final_sr_params = self._create_sr_params(save_path, run_id, final_sr_params_base)
+                    run_id = f"dim{dim}_{timestamp}"
+                    final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
+                    regressor = PySRRegressor(**final_sr_params)
+
+                    # Prepare fit arguments
+                    fit_args = [inputs_np, outputs_np[:, dim]]
+                    final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+
+                    regressor.fit(*fit_args, **final_fit_params)
+
+                    pysr_regressors[dim] = regressor
+
+                    print(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+
+            else:
+                # Run on specific output dimension
+                if output_dim >= output_dims:
+                    raise ValueError(f"output_dim {output_dim} is out of range for outputs with {output_dims} dimensions")
+
+                print(f"🛠️ Running SR on output dimension {output_dim}.")
+
+                run_id = f"dim{output_dim}_{timestamp}"
+                final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
                 regressor = PySRRegressor(**final_sr_params)
 
-                # Fit with optional variable names
-                if variable_names:
-                    regressor.fit(inputs_np, outputs_np[:, dim], variable_names=variable_names)
-                else:
-                    regressor.fit(inputs_np, outputs_np[:, dim])
+                # Prepare fit arguments
+                fit_args = [inputs_np, outputs_np[:, output_dim]]
+                final_fit_params = dict(fit_params)  # Copy to avoid modifying original
 
-                self.pysr_regressor.append(regressor)
-                self.equations_.append(regressor.equations_)
+                regressor.fit(*fit_args, **final_fit_params)
 
-                print(f"Best equation for output {dim}: {regressor.get_best()['equation']}")
+                pysr_regressors[output_dim] = regressor
 
-        else:
-            # Run on specific output dimension
-            if output_dim >= output_dims:
-                raise ValueError(f"output_dim {output_dim} is out of range for outputs with {output_dims} dimensions")
+                print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
 
-            print(f"Running SR on output dimension {output_dim}")
+            print(f"❤️ SR on {self.block_name} complete.")
+            self.pysr_regressor = self.pysr_regressor | pysr_regressors
 
-            run_id = f"dim{output_dim}_{timestamp}"
-            final_sr_params = self._create_sr_params(save_path, run_id, final_sr_params_base)
-            regressor = PySRRegressor(**final_sr_params)
-
-            # Fit with optional variable names
-            if variable_names:
-                regressor.fit(inputs_np, outputs_np[:, output_dim], variable_names=variable_names)
+            # For backward compatibility, return the regressor or dict of regressors
+            if output_dim is not None:
+                return pysr_regressors[output_dim]
             else:
-                regressor.fit(inputs_np, outputs_np[:, output_dim])
-
-            # Store as single-element list for consistency
-            self.pysr_regressor = [regressor]
-            self.equations_ = [regressor.equations_]
-
-            print(f"Best equation for output {output_dim}: {regressor.get_best()['equation']}")
-
-        print("Symbolic regression complete.")
-        return self
-
-    def predict(self, inputs: Union[np.ndarray, torch.Tensor], complexity: Optional[int] = None) -> np.ndarray:
-        """
-        Predict using the discovered symbolic equations.
-
-        Args:
-            inputs (np.ndarray or torch.Tensor): Input data for prediction
-            complexity (int, optional): Specific complexity value to use from the Pareto frontier.
-                                       If None, uses the best equation.
-                                       Note: This filters by complexity value (e.g., complexity=5),
-                                       not by row index.
-
-        Returns:
-            np.ndarray: Predictions from symbolic equations. Shape: (n_samples, n_outputs)
-
-        Raises:
-            ValueError: If model has not been fitted yet or complexity not found
-
-        Example:
-            >>> symbolic_model.fit(f, training_data)
-            >>> predictions = symbolic_model.predict(test_data)
-            >>>
-            >>> # Use equation with complexity=5
-            >>> predictions = symbolic_model.predict(test_data, complexity=5)
-        """
-        if self.pysr_regressor is None:
-            raise ValueError("Model not fitted yet. Call fit() first.")
-
-        # Convert to numpy
-        if hasattr(inputs, 'detach'):
-            inputs_np = inputs.detach().cpu().numpy()
-        else:
-            inputs_np = np.array(inputs)
-
-        # Predict with each regressor
-        predictions = []
-        for idx, regressor in enumerate(self.pysr_regressor):
-            if complexity is not None:
-                # Find the row index for the given complexity value
-                matching = self.equations_[idx][self.equations_[idx]["complexity"] == complexity]
-                if matching.empty:
-                    avail = sorted(self.equations_[idx]["complexity"].unique())
-                    raise ValueError(f"No equation with complexity {complexity} for output {idx}. Available: {avail}")
-
-                # Get the DataFrame index (row number) for this complexity
-                row_idx = matching.index[0]
-                pred = regressor.predict(inputs_np, index=row_idx)
-            else:
-                pred = regressor.predict(inputs_np)
-            predictions.append(pred)
-
-        # Stack predictions
-        if len(predictions) == 1:
-            return predictions[0]
-        else:
-            return np.column_stack(predictions)
-
-    def get_equation(self, output_idx: int = 0, complexity: Optional[int] = None) -> str:
-        """
-        Get the symbolic equation for a specific output dimension.
-
-        Args:
-            output_idx (int, optional): Index of the output dimension (default: 0)
-            complexity (int, optional): Specific complexity value from the Pareto frontier.
-                                       If None, returns the best equation.
-                                       Note: This filters by complexity value (e.g., complexity=5),
-                                       not by row index.
-
-        Returns:
-            str: The symbolic equation as a string
-
-        Raises:
-            ValueError: If model has not been fitted yet, output_idx is out of range,
-                       or complexity not found
-
-        Example:
-            >>> symbolic_model.fit(f, training_data)
-            >>> equation = symbolic_model.get_equation()
-            >>> print(f"Discovered equation: {equation}")
-            >>>
-            >>> # For multi-output models
-            >>> eq0 = symbolic_model.get_equation(output_idx=0)
-            >>> eq1 = symbolic_model.get_equation(output_idx=1)
-            >>>
-            >>> # Get equation with complexity=3
-            >>> simple_eq = symbolic_model.get_equation(complexity=3)
-        """
-        if self.pysr_regressor is None:
-            raise ValueError("Model not fitted yet. Call fit() first.")
-
-        if output_idx >= len(self.pysr_regressor):
-            raise ValueError(f"output_idx {output_idx} is out of range. Model has {len(self.pysr_regressor)} outputs.")
-
-        if complexity is not None:
-            # Filter by actual complexity value, not index
-            matching = self.equations_[output_idx][self.equations_[output_idx]["complexity"] == complexity]
-            if matching.empty:
-                avail = sorted(self.equations_[output_idx]["complexity"].unique())
-                raise ValueError(f"No equation with complexity {complexity}. Available: {avail}")
-            return matching["equation"].values[0]
-        else:
-            return self.pysr_regressor[output_idx].get_best()['equation']
+                return pysr_regressors
