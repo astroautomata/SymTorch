@@ -455,3 +455,268 @@ class SymbolicModel(nn.Module):
                 return pysr_regressors[output_dim]
             else:
                 return pysr_regressors
+            
+    def _get_equation(self, dim, complexity: int = None):
+        """
+        Extract symbolic equation function from fitted regressor.
+        
+        Converts the symbolic expression from PySR into a callable function
+        that can be used for prediction.
+        
+        Args:
+            dim (int): Output dimension to get equation for.
+            complexity (int, optional): Specific complexity level to retrieve.
+                                      If None, returns the best overall equation.
+                                      
+        Returns:
+            tuple or None: (equation_function, sorted_variables) if successful,
+                          None if no equation found or complexity not available
+                          
+
+        Note:
+            This is an internal method. Use switch_to_equation() for public API.
+        """
+        if not hasattr(self, 'pysr_regressor') or self.pysr_regressor is None:
+            print("❗No equations found for this block yet. You need to first run .distill to find the best equation to fit this block.")
+            return None
+        if dim not in self.pysr_regressor:
+            print(f"❗No equation found for output dimension {dim}. You need to first run .distill.")
+            return None
+
+        regressor = self.pysr_regressor[dim]
+        
+        if complexity is None:
+            best_str = regressor.get_best()["equation"] 
+            expr = regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
+        else:
+            matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
+            if matching_rows.empty:
+                available_complexities = sorted(regressor.equations_["complexity"].unique())
+                print(f"⚠️ Warning: No equation found with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}")
+                return None
+            expr = matching_rows["sympy_format"].values[0]
+
+        vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
+        try:
+            f = lambdify(vars_sorted, expr, "numpy")
+            return f, vars_sorted
+        except Exception as e:
+            print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
+            return None
+
+    def switch_to_equation(self, complexity: list = None):
+        """
+        Switch the forward pass from model block to symbolic equations for all output dimensions.
+        
+        After calling this method, the model will use the discovered symbolic
+        expressions instead of the neural network for forward passes. This requires
+        equations to be available for ALL output dimensions.
+        
+        Args:
+            complexity (list, optional): Specific complexity levels to use for each dimension.
+                                      If None, uses the best overall equation for each dimension.
+            
+        Example:
+            >>> model.switch_to_equation(complexity=5)
+
+        """
+        if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
+            print("❗No equations found for this block yet. You need to first run .distill.")
+            return
+        
+        if not hasattr(self, 'output_dims'):
+            print("❗No output dimension information found. You need to first run .distill.")
+            return
+        
+        # Check that we have equations for all output dimensions
+        missing_dims = []
+        for dim in range(self.output_dims):
+            if dim not in self.pysr_regressor:
+                missing_dims.append(dim)
+        
+        if missing_dims:
+            print(f"❗Missing equations for dimensions {missing_dims}. You need to run .distill on all output dimensions first.")
+            print(f"Available dimensions: {list(self.pysr_regressor.keys())}")
+            print(f"Required dimensions: {list(range(self.output_dims))}")
+            return
+        
+        # Store original block for potential restoration
+        if not hasattr(self, '_original_block'):
+            self._original_block = self.symtorch_block
+        
+        # Get equations for all dimensions
+        equation_funcs = {}
+        equation_vars = {}
+        equation_strs = {}
+        
+        for dim in range(self.output_dims):
+            # Get complexity for this specific dimension
+            dim_complexity = None
+            if complexity is not None:
+                if isinstance(complexity, list):
+                    if dim < len(complexity):
+                        dim_complexity = complexity[dim]
+                    else:
+                        print(f"⚠️ Warning: Not enough complexity values provided. Using default for dimension {dim}")
+                else:
+                    # If complexity is a single value, use it for all dimensions
+                    dim_complexity = complexity
+            
+            result = self._get_equation(dim, dim_complexity)
+            if result is None:
+                print(f"⚠️ Failed to get equation for dimension {dim}")
+                return
+                
+            f, vars_sorted = result
+            
+            # Map variables to indices using helper method
+            var_indices = self._map_variables_to_indices(vars_sorted, dim)
+            
+            equation_funcs[dim] = f
+            equation_vars[dim] = var_indices
+            
+            # Get equation string for display
+            regressor = self.pysr_regressor[dim]
+            if dim_complexity is None:
+                equation_strs[dim] = regressor.get_best()["equation"]
+            else:
+                matching_rows = regressor.equations_[regressor.equations_["complexity"] == dim_complexity]
+                equation_strs[dim] = matching_rows["equation"].values[0]
+        
+        # Store the equation information
+        self._equation_funcs = equation_funcs
+        self._equation_vars = equation_vars
+        self._using_equation = True
+        
+        # Print success messages
+        print(f"✅ Successfully switched {self.block_name} to symbolic equations for all {self.output_dims} dimensions:")
+        for dim in range(self.output_dims):
+            print(f"   Dimension {dim}: {equation_strs[dim]}")
+            
+            # Display variable names properly
+            var_names_display = []
+            if hasattr(self, '_variable_names') and self._variable_names is not None:
+                # Use custom variable names
+                for idx in equation_vars[dim]:
+                    if idx < len(self._variable_names):
+                        var_names_display.append(self._variable_names[idx])
+                    else:
+                        var_names_display.append(f"transform_{idx}")
+            else:
+                # Use default x0, x1, etc. format
+                var_names_display = [f'x{i}' for i in equation_vars[dim]]
+            
+            print(f"   Variables: {var_names_display}")
+        
+        print(f"🎯 All {self.output_dims} output dimensions now using symbolic equations.")
+
+
+    def switch_to_block(self):
+        """
+        Switch back to using the original model block for forward passes.
+        
+        Restores the neural network as the primary forward pass mechanism,
+        reverting any previous switch_to_equation() call.
+            
+        Example:
+            >>> model.switch_to_equation()  # Use symbolic equation
+            >>> # ... do some analysis ...
+            >>> model.switch_to_block()       # Switch back to neural network
+        """
+        self._using_equation = False
+        if hasattr(self, '_original_block'):
+            self.symtorch_block = self._original_block
+        print(f"✅ Switched {self.block_name} back to block")
+
+    def forward(self, x):
+        """
+        Forward pass through the model.
+
+        Automatically switches between block and symbolic equations based on current mode.
+        When using symbolic equation mode, evaluates each output dimension separately
+        using its corresponding symbolic expression.
+
+        This method works for both nn.Module and Callable function blocks, handling
+        type conversions automatically.
+
+        Args:
+            x (torch.Tensor or numpy.ndarray): Input data of shape (batch_size, input_dim)
+
+        Returns:
+            Same type as input: Output data of shape (batch_size, output_dim)
+                              - torch.Tensor if input is torch.Tensor
+                              - numpy.ndarray if input is numpy.ndarray
+
+        Raises:
+            ValueError: If symbolic equations require variables not present in input
+        """
+        if hasattr(self, '_using_equation') and self._using_equation:
+            # Track input type to return matching output type
+            is_torch_input = isinstance(x, torch.Tensor)
+
+            # Convert to torch tensor if needed for equation evaluation
+            if not is_torch_input:
+                x_torch = torch.tensor(x, dtype=torch.float32)
+            else:
+                x_torch = x
+
+            batch_size = x_torch.shape[0]
+            output_dims = len(self._equation_funcs)
+
+            # Initialize output tensor
+            outputs = []
+
+            # Evaluate each dimension separately
+            for dim in range(output_dims):
+                equation_func = self._equation_funcs[dim]
+                var_indices = self._equation_vars[dim]
+
+                # Extract variables needed for this dimension
+                selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
+                
+                # Convert to numpy for the equation function
+                numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
+                
+                # Evaluate the equation for this dimension
+                result = equation_func(*numpy_inputs)
+
+                # Convert back to torch tensor with same device/dtype as input
+                result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+
+                # Ensure result is 1D (batch_size,)
+                if result_tensor.dim() == 0:
+                    result_tensor = result_tensor.expand(batch_size)
+                elif result_tensor.dim() > 1:
+                    result_tensor = result_tensor.flatten()
+
+                outputs.append(result_tensor)
+
+            # Stack all dimensions to create (batch_size, output_dim) tensor
+            result_tensor = torch.stack(outputs, dim=1)
+
+            # Return in same type as input
+            if is_torch_input:
+                return result_tensor
+            else:
+                return result_tensor.detach().cpu().numpy()
+        else:
+            # For nn.Module, call directly
+            if isinstance(self.symtorch_block, nn.Module):
+                return self.symtorch_block(x)
+            else:
+                # For Callable functions, handle input type appropriately
+                is_torch_input = isinstance(x, torch.Tensor)
+
+                if is_torch_input:
+                    # Convert torch tensor to numpy for callable function
+                    x_np = x.detach().cpu().numpy()
+                    output = self.symtorch_block(x_np)
+
+                    # Convert output back to torch tensor
+                    if hasattr(output, 'detach'):  # Already a torch tensor
+                        return output.to(x.device)
+                    else:
+                        return torch.tensor(output, dtype=x.dtype, device=x.device)
+                else:
+                    # Input is already numpy, call directly and return numpy
+                    return self.symtorch_block(x)
