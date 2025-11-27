@@ -260,7 +260,7 @@ class SymbolicModel(nn.Module):
                 # Stack transformed variables into input matrix
                 actual_inputs_numpy = np.column_stack(transformed_inputs)
                 
-                # Store transformation info for later use in switch_to_equation
+                # Store transformation info for later use in switch_to_symbolic
                 self._variable_transforms = variable_transforms
                 self._variable_names = variable_names
                 
@@ -271,7 +271,7 @@ class SymbolicModel(nn.Module):
                 # Use original inputs
                 actual_inputs_numpy = actual_inputs.detach().cpu().numpy()
                 self._variable_transforms = None
-                # Still store variable names even without transforms for switch_to_equation
+                # Still store variable names even without transforms for switch_to_symbolic
                 self._variable_names = variable_names
 
             timestamp = int(time.time())
@@ -383,7 +383,7 @@ class SymbolicModel(nn.Module):
                 # Stack transformed variables into input matrix
                 inputs_np = np.column_stack(transformed_inputs)
 
-                # Store transformation info for later use in switch_to_equation
+                # Store transformation info for later use in switch_to_symbolic
                 self._variable_transforms = variable_transforms
                 self._variable_names = variable_names
 
@@ -393,7 +393,7 @@ class SymbolicModel(nn.Module):
             else:
                 # No transforms used
                 self._variable_transforms = None
-                # Still store variable names even without transforms for switch_to_equation
+                # Still store variable names even without transforms for switch_to_symbolic
                 self._variable_names = variable_names
 
             # Handle both 1D and 2D outputs
@@ -474,7 +474,7 @@ class SymbolicModel(nn.Module):
                           
 
         Note:
-            This is an internal method. Use switch_to_equation() for public API.
+            This is an internal method. Use switch_to_symbolic() for public API.
         """
         if not hasattr(self, 'pysr_regressor') or self.pysr_regressor is None:
             print("❗No equations found for this block yet. You need to first run .distill to find the best equation to fit this block.")
@@ -504,7 +504,7 @@ class SymbolicModel(nn.Module):
             print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
             return None
 
-    def switch_to_equation(self, complexity: list = None):
+    def switch_to_symbolic(self, complexity: list = None):
         """
         Switch the forward pass from model block to symbolic equations for all output dimensions.
         
@@ -517,7 +517,7 @@ class SymbolicModel(nn.Module):
                                       If None, uses the best overall equation for each dimension.
             
         Example:
-            >>> model.switch_to_equation(complexity=5)
+            >>> model.switch_to_symbolic(complexity=5)
 
         """
         if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
@@ -610,16 +610,135 @@ class SymbolicModel(nn.Module):
         
         print(f"🎯 All {self.output_dims} output dimensions now using symbolic equations.")
 
+    def get_symbolic_function(self, dim: int = 0, complexity: int = None):
+
+        if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
+            raise ValueError("No equations found. Run .distill() first.")
+
+        if not hasattr(self, 'output_dims'):
+            raise ValueError("No output dimension information found. Run .distill() first.")
+
+        # If only one output dimension, default to dim=0
+        if self.output_dims == 1:
+            dim = 0
+        elif dim >= self.output_dims:
+            raise ValueError(f"Dimension {dim} out of range. Model has {self.output_dims} output dimensions (0-{self.output_dims-1})")
+
+        if dim not in self.pysr_regressor:
+            raise ValueError(f"No equation found for dimension {dim}. Available dimensions: {list(self.pysr_regressor.keys())}")
+
+        regressor = self.pysr_regressor[dim]
+
+        # Get the equation at specified complexity or best equation
+        if complexity is None:
+            best_str = regressor.get_best()["equation"]
+            expr = regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
+        else:
+            matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
+            if matching_rows.empty:
+                available_complexities = sorted(regressor.equations_["complexity"].unique())
+                raise ValueError(f"No equation with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}")
+            expr = matching_rows["sympy_format"].values[0]
+
+        vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
+
+        try:
+            f = lambdify(vars_sorted, expr, "numpy")
+        except Exception as e:
+            raise RuntimeError(f"Could not create lambdify function for dimension {dim}: {e}")
+
+        # Create a wrapper function that handles variable extraction
+        def symbolic_func(x):
+            if isinstance(x, torch.Tensor):
+                x_tensor = x
+            else:
+                x_tensor = torch.tensor(x, dtype=torch.float32)
+
+            # Map variables to indices
+            var_indices = self._map_variables_to_indices(vars_sorted, dim)
+
+            # Extract variables
+            selected_inputs = self._extract_variables_for_equation(x_tensor, var_indices, dim)
+
+            # Convert to numpy
+            numpy_inputs = [inp.detach().cpu().numpy() if hasattr(inp, 'detach') else np.array(inp) for inp in selected_inputs]
+
+            # Evaluate the equation
+            result = f(*numpy_inputs)
+
+            return result
+
+        return symbolic_func
+
+    def show_symbolic_expression(self, dim = None, complexity = None):
+
+        if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
+            print("❗No equations found for this block yet. You need to first run .distill.")
+            return
+
+        if not hasattr(self, 'output_dims'):
+            print("❗No output dimension information found. You need to first run .distill.")
+            return
+
+        # Convert single values to lists
+        if isinstance(dim, int):
+            dims_to_show = [dim]
+        elif dim is None:
+            dims_to_show = list(range(self.output_dims))
+        else:
+            dims_to_show = dim
+
+        # Show all equations for specified dimensions
+        if complexity is None:
+            for i in dims_to_show:
+                if i not in self.pysr_regressor:
+                    print(f"❌ No expression distilled for output dimension {i}.")
+                    continue
+                regressor = self.pysr_regressor[i]
+                print(f"\n➡️ Symbolic expressions for output dimension {i}:")
+                print(regressor.equations_)
+                best_equation = regressor.get_best()
+                print(f"🏆 Best: {best_equation['equation']} (loss: {best_equation['loss']:.6e})")
+
+        # Show specific complexity for each dimension
+        else:
+            if isinstance(complexity, int):
+                complexities = [complexity] * len(dims_to_show)
+            else:
+                complexities = complexity
+
+            if len(complexities) != len(dims_to_show):
+                print(f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})")
+                return
+
+            for i, comp in zip(dims_to_show, complexities):
+                if i not in self.pysr_regressor:
+                    print(f"❌ No expression distilled for output dimension {i}.")
+                    continue
+
+                regressor = self.pysr_regressor[i]
+                matching_rows = regressor.equations_[regressor.equations_["complexity"] == comp]
+
+                if matching_rows.empty:
+                    available = sorted(regressor.equations_["complexity"].unique())
+                    print(f"❌ No equation with complexity {comp} for dimension {i}. Available: {available}")
+                    continue
+
+                print(f"\n➡️ Dimension {i} - Complexity {comp}:")
+                print(f"   {matching_rows['equation'].values[0]} (loss: {matching_rows['loss'].values[0]:.6e})")
+
+
+                
 
     def switch_to_block(self):
         """
         Switch back to using the original model block for forward passes.
         
         Restores the neural network as the primary forward pass mechanism,
-        reverting any previous switch_to_equation() call.
+        reverting any previous switch_to_symbolic() call.
             
         Example:
-            >>> model.switch_to_equation()  # Use symbolic equation
+            >>> model.switch_to_symbolic()  # Use symbolic equation
             >>> # ... do some analysis ...
             >>> model.switch_to_block()       # Switch back to neural network
         """
