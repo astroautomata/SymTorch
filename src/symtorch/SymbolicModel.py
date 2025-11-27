@@ -17,6 +17,8 @@ import os
 import pickle
 from typing import List, Callable, Optional, Union, Dict, Any
 from contextlib import contextmanager
+from typing import Literal
+import math
 
 
 class SymbolicModel(nn.Module):
@@ -201,7 +203,7 @@ class SymbolicModel(nn.Module):
                  save_path: str = None,
                  sr_params: Optional[Dict[str, Any]] = None,
                  fit_params: Optional[Dict[str, Any]] = None):
-        
+
         if isinstance(self.symtorch_block, Callable) and not isinstance(self.symtorch_block, nn.Module) and parent_model is not None:
             raise ValueError(
                 "Cannot use parent_model with Callable functions. "
@@ -214,20 +216,43 @@ class SymbolicModel(nn.Module):
             if parent_model is not None:
                 with self._capture_layer_output(parent_model, inputs) as (layer_inputs, layer_outputs):
                     pass
-                
+
                 # Use captured intermediate data
                 if layer_inputs and layer_outputs:
                     actual_inputs = layer_inputs[0]
-                    output = layer_outputs[0]
+                    full_output = layer_outputs[0]
                 else:
                     raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance.")
-        
+
             else:
-                # Original behavior - use block directly 
+                # Original behavior - use block directly
                 actual_inputs = inputs
                 self.symtorch_block.eval()
                 with torch.no_grad():
-                    output = self.symtorch_block(inputs)
+                    full_output = self.symtorch_block(inputs)
+
+            # Check if pruning is enabled and filter to active dimensions
+            if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                active_dims = self.get_active_dimensions()
+                if not active_dims:
+                    print("❗No active dimensions to distill!")
+                    return {}
+
+                # Filter to active dimensions only
+                output = full_output[:, self.pruning_mask]
+
+                # Filter active dimensions based on output_dim parameter
+                if output_dim is not None:
+                    if output_dim not in active_dims:
+                        print(f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}")
+                        return {}
+                    target_dims = [output_dim]
+                else:
+                    target_dims = active_dims
+            else:
+                # No pruning - use full output
+                output = full_output
+                target_dims = None  # Will process all dimensions
 
             # Extract fit parameters
             if fit_params is None:
@@ -276,55 +301,85 @@ class SymbolicModel(nn.Module):
 
             timestamp = int(time.time())
 
-            output_dims = output.shape[1] # Number of output dimensions
-            self.output_dims = output_dims # Save this 
-
             pysr_regressors = {}
 
-            if not output_dim:
-                #If output dimension is not specified, run SR on all dims
+            # Handle pruning mode or standard mode
+            if target_dims is not None:
+                # Pruning mode - target_dims contains the list of active dimensions to process
+                # Set output_dims to initial_dim for compatibility
+                self.output_dims = self.initial_dim
 
-                for dim in range(output_dims):
+                for i, dim_idx in enumerate(target_dims):
+                    print(f"🛠️ Running SR on active dimension {dim_idx} ({i+1}/{len(target_dims)})")
 
-                    print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
-            
-                    run_id = f"dim{dim}_{timestamp}"
+                    run_id = f"dim{dim_idx}_{timestamp}"
+                    final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
+                    regressor = PySRRegressor(**final_sr_params)
+
+                    # Find the index of this dimension in the active output
+                    active_dims = self.get_active_dimensions()
+                    active_dim_index = active_dims.index(dim_idx)
+
+                    # Prepare fit arguments
+                    fit_args = [actual_inputs_numpy, output[:, active_dim_index].detach().cpu().numpy()]
+                    final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+
+                    regressor.fit(*fit_args, **final_fit_params)
+
+                    pysr_regressors[dim_idx] = regressor
+
+                    print(f"💡Best equation for active dimension {dim_idx}: {regressor.get_best()['equation']}.")
+
+                print(f"❤️ SR on {self.block_name} active dimensions complete.")
+            else:
+                # Standard mode - no pruning
+                output_dims = output.shape[1]  # Number of output dimensions
+                self.output_dims = output_dims  # Save this
+
+                if not output_dim:
+                    # If output dimension is not specified, run SR on all dims
+                    for dim in range(output_dims):
+
+                        print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
+
+                        run_id = f"dim{dim}_{timestamp}"
+                        final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
+                        regressor = PySRRegressor(**final_sr_params)
+
+                        # Prepare fit arguments
+                        fit_args = [actual_inputs_numpy, output.detach()[:, dim].cpu().numpy()]
+                        final_fit_params = dict(fit_params)  # Copy to avoid modifying original
+
+                        regressor.fit(*fit_args, **final_fit_params)
+
+                        pysr_regressors[dim] = regressor
+
+                        print(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+
+                else:
+
+                    print(f"🛠️ Running SR on output dimension {output_dim}.")
+
+                    run_id = f"dim{output_dim}_{timestamp}"
                     final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
                     regressor = PySRRegressor(**final_sr_params)
 
                     # Prepare fit arguments
-                    fit_args = [actual_inputs_numpy, output.detach()[:, dim].cpu().numpy()]
+                    fit_args = [actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy()]
                     final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-                    
+
                     regressor.fit(*fit_args, **final_fit_params)
+                    pysr_regressors[output_dim] = regressor
 
-                    pysr_regressors[dim] = regressor
+                    print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
 
-                    print(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
-            
-            else:
-                
-                print(f"🛠️ Running SR on output dimension {output_dim}.")
+                print(f"❤️ SR on {self.block_name} complete.")
 
-                run_id = f"dim{output_dim}_{timestamp}"
-                final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
-                regressor = PySRRegressor(**final_sr_params)
-
-                # Prepare fit arguments
-                fit_args = [actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy()]
-                final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-                
-                regressor.fit(*fit_args, **final_fit_params)
-                pysr_regressors[output_dim] = regressor
-
-                print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
-
-            print(f"❤️ SR on {self.block_name} complete.")
             self.pysr_regressor = self.pysr_regressor | pysr_regressors
-            
+
             # For backward compatibility, return the regressor or dict of regressors
             if output_dim is not None:
-                return pysr_regressors[output_dim]
+                return pysr_regressors.get(output_dim)
             else:
                 return pysr_regressors
             
@@ -507,15 +562,17 @@ class SymbolicModel(nn.Module):
     def switch_to_symbolic(self, complexity: list = None):
         """
         Switch the forward pass from model block to symbolic equations for all output dimensions.
-        
+
         After calling this method, the model will use the discovered symbolic
-        expressions instead of the neural network for forward passes. This requires
-        equations to be available for ALL output dimensions.
-        
+        expressions instead of the neural network for forward passes.
+
+        For pruned models, only active dimensions need equations. Inactive dimensions
+        will output zeros.
+
         Args:
             complexity (list, optional): Specific complexity levels to use for each dimension.
                                       If None, uses the best overall equation for each dimension.
-            
+
         Example:
             >>> model.switch_to_symbolic(complexity=5)
 
@@ -523,58 +580,80 @@ class SymbolicModel(nn.Module):
         if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
             print("❗No equations found for this block yet. You need to first run .distill.")
             return
-        
+
         if not hasattr(self, 'output_dims'):
             print("❗No output dimension information found. You need to first run .distill.")
             return
-        
-        # Check that we have equations for all output dimensions
-        missing_dims = []
-        for dim in range(self.output_dims):
-            if dim not in self.pysr_regressor:
-                missing_dims.append(dim)
-        
-        if missing_dims:
-            print(f"❗Missing equations for dimensions {missing_dims}. You need to run .distill on all output dimensions first.")
-            print(f"Available dimensions: {list(self.pysr_regressor.keys())}")
-            print(f"Required dimensions: {list(range(self.output_dims))}")
-            return
-        
+
+        # Check if pruning is enabled
+        if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+            # Pruning mode - only need equations for active dimensions
+            active_dims = self.get_active_dimensions()
+            if not active_dims:
+                print("❗No active dimensions to switch to equations.")
+                return
+
+            # Check that we have equations for all active dimensions
+            missing_dims = []
+            for dim in active_dims:
+                if dim not in self.pysr_regressor:
+                    missing_dims.append(dim)
+
+            if missing_dims:
+                print(f"❗Missing equations for active dimensions {missing_dims}. You need to run .distill on all active dimensions first.")
+                return
+
+            dimensions_to_process = active_dims
+        else:
+            # Standard mode - need equations for all dimensions
+            missing_dims = []
+            for dim in range(self.output_dims):
+                if dim not in self.pysr_regressor:
+                    missing_dims.append(dim)
+
+            if missing_dims:
+                print(f"❗Missing equations for dimensions {missing_dims}. You need to run .distill on all output dimensions first.")
+                print(f"Available dimensions: {list(self.pysr_regressor.keys())}")
+                print(f"Required dimensions: {list(range(self.output_dims))}")
+                return
+
+            dimensions_to_process = list(range(self.output_dims))
+
         # Store original block for potential restoration
         if not hasattr(self, '_original_block'):
             self._original_block = self.symtorch_block
-        
-        # Get equations for all dimensions
+
+        # Get equations for dimensions to process
         equation_funcs = {}
         equation_vars = {}
         equation_strs = {}
-        
-        for dim in range(self.output_dims):
+
+        for i, dim in enumerate(dimensions_to_process):
             # Get complexity for this specific dimension
             dim_complexity = None
             if complexity is not None:
                 if isinstance(complexity, list):
-                    if dim < len(complexity):
-                        dim_complexity = complexity[dim]
+                    if i < len(complexity):
+                        dim_complexity = complexity[i]
                     else:
                         print(f"⚠️ Warning: Not enough complexity values provided. Using default for dimension {dim}")
                 else:
                     # If complexity is a single value, use it for all dimensions
                     dim_complexity = complexity
-            
+
             result = self._get_equation(dim, dim_complexity)
             if result is None:
                 print(f"⚠️ Failed to get equation for dimension {dim}")
                 return
-                
+
             f, vars_sorted = result
-            
+
             # Map variables to indices using helper method
             var_indices = self._map_variables_to_indices(vars_sorted, dim)
-            
+
             equation_funcs[dim] = f
             equation_vars[dim] = var_indices
-            
+
             # Get equation string for display
             regressor = self.pysr_regressor[dim]
             if dim_complexity is None:
@@ -582,17 +661,21 @@ class SymbolicModel(nn.Module):
             else:
                 matching_rows = regressor.equations_[regressor.equations_["complexity"] == dim_complexity]
                 equation_strs[dim] = matching_rows["equation"].values[0]
-        
+
         # Store the equation information
         self._equation_funcs = equation_funcs
         self._equation_vars = equation_vars
         self._using_equation = True
-        
+
         # Print success messages
-        print(f"✅ Successfully switched {self.block_name} to symbolic equations for all {self.output_dims} dimensions:")
-        for dim in range(self.output_dims):
+        if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+            print(f"✅ Successfully switched {self.block_name} to symbolic equations for {len(dimensions_to_process)} active dimensions:")
+        else:
+            print(f"✅ Successfully switched {self.block_name} to symbolic equations for all {len(dimensions_to_process)} dimensions:")
+
+        for dim in dimensions_to_process:
             print(f"   Dimension {dim}: {equation_strs[dim]}")
-            
+
             # Display variable names properly
             var_names_display = []
             if hasattr(self, '_variable_names') and self._variable_names is not None:
@@ -605,10 +688,14 @@ class SymbolicModel(nn.Module):
             else:
                 # Use default x0, x1, etc. format
                 var_names_display = [f'x{i}' for i in equation_vars[dim]]
-            
+
             print(f"   Variables: {var_names_display}")
-        
-        print(f"🎯 All {self.output_dims} output dimensions now using symbolic equations.")
+
+        if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+            print(f"🎯 Active dimensions {dimensions_to_process} now using symbolic equations.")
+            print(f"🔒 Inactive dimensions will output zeros.")
+        else:
+            print(f"🎯 All {len(dimensions_to_process)} output dimensions now using symbolic equations.")
 
     def get_symbolic_function(self, dim: int = 0, complexity: int = None):
 
@@ -684,7 +771,13 @@ class SymbolicModel(nn.Module):
         if isinstance(dim, int):
             dims_to_show = [dim]
         elif dim is None:
-            dims_to_show = list(range(self.output_dims))
+            # For pruned models, show only active dimensions by default
+            if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                dims_to_show = self.get_active_dimensions()
+                if dims_to_show:
+                    print(f"ℹ️ Showing expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
+            else:
+                dims_to_show = list(range(self.output_dims))
         else:
             dims_to_show = dim
 
@@ -747,6 +840,141 @@ class SymbolicModel(nn.Module):
             self.symtorch_block = self._original_block
         print(f"✅ Switched {self.block_name} back to block")
 
+    def setup_pruning(self, initial_dim: int, target_dim: int, total_epochs: int,
+                      end_epoch_frac: float = 0.5,
+                      decay_rate: Literal['cosine', 'exp', 'linear'] = 'exp'):
+        
+        if not isinstance(self.symtorch_block, nn.Module):
+            assert "❌ Pruning only works on PyTorch MLPs, not callable functions."
+
+        self.initial_dim = initial_dim
+        self.current_dim = initial_dim
+        self.target_dim = target_dim 
+
+        self._set_pruning_schedule = self._set_pruning_schedule(total_epochs, decay_rate, end_epoch_frac)
+        self.register_buffer('pruning_mask', torch.ones(self.current_dim, dtype=torch.bool))
+
+        print(f"✅ Pruning successfully set up for MLP {self.block_name}.")
+
+        return None
+
+
+    def _set_pruning_schedule(self, total_epochs: int, decay_rate: str = 'cosine', end_epoch_frac: float = 0.5):
+        
+        prune_end_epoch = int(end_epoch_frac * total_epochs)
+        prune_epochs = prune_end_epoch
+
+        dims_to_prune = self.initial_dim - self.target_dim
+        schedule_dict = {}
+
+        #different pruning schedules
+        #exponential decay
+        if decay_rate == 'exp':
+            decay_rate = 3.0
+            max_decay = 1 - math.exp(-decay_rate)
+
+            for epoch in range(prune_end_epoch):
+                progress = epoch / prune_epochs
+                raw_decay = 1 - math.exp(-decay_rate * progress)
+                decay_factor = raw_decay / max_decay
+
+                dims_pruned = math.ceil(dims_to_prune * decay_factor)
+                target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
+                schedule_dict[epoch] = target_dims
+
+        #linear decay
+        elif decay_rate == 'linear':
+            for epoch in range(prune_end_epoch):
+                progress = epoch / prune_epochs
+                dims_pruned = math.ceil(dims_to_prune * progress)
+                target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
+                schedule_dict[epoch] = target_dims
+
+        #cosine decay
+        elif decay_rate == 'cosine':
+            for epoch in range(prune_end_epoch):
+                progress = epoch / prune_epochs
+                cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
+                dims_pruned = math.ceil(dims_to_prune * (1 - cosine_decay))
+                target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
+                schedule_dict[epoch] = target_dims
+
+        #keep target_dim for the last part of training
+        for epoch in range(prune_end_epoch, total_epochs):
+            schedule_dict[epoch] = self.target_dim
+
+        return schedule_dict
+    
+    def prune(self, epoch: int, sample_data: torch.Tensor, parent_model=None):
+        """
+        Perform pruning for the current epoch based on the pruning schedule.
+        
+        Evaluates the importance of each output dimension by computing the standard deviation
+        of activations across the sample data. Retains the most important dimensions according
+        to the current epoch's target dimensionality.
+        
+        Args:
+            epoch (int): Current training epoch
+            sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
+                                       Typically a subset of validation data.
+            parent_model (nn.Module, optional): The parent model containing this PruningMLP instance.
+                                              If provided, will trace intermediate activations to get
+                                              the actual outputs at this layer level for importance evaluation.
+                                       
+        Note:
+            This method should be called during each training epoch. If the current epoch
+            is not in the pruning schedule, no pruning is performed.
+        """
+
+        if epoch not in self.pruning_schedule:
+            return
+        if self.pruning_schedule is None:
+            assert 'Pruning has not been set up for this block.'
+            
+        target_dims = self.pruning_schedule[epoch]
+        
+        with torch.no_grad():
+            # Extract outputs at this layer level for importance evaluation
+            if parent_model is not None:
+                with self._capture_layer_output(parent_model, sample_data) as (_, layer_outputs):
+                    pass
+                
+                # Use captured intermediate data
+                if layer_outputs:
+                    output_array = layer_outputs[0]
+                else:
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.")
+            else:
+                # Original behavior - use MLP directly
+                output_array = self.InterpretSR_MLP(sample_data)
+
+            output_importance = output_array.std(dim=0)
+            most_important = torch.argsort(output_importance)[-target_dims:]
+            
+            new_mask = torch.zeros_like(self.pruning_mask)
+            new_mask[most_important] = True
+            # Update the registered buffer (this maintains device consistency)
+            self.pruning_mask.data = new_mask.data
+            self.current_dim = target_dims
+
+    def get_active_dimensions(self):
+        """
+        Get indices of currently active (non-masked) dimensions.
+
+        Returns:
+            list: List of integer indices for dimensions that are currently active
+                 (not pruned/masked)
+
+        Example:
+            >>> active_dims = pruned_mlp.get_active_dimensions()
+            >>> print(f"Active dimensions: {active_dims}")
+            Active dimensions: [5, 12, 18]
+        """
+        if not hasattr(self, 'pruning_mask') or self.pruning_mask is None:
+            raise RuntimeError("Pruning has not been set up for this block. Call setup_pruning() first.")
+
+        return torch.where(self.pruning_mask)[0].tolist()
+
     def forward(self, x):
         """
         Forward pass through the model.
@@ -757,6 +985,8 @@ class SymbolicModel(nn.Module):
 
         This method works for both nn.Module and Callable function blocks, handling
         type conversions automatically.
+
+        If pruning is enabled, applies pruning mask to enforce zero outputs for inactive dimensions.
 
         Args:
             x (torch.Tensor or numpy.ndarray): Input data of shape (batch_size, input_dim)
@@ -780,38 +1010,75 @@ class SymbolicModel(nn.Module):
                 x_torch = x
 
             batch_size = x_torch.shape[0]
-            output_dims = len(self._equation_funcs)
 
-            # Initialize output tensor
-            outputs = []
+            # Check if pruning is enabled
+            if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                # For pruning mode, initialize output with zeros for all dimensions
+                output = torch.zeros(batch_size, self.initial_dim, dtype=x_torch.dtype, device=x_torch.device)
 
-            # Evaluate each dimension separately
-            for dim in range(output_dims):
-                equation_func = self._equation_funcs[dim]
-                var_indices = self._equation_vars[dim]
+                # Fill in only active dimensions with symbolic equations
+                active_dims = self.get_active_dimensions()
+                for dim in active_dims:
+                    if dim in self._equation_funcs:
+                        equation_func = self._equation_funcs[dim]
+                        var_indices = self._equation_vars[dim]
 
-                # Extract variables needed for this dimension
-                selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
-                
-                # Convert to numpy for the equation function
-                numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
-                
-                # Evaluate the equation for this dimension
-                result = equation_func(*numpy_inputs)
+                        # Extract variables needed for this dimension
+                        selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
 
-                # Convert back to torch tensor with same device/dtype as input
-                result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+                        # Convert to numpy for the equation function
+                        numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
 
-                # Ensure result is 1D (batch_size,)
-                if result_tensor.dim() == 0:
-                    result_tensor = result_tensor.expand(batch_size)
-                elif result_tensor.dim() > 1:
-                    result_tensor = result_tensor.flatten()
+                        # Evaluate the equation for this dimension
+                        result = equation_func(*numpy_inputs)
 
-                outputs.append(result_tensor)
+                        # Convert back to torch tensor with same device/dtype as input
+                        result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
 
-            # Stack all dimensions to create (batch_size, output_dim) tensor
-            result_tensor = torch.stack(outputs, dim=1)
+                        # Ensure result is 1D (batch_size,)
+                        if result_tensor.dim() == 0:
+                            result_tensor = result_tensor.expand(batch_size)
+                        elif result_tensor.dim() > 1:
+                            result_tensor = result_tensor.flatten()
+
+                        output[:, dim] = result_tensor
+
+                # Apply pruning mask to ensure inactive dimensions are zero
+                result_tensor = output * self.pruning_mask
+            else:
+                # Standard mode without pruning
+                output_dims = len(self._equation_funcs)
+
+                # Initialize output tensor
+                outputs = []
+
+                # Evaluate each dimension separately
+                for dim in range(output_dims):
+                    equation_func = self._equation_funcs[dim]
+                    var_indices = self._equation_vars[dim]
+
+                    # Extract variables needed for this dimension
+                    selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
+
+                    # Convert to numpy for the equation function
+                    numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
+
+                    # Evaluate the equation for this dimension
+                    result = equation_func(*numpy_inputs)
+
+                    # Convert back to torch tensor with same device/dtype as input
+                    result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+
+                    # Ensure result is 1D (batch_size,)
+                    if result_tensor.dim() == 0:
+                        result_tensor = result_tensor.expand(batch_size)
+                    elif result_tensor.dim() > 1:
+                        result_tensor = result_tensor.flatten()
+
+                    outputs.append(result_tensor)
+
+                # Stack all dimensions to create (batch_size, output_dim) tensor
+                result_tensor = torch.stack(outputs, dim=1)
 
             # Return in same type as input
             if is_torch_input:
@@ -821,7 +1088,11 @@ class SymbolicModel(nn.Module):
         else:
             # For nn.Module, call directly
             if isinstance(self.symtorch_block, nn.Module):
-                return self.symtorch_block(x)
+                output = self.symtorch_block(x)
+                # Apply pruning mask if enabled
+                if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                    output = output * self.pruning_mask
+                return output
             else:
                 # For Callable functions, handle input type appropriately
                 is_torch_input = isinstance(x, torch.Tensor)
@@ -833,9 +1104,21 @@ class SymbolicModel(nn.Module):
 
                     # Convert output back to torch tensor
                     if hasattr(output, 'detach'):  # Already a torch tensor
-                        return output.to(x.device)
+                        output = output.to(x.device)
                     else:
-                        return torch.tensor(output, dtype=x.dtype, device=x.device)
+                        output = torch.tensor(output, dtype=x.dtype, device=x.device)
+
+                    # Apply pruning mask if enabled
+                    if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                        output = output * self.pruning_mask
+                    return output
                 else:
                     # Input is already numpy, call directly and return numpy
-                    return self.symtorch_block(x)
+                    output = self.symtorch_block(x)
+                    # Apply pruning mask if enabled (convert to numpy if needed)
+                    if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                        if not isinstance(output, torch.Tensor):
+                            output = torch.tensor(output, dtype=torch.float32)
+                        output = output * self.pruning_mask
+                        output = output.numpy()
+                    return output
