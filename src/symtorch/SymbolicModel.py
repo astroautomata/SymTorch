@@ -7,7 +7,7 @@ capabilities using PySR (Python Symbolic Regression).
 import warnings
 warnings.filterwarnings("ignore", message="torch was imported before juliacall")
 from pysr import *
-import torch 
+import torch
 import torch.nn as nn
 import time
 import sympy
@@ -19,6 +19,7 @@ from typing import List, Callable, Optional, Union, Dict, Any
 from contextlib import contextmanager
 from typing import Literal
 import math
+from sklearn.neighbors import NearestNeighbors
 
 
 class SymbolicModel(nn.Module):
@@ -32,16 +33,27 @@ class SymbolicModel(nn.Module):
         "complexity_of_operators": {"sin": 3, "exp": 3}
     }
 
+    # Default SLIME parameters
+    DEFAULT_SLIME_PARAMS = {
+        "x": None,                  # Point of interest for local explanation
+        "J_neighbours": 10,         # Number of nearest neighbors
+        "num_synthetic": 100,       # Number of synthetic samples
+        "real_weighting": 1.0,      # Weight for real samples vs synthetic
+        "nn_metric": 'euclidean',   # Distance metric for nearest neighbors
+        "var": None                 # Variance for perturbations (auto-computed if None)
+    }
+
     def __init__(self, block: Union[nn.Module, Callable], block_name: str = None):
 
         super().__init__()
-        self.symtorch_block = block 
+        self.symtorch_block = block
         self.block_name = block_name or f"block_{id(self)}"
 
         if not block_name:
             print(f"No name specified for this block. Label is {self.block_name}.")
 
         self.pysr_regressor = {}
+        self.SLIME_pysr_regressor = {}
 
     def _create_sr_params(self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
@@ -145,32 +157,32 @@ class SymbolicModel(nn.Module):
     def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
         """
         Map symbolic variables to their corresponding indices.
-        Method used during the forward pass when the model is in equation mode to determine 
+        Method used during the forward pass when the model is in equation mode to determine
         which input columns/transforms to extract and pass to each discovered symbolic equation.
-        
+
         Args:
             vars_sorted (List): List of symbolic variables from equation
             dim (int): Output dimension being processed
-            
+
         Returns:
             List[int]: List of variable indices
-            
+
         Raises:
             ValueError: If variables cannot be mapped to indices
         """
         var_indices = []
-        
+
         for var in vars_sorted:
             var_str = str(var)
             idx = None
-            
+
             # Try to match with custom variable names first
             if hasattr(self, '_variable_names') and self._variable_names:
                 try:
                     idx = self._variable_names.index(var_str)
                 except ValueError:
                     pass  # Variable not found in custom names, try other methods
-            
+
             # If not found in custom names, try default x0, x1, etc. format
             if idx is None and var_str.startswith('x'):
                 try:
@@ -183,7 +195,7 @@ class SymbolicModel(nn.Module):
                     if "exceeds available transforms" in str(e):
                         raise e
                     pass  # Not a valid x-numbered variable
-            
+
             if idx is None:
                 error_msg = f"Could not map variable '{var_str}' for dimension {dim}"
                 if hasattr(self, '_variable_names') and self._variable_names:
@@ -193,16 +205,114 @@ class SymbolicModel(nn.Module):
                 else:
                     error_msg += f"\n   Expected format: x0, x1, x2, etc."
                 raise ValueError(error_msg)
-            
+
             var_indices.append(idx)
-        
+
         return var_indices
-    
+
+    def _apply_slime_sampling(self, inputs_np, function_to_call, slime_params, sr_params, fit_params):
+        """
+        Apply SLIME sampling to create a local dataset around a point of interest.
+
+        Args:
+            inputs_np (np.ndarray): Input data
+            function_to_call (Callable): Function to evaluate outputs (block or callable)
+            slime_params (Dict): SLIME parameters
+            sr_params (Dict): SR parameters (will be modified with weighted loss)
+            fit_params (Dict): Fit parameters (will be modified with weights)
+
+        Returns:
+            tuple: (sampled_inputs, sampled_outputs, updated_sr_params, updated_fit_params)
+        """
+        # Merge default SLIME params with user-provided params
+        final_slime_params = {**self.DEFAULT_SLIME_PARAMS}
+        if slime_params is not None:
+            final_slime_params.update(slime_params)
+
+        x0 = final_slime_params['x']
+        J_neighbours = final_slime_params['J_neighbours']
+        num_synthetic = final_slime_params['num_synthetic']
+        real_weighting = final_slime_params['real_weighting']
+        nn_metric = final_slime_params['nn_metric']
+        var = final_slime_params['var']
+
+        # Validation
+        if real_weighting != 1.0 and num_synthetic == 0:
+            warnings.warn("real_weighting only works with num_synthetic > 0. Setting to 1.0", UserWarning)
+            real_weighting = 1.0
+
+        if x0 is not None:
+            if num_synthetic == 0:
+                raise ValueError("num_synthetic must be > 0 when x is specified in SLIME mode")
+            if J_neighbours >= len(inputs_np):
+                raise ValueError(f"J_neighbours ({J_neighbours}) must be < len(inputs) ({len(inputs_np)})")
+
+            # Convert x0 to numpy if needed
+            if isinstance(x0, torch.Tensor):
+                x0 = x0.detach().cpu().numpy()
+            x0 = np.array(x0)
+
+            # Find nearest neighbors
+            nbrs = NearestNeighbors(n_neighbors=J_neighbours, metric=nn_metric).fit(inputs_np)
+            _, indices = nbrs.kneighbors(x0.reshape(1, -1))
+            real_inputs = inputs_np[indices[0]]
+
+            # Compute variance
+            if var is None:
+                var_computed = np.var(real_inputs, axis=0, ddof=1) / 2
+                var_computed = np.maximum(var_computed, 1e-8)  # Avoid zero variance
+            else:
+                var_computed = var
+
+            # Generate synthetic samples
+            synthetic_samples = np.random.normal(
+                loc=x0,
+                scale=np.sqrt(var_computed),
+                size=(num_synthetic, len(x0))
+            ).astype(np.float64)
+
+            # Combine real and synthetic inputs
+            sr_inputs_slime = np.concatenate([real_inputs, synthetic_samples], axis=0).astype(np.float64)
+
+            # Get outputs for SLIME samples
+            slime_outputs = function_to_call(sr_inputs_slime)
+
+            # Prepare weights
+            synthetic_distances_sq = np.sum((synthetic_samples - x0)**2 / var_computed, axis=1)
+            gaussian_weights = np.exp(-synthetic_distances_sq).astype(np.float64)
+            slime_weights = np.concatenate([
+                np.full(len(real_inputs), real_weighting, dtype=np.float64),
+                gaussian_weights
+            ])
+
+            # Update sr_params with weighted loss
+            if sr_params is None:
+                sr_params = {}
+            sr_params = sr_params.copy()
+            sr_params['elementwise_loss'] = "loss(prediction, target, weight) = weight * (prediction - target)^2"
+
+            # Update fit_params with weights
+            if fit_params is None:
+                fit_params = {}
+            fit_params = fit_params.copy()
+            fit_params['weights'] = slime_weights
+
+            print(f"🔍 SLIME mode: Using {len(sr_inputs_slime)} points ({len(real_inputs)} real + {num_synthetic} synthetic)")
+            print(f"   Point of interest: {x0}")
+
+            return sr_inputs_slime, slime_outputs, sr_params, fit_params
+        else:
+            # Global SLIME (no local focus)
+            print("🔍 SLIME mode: Global (no local focus point)")
+            return inputs_np, function_to_call(inputs_np), sr_params, fit_params
+
     def distill(self, inputs, output_dim: int = None, parent_model=None,
                  variable_transforms: Optional[List[Callable]] = None,
                  save_path: str = None,
                  sr_params: Optional[Dict[str, Any]] = None,
-                 fit_params: Optional[Dict[str, Any]] = None):
+                 fit_params: Optional[Dict[str, Any]] = None,
+                 SLIME: bool = False,
+                 slime_params: Optional[Dict[str, Any]] = None):
 
         if isinstance(self.symtorch_block, Callable) and not isinstance(self.symtorch_block, nn.Module) and parent_model is not None:
             raise ValueError(
@@ -299,6 +409,19 @@ class SymbolicModel(nn.Module):
                 # Still store variable names even without transforms for switch_to_symbolic
                 self._variable_names = variable_names
 
+            # Apply SLIME sampling if enabled
+            if SLIME:
+                # Create function that evaluates the block
+                def eval_block(inputs_array):
+                    inputs_tensor = torch.tensor(inputs_array, dtype=torch.float32, device=actual_inputs.device)
+                    self.symtorch_block.eval()
+                    with torch.no_grad():
+                        return self.symtorch_block(inputs_tensor)
+
+                actual_inputs_numpy, output, sr_params, fit_params = self._apply_slime_sampling(
+                    actual_inputs_numpy, eval_block, slime_params, sr_params, fit_params
+                )
+
             timestamp = int(time.time())
 
             pysr_regressors = {}
@@ -375,7 +498,11 @@ class SymbolicModel(nn.Module):
 
                 print(f"❤️ SR on {self.block_name} complete.")
 
-            self.pysr_regressor = self.pysr_regressor | pysr_regressors
+            # Store in appropriate dictionary
+            if SLIME:
+                self.SLIME_pysr_regressor = self.SLIME_pysr_regressor | pysr_regressors
+            else:
+                self.pysr_regressor = self.pysr_regressor | pysr_regressors
 
             # For backward compatibility, return the regressor or dict of regressors
             if output_dim is not None:
@@ -451,6 +578,20 @@ class SymbolicModel(nn.Module):
                 # Still store variable names even without transforms for switch_to_symbolic
                 self._variable_names = variable_names
 
+            # Apply SLIME sampling if enabled
+            if SLIME:
+                # Create function that evaluates the callable
+                def eval_callable(inputs_array):
+                    outputs_raw = self.symtorch_block(inputs_array)
+                    if hasattr(outputs_raw, 'detach'):  # torch tensor
+                        return outputs_raw.detach().cpu().numpy()
+                    else:
+                        return np.array(outputs_raw)
+
+                inputs_np, outputs_np, sr_params, fit_params = self._apply_slime_sampling(
+                    inputs_np, eval_callable, slime_params, sr_params, fit_params
+                )
+
             # Handle both 1D and 2D outputs
             if outputs_np.ndim == 1:
                 outputs_np = outputs_np.reshape(-1, 1)
@@ -503,7 +644,12 @@ class SymbolicModel(nn.Module):
                 print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
 
             print(f"❤️ SR on {self.block_name} complete.")
-            self.pysr_regressor = self.pysr_regressor | pysr_regressors
+
+            # Store in appropriate dictionary
+            if SLIME:
+                self.SLIME_pysr_regressor = self.SLIME_pysr_regressor | pysr_regressors
+            else:
+                self.pysr_regressor = self.pysr_regressor | pysr_regressors
 
             # For backward compatibility, return the regressor or dict of regressors
             if output_dim is not None:
