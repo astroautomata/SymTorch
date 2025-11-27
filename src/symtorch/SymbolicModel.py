@@ -840,117 +840,160 @@ class SymbolicModel(nn.Module):
             self.symtorch_block = self._original_block
         print(f"✅ Switched {self.block_name} back to block")
 
-    def setup_pruning(self, initial_dim: int, target_dim: int, total_epochs: int,
-                      end_epoch_frac: float = 0.5,
+    def setup_pruning(self, initial_dim: int, target_dim: int, total_steps: int,
+                      end_step_frac: float = 0.5,
                       decay_rate: Literal['cosine', 'exp', 'linear'] = 'exp'):
-        
+        """
+        Set up pruning schedule for progressive dimensionality reduction on a per-step basis.
+
+        Creates a schedule that progressively reduces dimensions from initial_dim to target_dim
+        over the specified fraction of training steps using the chosen decay strategy.
+
+        Args:
+            initial_dim (int): Initial output dimensionality before pruning
+            target_dim (int): Target output dimensionality after pruning
+            total_steps (int): Total number of training steps
+            end_step_frac (float, optional): Fraction of total steps to complete pruning by.
+                                            Defaults to 0.5 (pruning ends halfway through training)
+            decay_rate (str, optional): Pruning schedule type. Options:
+                                      - 'exp': Exponential decay schedule (default)
+                                      - 'linear': Linear reduction schedule
+                                      - 'cosine': Cosine annealing schedule
+
+        Example:
+            >>> model.block.setup_pruning(initial_dim=64, target_dim=8, total_steps=10000)
+        """
+
         if not isinstance(self.symtorch_block, nn.Module):
-            assert "❌ Pruning only works on PyTorch MLPs, not callable functions."
+            raise ValueError("❌ Pruning only works on PyTorch MLPs, not callable functions.")
 
         self.initial_dim = initial_dim
         self.current_dim = initial_dim
-        self.target_dim = target_dim 
+        self.target_dim = target_dim
 
-        self._set_pruning_schedule = self._set_pruning_schedule(total_epochs, decay_rate, end_epoch_frac)
+        self.pruning_schedule = self._set_pruning_schedule(total_steps, decay_rate, end_step_frac)
         self.register_buffer('pruning_mask', torch.ones(self.current_dim, dtype=torch.bool))
 
-        print(f"✅ Pruning successfully set up for MLP {self.block_name}.")
+        print(f"✅ Pruning successfully set up for block {self.block_name}.")
+        print(f"   Initial dimensions: {initial_dim}")
+        print(f"   Target dimensions: {target_dim}")
+        print(f"   Total steps: {total_steps}")
+        print(f"   Pruning will complete at step {int(end_step_frac * total_steps)}")
 
         return None
 
 
-    def _set_pruning_schedule(self, total_epochs: int, decay_rate: str = 'cosine', end_epoch_frac: float = 0.5):
-        
-        prune_end_epoch = int(end_epoch_frac * total_epochs)
-        prune_epochs = prune_end_epoch
+    def _set_pruning_schedule(self, total_steps: int, decay_rate: str = 'cosine', end_step_frac: float = 0.5):
+        """
+        Create step-based pruning schedule.
+
+        Args:
+            total_steps (int): Total number of training steps
+            decay_rate (str): Type of decay schedule ('exp', 'linear', 'cosine')
+            end_step_frac (float): Fraction of steps to complete pruning by
+
+        Returns:
+            dict: Mapping from step number to target dimensions
+        """
+
+        prune_end_step = int(end_step_frac * total_steps)
+        prune_steps = prune_end_step
 
         dims_to_prune = self.initial_dim - self.target_dim
         schedule_dict = {}
 
-        #different pruning schedules
-        #exponential decay
+        # Different pruning schedules
+        # Exponential decay
         if decay_rate == 'exp':
-            decay_rate = 3.0
-            max_decay = 1 - math.exp(-decay_rate)
+            decay_rate_val = 3.0
+            max_decay = 1 - math.exp(-decay_rate_val)
 
-            for epoch in range(prune_end_epoch):
-                progress = epoch / prune_epochs
-                raw_decay = 1 - math.exp(-decay_rate * progress)
+            for step in range(prune_end_step):
+                progress = step / prune_steps
+                raw_decay = 1 - math.exp(-decay_rate_val * progress)
                 decay_factor = raw_decay / max_decay
 
                 dims_pruned = math.ceil(dims_to_prune * decay_factor)
                 target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
-                schedule_dict[epoch] = target_dims
+                schedule_dict[step] = target_dims
 
-        #linear decay
+        # Linear decay
         elif decay_rate == 'linear':
-            for epoch in range(prune_end_epoch):
-                progress = epoch / prune_epochs
+            for step in range(prune_end_step):
+                progress = step / prune_steps
                 dims_pruned = math.ceil(dims_to_prune * progress)
                 target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
-                schedule_dict[epoch] = target_dims
+                schedule_dict[step] = target_dims
 
-        #cosine decay
+        # Cosine decay
         elif decay_rate == 'cosine':
-            for epoch in range(prune_end_epoch):
-                progress = epoch / prune_epochs
+            for step in range(prune_end_step):
+                progress = step / prune_steps
                 cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
                 dims_pruned = math.ceil(dims_to_prune * (1 - cosine_decay))
                 target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
-                schedule_dict[epoch] = target_dims
+                schedule_dict[step] = target_dims
 
-        #keep target_dim for the last part of training
-        for epoch in range(prune_end_epoch, total_epochs):
-            schedule_dict[epoch] = self.target_dim
+        # Keep target_dim for the last part of training
+        for step in range(prune_end_step, total_steps):
+            schedule_dict[step] = self.target_dim
 
         return schedule_dict
     
-    def prune(self, epoch: int, sample_data: torch.Tensor, parent_model=None):
+    def prune(self, step: int, sample_data: torch.Tensor, parent_model=None):
         """
-        Perform pruning for the current epoch based on the pruning schedule.
-        
+        Perform pruning for the current training step based on the pruning schedule.
+
         Evaluates the importance of each output dimension by computing the standard deviation
         of activations across the sample data. Retains the most important dimensions according
-        to the current epoch's target dimensionality.
-        
+        to the current step's target dimensionality.
+
         Args:
-            epoch (int): Current training epoch
+            step (int): Current training step
             sample_data (torch.Tensor): Sample input data to evaluate dimension importance.
                                        Typically a subset of validation data.
-            parent_model (nn.Module, optional): The parent model containing this PruningMLP instance.
+            parent_model (nn.Module, optional): The parent model containing this SymbolicModel instance.
                                               If provided, will trace intermediate activations to get
                                               the actual outputs at this layer level for importance evaluation.
-                                       
+
         Note:
-            This method should be called during each training epoch. If the current epoch
+            This method should be called during training steps. If the current step
             is not in the pruning schedule, no pruning is performed.
+
+        Example:
+            >>> for step in range(total_steps):
+            >>>     # ... training code ...
+            >>>     if step % prune_every == 0:
+            >>>         model.block.prune(step, validation_data)
         """
 
-        if epoch not in self.pruning_schedule:
+        if not hasattr(self, 'pruning_schedule') or self.pruning_schedule is None:
+            raise RuntimeError('Pruning schedule is not set. Call setup_pruning() first.')
+
+        if step not in self.pruning_schedule:
             return
-        if self.pruning_schedule is None:
-            assert 'Pruning has not been set up for this block.'
-            
-        target_dims = self.pruning_schedule[epoch]
-        
+
+        target_dims = self.pruning_schedule[step]
+
         with torch.no_grad():
             # Extract outputs at this layer level for importance evaluation
             if parent_model is not None:
                 with self._capture_layer_output(parent_model, sample_data) as (_, layer_outputs):
                     pass
-                
+
                 # Use captured intermediate data
                 if layer_outputs:
                     output_array = layer_outputs[0]
                 else:
-                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicMLP instance.")
+                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance.")
             else:
-                # Original behavior - use MLP directly
-                output_array = self.InterpretSR_MLP(sample_data)
+                # Original behavior - use block directly
+                self.symtorch_block.eval()
+                output_array = self.symtorch_block(sample_data)
 
             output_importance = output_array.std(dim=0)
-            most_important = torch.argsort(output_importance)[-target_dims:]
-            
+            most_important = torch.argsort(output_importance, descending=True)[:target_dims]
+
             new_mask = torch.zeros_like(self.pruning_mask)
             new_mask[most_important] = True
             # Update the registered buffer (this maintains device consistency)
