@@ -36,7 +36,7 @@ class SymbolicModel(nn.Module):
     # Default SLIME parameters
     DEFAULT_SLIME_PARAMS = {
         "x": None,                  # Point of interest for local explanation
-        "J_neighbours": 10,         # Number of nearest neighbors
+        "J_nn": 10,                 # Number of nearest neighbors
         "num_synthetic": 100,       # Number of synthetic samples
         "real_weighting": 1.0,      # Weight for real samples vs synthetic
         "nn_metric": 'euclidean',   # Distance metric for nearest neighbors
@@ -230,7 +230,7 @@ class SymbolicModel(nn.Module):
             final_slime_params.update(slime_params)
 
         x0 = final_slime_params['x']
-        J_neighbours = final_slime_params['J_neighbours']
+        J_nn = final_slime_params['J_nn']
         num_synthetic = final_slime_params['num_synthetic']
         real_weighting = final_slime_params['real_weighting']
         nn_metric = final_slime_params['nn_metric']
@@ -244,8 +244,8 @@ class SymbolicModel(nn.Module):
         if x0 is not None:
             if num_synthetic == 0:
                 raise ValueError("num_synthetic must be > 0 when x is specified in SLIME mode")
-            if J_neighbours >= len(inputs_np):
-                raise ValueError(f"J_neighbours ({J_neighbours}) must be < len(inputs) ({len(inputs_np)})")
+            if J_nn >= len(inputs_np):
+                raise ValueError(f"J_nn ({J_nn}) must be < len(inputs) ({len(inputs_np)})")
 
             # Convert x0 to numpy if needed
             if isinstance(x0, torch.Tensor):
@@ -253,7 +253,7 @@ class SymbolicModel(nn.Module):
             x0 = np.array(x0)
 
             # Find nearest neighbors
-            nbrs = NearestNeighbors(n_neighbors=J_neighbours, metric=nn_metric).fit(inputs_np)
+            nbrs = NearestNeighbors(n_neighbors=J_nn, metric=nn_metric).fit(inputs_np)
             _, indices = nbrs.kneighbors(x0.reshape(1, -1))
             real_inputs = inputs_np[indices[0]]
 
@@ -657,34 +657,43 @@ class SymbolicModel(nn.Module):
             else:
                 return pysr_regressors
             
-    def _get_equation(self, dim, complexity: int = None):
+    def _get_equation(self, dim, complexity: int = None, SLIME: bool = False):
         """
         Extract symbolic equation function from fitted regressor.
-        
+
         Converts the symbolic expression from PySR into a callable function
         that can be used for prediction.
-        
+
         Args:
             dim (int): Output dimension to get equation for.
             complexity (int, optional): Specific complexity level to retrieve.
                                       If None, returns the best overall equation.
-                                      
+            SLIME (bool, optional): If True, use SLIME regressor instead of standard regressor.
+
         Returns:
             tuple or None: (equation_function, sorted_variables) if successful,
                           None if no equation found or complexity not available
-                          
+
 
         Note:
             This is an internal method. Use switch_to_symbolic() for public API.
         """
-        if not hasattr(self, 'pysr_regressor') or self.pysr_regressor is None:
-            print("❗No equations found for this block yet. You need to first run .distill to find the best equation to fit this block.")
+        # Select appropriate regressor dictionary
+        if SLIME:
+            regressor_dict = self.SLIME_pysr_regressor
+            mode_name = "SLIME"
+        else:
+            regressor_dict = self.pysr_regressor
+            mode_name = "standard"
+
+        if not hasattr(self, regressor_dict.__class__.__name__.replace('dict', 'pysr_regressor')) or regressor_dict is None:
+            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return None
-        if dim not in self.pysr_regressor:
-            print(f"❗No equation found for output dimension {dim}. You need to first run .distill.")
+        if dim not in regressor_dict:
+            print(f"❗No {mode_name} equation found for output dimension {dim}. You need to first run .distill with SLIME={SLIME}.")
             return None
 
-        regressor = self.pysr_regressor[dim]
+        regressor = regressor_dict[dim]
         
         if complexity is None:
             best_str = regressor.get_best()["equation"] 
@@ -705,7 +714,7 @@ class SymbolicModel(nn.Module):
             print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
             return None
 
-    def switch_to_symbolic(self, complexity: list = None):
+    def switch_to_symbolic(self, complexity: list = None, SLIME: bool = False):
         """
         Switch the forward pass from model block to symbolic equations for all output dimensions.
 
@@ -718,13 +727,23 @@ class SymbolicModel(nn.Module):
         Args:
             complexity (list, optional): Specific complexity levels to use for each dimension.
                                       If None, uses the best overall equation for each dimension.
+            SLIME (bool, optional): If True, use SLIME equations instead of standard equations.
 
         Example:
             >>> model.switch_to_symbolic(complexity=5)
+            >>> model.switch_to_symbolic(SLIME=True)
 
         """
-        if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
-            print("❗No equations found for this block yet. You need to first run .distill.")
+        # Select appropriate regressor dictionary
+        if SLIME:
+            regressor_dict = self.SLIME_pysr_regressor
+            mode_name = "SLIME"
+        else:
+            regressor_dict = self.pysr_regressor
+            mode_name = "standard"
+
+        if not regressor_dict:
+            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return
 
         if not hasattr(self, 'output_dims'):
@@ -742,11 +761,11 @@ class SymbolicModel(nn.Module):
             # Check that we have equations for all active dimensions
             missing_dims = []
             for dim in active_dims:
-                if dim not in self.pysr_regressor:
+                if dim not in regressor_dict:
                     missing_dims.append(dim)
 
             if missing_dims:
-                print(f"❗Missing equations for active dimensions {missing_dims}. You need to run .distill on all active dimensions first.")
+                print(f"❗Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first.")
                 return
 
             dimensions_to_process = active_dims
@@ -754,12 +773,12 @@ class SymbolicModel(nn.Module):
             # Standard mode - need equations for all dimensions
             missing_dims = []
             for dim in range(self.output_dims):
-                if dim not in self.pysr_regressor:
+                if dim not in regressor_dict:
                     missing_dims.append(dim)
 
             if missing_dims:
-                print(f"❗Missing equations for dimensions {missing_dims}. You need to run .distill on all output dimensions first.")
-                print(f"Available dimensions: {list(self.pysr_regressor.keys())}")
+                print(f"❗Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first.")
+                print(f"Available dimensions: {list(regressor_dict.keys())}")
                 print(f"Required dimensions: {list(range(self.output_dims))}")
                 return
 
@@ -787,7 +806,7 @@ class SymbolicModel(nn.Module):
                     # If complexity is a single value, use it for all dimensions
                     dim_complexity = complexity
 
-            result = self._get_equation(dim, dim_complexity)
+            result = self._get_equation(dim, dim_complexity, SLIME=SLIME)
             if result is None:
                 print(f"⚠️ Failed to get equation for dimension {dim}")
                 return
@@ -801,7 +820,7 @@ class SymbolicModel(nn.Module):
             equation_vars[dim] = var_indices
 
             # Get equation string for display
-            regressor = self.pysr_regressor[dim]
+            regressor = regressor_dict[dim]
             if dim_complexity is None:
                 equation_strs[dim] = regressor.get_best()["equation"]
             else:
@@ -814,10 +833,11 @@ class SymbolicModel(nn.Module):
         self._using_equation = True
 
         # Print success messages
+        mode_label = f"{mode_name} " if SLIME else ""
         if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
-            print(f"✅ Successfully switched {self.block_name} to symbolic equations for {len(dimensions_to_process)} active dimensions:")
+            print(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for {len(dimensions_to_process)} active dimensions:")
         else:
-            print(f"✅ Successfully switched {self.block_name} to symbolic equations for all {len(dimensions_to_process)} dimensions:")
+            print(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for all {len(dimensions_to_process)} dimensions:")
 
         for dim in dimensions_to_process:
             print(f"   Dimension {dim}: {equation_strs[dim]}")
@@ -838,15 +858,23 @@ class SymbolicModel(nn.Module):
             print(f"   Variables: {var_names_display}")
 
         if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
-            print(f"🎯 Active dimensions {dimensions_to_process} now using symbolic equations.")
+            print(f"🎯 Active dimensions {dimensions_to_process} now using {mode_label}symbolic equations.")
             print(f"🔒 Inactive dimensions will output zeros.")
         else:
-            print(f"🎯 All {len(dimensions_to_process)} output dimensions now using symbolic equations.")
+            print(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
 
-    def get_symbolic_function(self, dim: int = 0, complexity: int = None):
+    def get_symbolic_function(self, dim: int = 0, complexity: int = None, SLIME: bool = False):
 
-        if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
-            raise ValueError("No equations found. Run .distill() first.")
+        # Select appropriate regressor dictionary
+        if SLIME:
+            regressor_dict = self.SLIME_pysr_regressor
+            mode_name = "SLIME"
+        else:
+            regressor_dict = self.pysr_regressor
+            mode_name = "standard"
+
+        if not regressor_dict:
+            raise ValueError(f"No {mode_name} equations found. Run .distill(SLIME={SLIME}) first.")
 
         if not hasattr(self, 'output_dims'):
             raise ValueError("No output dimension information found. Run .distill() first.")
@@ -857,10 +885,10 @@ class SymbolicModel(nn.Module):
         elif dim >= self.output_dims:
             raise ValueError(f"Dimension {dim} out of range. Model has {self.output_dims} output dimensions (0-{self.output_dims-1})")
 
-        if dim not in self.pysr_regressor:
-            raise ValueError(f"No equation found for dimension {dim}. Available dimensions: {list(self.pysr_regressor.keys())}")
+        if dim not in regressor_dict:
+            raise ValueError(f"No {mode_name} equation found for dimension {dim}. Available dimensions: {list(regressor_dict.keys())}")
 
-        regressor = self.pysr_regressor[dim]
+        regressor = regressor_dict[dim]
 
         # Get the equation at specified complexity or best equation
         if complexity is None:
@@ -903,10 +931,18 @@ class SymbolicModel(nn.Module):
 
         return symbolic_func
 
-    def show_symbolic_expression(self, dim = None, complexity = None):
+    def show_symbolic_expression(self, dim = None, complexity = None, SLIME: bool = False):
 
-        if not hasattr(self, 'pysr_regressor') or not self.pysr_regressor:
-            print("❗No equations found for this block yet. You need to first run .distill.")
+        # Select appropriate regressor dictionary
+        if SLIME:
+            regressor_dict = self.SLIME_pysr_regressor
+            mode_name = "SLIME"
+        else:
+            regressor_dict = self.pysr_regressor
+            mode_name = "standard"
+
+        if not regressor_dict:
+            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return
 
         if not hasattr(self, 'output_dims'):
@@ -921,7 +957,7 @@ class SymbolicModel(nn.Module):
             if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
                 dims_to_show = self.get_active_dimensions()
                 if dims_to_show:
-                    print(f"ℹ️ Showing expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
+                    print(f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
             else:
                 dims_to_show = list(range(self.output_dims))
         else:
@@ -930,11 +966,11 @@ class SymbolicModel(nn.Module):
         # Show all equations for specified dimensions
         if complexity is None:
             for i in dims_to_show:
-                if i not in self.pysr_regressor:
-                    print(f"❌ No expression distilled for output dimension {i}.")
+                if i not in regressor_dict:
+                    print(f"❌ No {mode_name} expression distilled for output dimension {i}.")
                     continue
-                regressor = self.pysr_regressor[i]
-                print(f"\n➡️ Symbolic expressions for output dimension {i}:")
+                regressor = regressor_dict[i]
+                print(f"\n➡️ {mode_name.capitalize()} symbolic expressions for output dimension {i}:")
                 print(regressor.equations_)
                 best_equation = regressor.get_best()
                 print(f"🏆 Best: {best_equation['equation']} (loss: {best_equation['loss']:.6e})")
@@ -951,11 +987,11 @@ class SymbolicModel(nn.Module):
                 return
 
             for i, comp in zip(dims_to_show, complexities):
-                if i not in self.pysr_regressor:
-                    print(f"❌ No expression distilled for output dimension {i}.")
+                if i not in regressor_dict:
+                    print(f"❌ No {mode_name} expression distilled for output dimension {i}.")
                     continue
 
-                regressor = self.pysr_regressor[i]
+                regressor = regressor_dict[i]
                 matching_rows = regressor.equations_[regressor.equations_["complexity"] == comp]
 
                 if matching_rows.empty:
