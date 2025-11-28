@@ -44,6 +44,38 @@ class SymbolicModel(nn.Module):
     }
 
     def __init__(self, block: Union[nn.Module, Callable], block_name: str = None):
+        """
+        Initialize a SymbolicModel wrapper for symbolic regression.
+
+        Creates a unified wrapper that can perform symbolic regression on either
+        PyTorch nn.Module layers or any callable function. This is the entry point
+        for all SymTorch functionality including layer-level analysis, model-agnostic
+        symbolic regression, SLIME local interpretability, and pruning.
+
+        Args:
+            block (Union[nn.Module, Callable]): The component to wrap. Can be:
+                - A PyTorch nn.Module (e.g., nn.Linear, custom layer) for layer-level mode
+                - Any callable function for model-agnostic mode (PyTorch models,
+                  scikit-learn models, TensorFlow models, pure Python functions)
+            block_name (str, optional): Human-readable identifier for this block.
+                If None, generates a unique name based on object ID.
+
+        Examples:
+            >>> # Layer-level mode: Wrap a PyTorch layer
+            >>> import torch.nn as nn
+            >>> layer = nn.Linear(10, 5)
+            >>> symbolic_layer = SymbolicModel(layer, block_name='hidden_layer_1')
+
+            >>> # Model-agnostic mode: Wrap a callable function
+            >>> def my_function(x):
+            ...     return x[:, 0]**2 + 3*np.sin(x[:, 1])
+            >>> symbolic_func = SymbolicModel(my_function, block_name='my_func')
+
+            >>> # Model-agnostic mode: Wrap a scikit-learn model's predict method
+            >>> from sklearn.ensemble import RandomForestRegressor
+            >>> rf = RandomForestRegressor().fit(X_train, y_train)
+            >>> symbolic_rf = SymbolicModel(rf.predict, block_name='rf_model')
+        """
 
         super().__init__()
         self.symtorch_block = block
@@ -313,6 +345,104 @@ class SymbolicModel(nn.Module):
                  fit_params: Optional[Dict[str, Any]] = None,
                  SLIME: bool = False,
                  slime_params: Optional[Dict[str, Any]] = None):
+        """
+        Perform symbolic regression to discover symbolic equations.
+
+        This is the main method for extracting symbolic representations from neural networks
+        or arbitrary functions. It uses PySR (Python Symbolic Regression) to find mathematical
+        expressions that approximate the behavior of the wrapped block or function.
+
+        The method supports multiple operational modes:
+        - Layer-level mode: Analyze intermediate activations within a parent model
+        - Model-agnostic mode: Analyze any callable function directly
+        - SLIME mode: Local interpretability around specific data points
+        - Pruning mode: Symbolic regression on only active dimensions
+
+        Args:
+            inputs (torch.Tensor or np.ndarray): Input data for symbolic regression.
+                - For layer-level mode with parent_model: inputs to the parent model
+                - For direct mode: inputs to the block/function itself
+                Shape: (num_samples, input_dim)
+            output_dim (int, optional): Specific output dimension to process.
+                If None, processes all output dimensions. Useful for incremental analysis.
+            parent_model (nn.Module, optional): Parent model containing this layer.
+                Required for layer-level mode to capture intermediate activations.
+                Must be None for callable functions (non-nn.Module blocks).
+            variable_transforms (List[Callable], optional): List of transformation functions
+                to apply to inputs before symbolic regression. Each function should take
+                inputs and return a 1D tensor/array. Useful for feature engineering.
+            save_path (str, optional): Directory path to save PySR outputs.
+                If None, saves to 'SR_output/{block_name}'.
+            sr_params (Dict[str, Any], optional): Custom PySR parameters to override defaults.
+                Common parameters:
+                - 'niterations': Number of iterations (default: 400)
+                - 'binary_operators': List of binary ops (default: ["+", "*"])
+                - 'unary_operators': List of unary ops (default: ["inv(x) = 1/x", "sin", "exp"])
+                - 'complexity_of_operators': Complexity constraints (default: {"sin": 3, "exp": 3})
+            fit_params (Dict[str, Any], optional): Parameters passed to PySRRegressor.fit().
+                - 'variable_names': List of custom names for input variables
+                - 'weights': Sample weights for weighted regression
+            SLIME (bool, optional): Enable SLIME mode for local interpretability.
+                Default: False. When True, focuses regression around specific points.
+            slime_params (Dict[str, Any], optional): SLIME configuration parameters.
+                - 'x': Point of interest for local explanation (np.ndarray or None for global)
+                - 'J_nn': Number of nearest neighbors (default: 10)
+                - 'num_synthetic': Number of synthetic samples (default: 100)
+                - 'real_weighting': Weight for real vs synthetic samples (default: 1.0)
+                - 'nn_metric': Distance metric (default: 'euclidean')
+                - 'var': Variance for perturbations (default: auto-computed)
+
+        Returns:
+            Union[PySRRegressor, Dict[int, PySRRegressor]]:
+                - If output_dim is specified: Single PySRRegressor for that dimension
+                - If output_dim is None: Dictionary mapping dimension indices to PySRRegressors
+
+        Raises:
+            ValueError: If parent_model is provided with a Callable (non-nn.Module) block
+            ValueError: If variable_transforms length doesn't match variable_names length
+            ValueError: If SLIME mode with point of interest but num_synthetic=0
+            RuntimeError: If layer-level mode fails to capture intermediate activations
+
+        Examples:
+            >>> # Layer-level mode: Analyze a hidden layer within a parent model
+            >>> model = MyNeuralNetwork()
+            >>> symbolic_layer = SymbolicModel(model.hidden_layer, block_name='layer_1')
+            >>> symbolic_layer.distill(training_data, parent_model=model)
+            >>> symbolic_layer.show_symbolic_expression()
+
+            >>> # Model-agnostic mode: Analyze a function directly
+            >>> def f(x):
+            ...     return x[:, 0]**2 + 3*np.sin(x[:, 1])
+            >>> symbolic_func = SymbolicModel(f, block_name='my_func')
+            >>> symbolic_func.distill(training_data)
+            >>> symbolic_func.switch_to_symbolic()
+
+            >>> # SLIME mode: Local explanation around a specific point
+            >>> x0 = np.array([1.0, 2.0])
+            >>> slime_params = {'x': x0, 'J_nn': 10, 'num_synthetic': 100}
+            >>> symbolic_func.distill(training_data, SLIME=True, slime_params=slime_params)
+            >>> symbolic_func.show_symbolic_expression(SLIME=True)
+
+            >>> # With custom variable transforms and names
+            >>> transforms = [
+            ...     lambda x: x[:, 0] + x[:, 1],  # Sum of first two features
+            ...     lambda x: x[:, 0] * x[:, 1],  # Product of first two features
+            ...     lambda x: torch.sin(x[:, 2])  # Sin of third feature
+            ... ]
+            >>> fit_params = {'variable_names': ['sum_01', 'prod_01', 'sin_2']}
+            >>> symbolic_layer.distill(data, variable_transforms=transforms, fit_params=fit_params)
+
+            >>> # With custom SR parameters
+            >>> sr_params = {
+            ...     'niterations': 1000,
+            ...     'binary_operators': ["+", "*", "-", "/"],
+            ...     'complexity_of_operators': {"sin": 5, "exp": 5}
+            ... }
+            >>> symbolic_func.distill(data, sr_params=sr_params)
+
+            >>> # Process only a specific output dimension
+            >>> symbolic_layer.distill(data, output_dim=2, parent_model=model)
+        """
 
         if isinstance(self.symtorch_block, Callable) and not isinstance(self.symtorch_block, nn.Module) and parent_model is not None:
             raise ValueError(
@@ -864,6 +994,67 @@ class SymbolicModel(nn.Module):
             print(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
 
     def get_symbolic_function(self, dim: int = 0, complexity: int = None, SLIME: bool = False):
+        """
+        Get a callable Python function for a specific output dimension's symbolic equation.
+
+        Returns a standalone Python function that evaluates the discovered symbolic expression
+        for a given output dimension. This function can be used independently of the SymbolicModel
+        for predictions, analysis, or integration into other code.
+
+        The returned function automatically handles variable extraction and transformation based
+        on the configuration used during distill().
+
+        Args:
+            dim (int, optional): Output dimension to retrieve function for. Default: 0.
+                For models with only one output dimension, dim=0 is automatically used.
+            complexity (int, optional): Specific complexity level to retrieve.
+                If None, returns the best overall equation discovered by PySR.
+                Use this to get simpler or more complex versions of the equation.
+            SLIME (bool, optional): If True, retrieve SLIME equation instead of standard equation.
+                Default: False. Must have run distill(SLIME=True) first.
+
+        Returns:
+            Callable: A function that takes input data (torch.Tensor or np.ndarray) and returns
+                predictions as np.ndarray. The function signature is: f(x) -> np.ndarray
+
+        Raises:
+            ValueError: If no equations found (distill() not called yet)
+            ValueError: If dimension is out of range
+            ValueError: If requested dimension doesn't have an equation
+            ValueError: If requested complexity level doesn't exist
+            RuntimeError: If lambdify fails to create the function
+
+        Examples:
+            >>> # Get the symbolic function for dimension 0
+            >>> symbolic_model.distill(training_data)
+            >>> sym_func = symbolic_model.get_symbolic_function(dim=0)
+            >>> predictions = sym_func(test_data)
+
+            >>> # Get a simpler equation at lower complexity
+            >>> sym_func_simple = symbolic_model.get_symbolic_function(dim=0, complexity=3)
+            >>> simple_predictions = sym_func_simple(test_data)
+
+            >>> # Get SLIME local explanation function
+            >>> slime_params = {'x': np.array([1.0, 2.0]), 'J_nn': 10, 'num_synthetic': 100}
+            >>> symbolic_model.distill(data, SLIME=True, slime_params=slime_params)
+            >>> local_func = symbolic_model.get_symbolic_function(dim=0, SLIME=True)
+            >>> local_predictions = local_func(test_data)
+
+            >>> # Use the function independently
+            >>> import numpy as np
+            >>> test_input = np.random.randn(100, 5)
+            >>> output = sym_func(test_input)  # Works with numpy arrays
+            >>>
+            >>> import torch
+            >>> test_tensor = torch.randn(100, 5)
+            >>> output = sym_func(test_tensor)  # Also works with torch tensors
+
+            >>> # For multi-output models, get functions for each dimension
+            >>> functions = []
+            >>> for dim in range(model.output_dims):
+            ...     functions.append(symbolic_model.get_symbolic_function(dim=dim))
+            >>> outputs = [f(test_data) for f in functions]
+        """
 
         # Select appropriate regressor dictionary
         if SLIME:
@@ -932,6 +1123,63 @@ class SymbolicModel(nn.Module):
         return symbolic_func
 
     def show_symbolic_expression(self, dim = None, complexity = None, SLIME: bool = False):
+        """
+        Display the discovered symbolic expressions for output dimensions.
+
+        Prints the symbolic equations discovered by PySR in a human-readable format.
+        Can show all equations at all complexity levels or specific equations at specific
+        complexity levels. Useful for inspecting and comparing different symbolic approximations.
+
+        Args:
+            dim (int, list, or None, optional): Dimension(s) to display.
+                - None: Show all dimensions (or all active dimensions if pruning is enabled)
+                - int: Show only the specified dimension
+                - list: Show multiple specified dimensions
+                Default: None (show all)
+            complexity (int, list, or None, optional): Complexity level(s) to display.
+                - None: Show all equations at all complexity levels plus the best equation
+                - int: Show equation at this specific complexity for all specified dimensions
+                - list: Show equations at specified complexities (must match length of dim list)
+                Default: None (show all)
+            SLIME (bool, optional): If True, show SLIME equations instead of standard equations.
+                Default: False. Must have run distill(SLIME=True) first.
+
+        Returns:
+            None: This method prints to console and does not return a value.
+
+        Examples:
+            >>> # Show all equations for all dimensions
+            >>> symbolic_model.distill(training_data)
+            >>> symbolic_model.show_symbolic_expression()
+
+            >>> # Show equations for a specific dimension
+            >>> symbolic_model.show_symbolic_expression(dim=0)
+
+            >>> # Show equation at specific complexity for dimension 0
+            >>> symbolic_model.show_symbolic_expression(dim=0, complexity=5)
+
+            >>> # Show equations for multiple dimensions at different complexities
+            >>> symbolic_model.show_symbolic_expression(dim=[0, 1, 2], complexity=[3, 5, 4])
+
+            >>> # Show SLIME local interpretability equations
+            >>> slime_params = {'x': np.array([1.0, 2.0]), 'J_nn': 10, 'num_synthetic': 100}
+            >>> symbolic_model.distill(data, SLIME=True, slime_params=slime_params)
+            >>> symbolic_model.show_symbolic_expression(SLIME=True)
+
+            >>> # For pruned models, shows only active dimensions by default
+            >>> symbolic_model.setup_pruning(initial_dim=64, target_dim=8, total_steps=10000)
+            >>> # ... training with pruning ...
+            >>> symbolic_model.distill(data)
+            >>> symbolic_model.show_symbolic_expression()  # Shows only 8 active dimensions
+
+            >>> # Show specific dimensions for a multi-output model
+            >>> symbolic_model.show_symbolic_expression(dim=[0, 2, 5])
+
+            >>> # Compare equations at different complexity levels
+            >>> for c in [3, 5, 7]:
+            ...     print(f"\nComplexity {c}:")
+            ...     symbolic_model.show_symbolic_expression(dim=0, complexity=c)
+        """
 
         # Select appropriate regressor dictionary
         if SLIME:
