@@ -953,3 +953,313 @@ class TestIntegration:
         result = sym_func(test_input)
 
         assert result is not None
+
+
+# ============================================================================
+# Test I/O Caching Functionality
+# ============================================================================
+
+class TestIOCaching:
+    """Tests for I/O caching functionality."""
+
+    def test_cache_initialization(self, symbolic_model):
+        """Test that cache attributes are initialized."""
+        assert hasattr(symbolic_model, 'distill_data')
+        assert hasattr(symbolic_model, 'distill_data_slime')
+        assert symbolic_model.distill_data is None
+        assert symbolic_model.distill_data_slime is None
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_storage_module(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor):
+        """Test that cache is stored after distill() for nn.Module."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # First distill call
+        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+
+        # Check cache exists
+        assert symbolic_model.distill_data is not None
+        assert isinstance(symbolic_model.distill_data, dict)
+
+        # Check cache structure
+        assert 'inputs' in symbolic_model.distill_data
+        assert 'sr_inputs' in symbolic_model.distill_data
+        assert 'sr_outputs' in symbolic_model.distill_data
+        assert 'parent_model' in symbolic_model.distill_data
+
+        # Check cache contents match expected shapes
+        assert symbolic_model.distill_data['inputs'].shape == (50, 5)
+        assert symbolic_model.distill_data['parent_model'] is None
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_storage_callable(self, mock_pysr_class, sample_inputs_np, fast_sr_params):
+        """Test that cache is stored after distill() for Callable."""
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0**2", "loss": 0.001}
+        mock_pysr_class.return_value = mock_reg
+
+        def my_func(x):
+            return x[:, 0] ** 2
+
+        model = SymbolicModel(my_func, block_name="cache_callable")
+        model.distill(sample_inputs_np, sr_params=fast_sr_params)
+
+        # Check cache exists
+        assert model.distill_data is not None
+        assert 'inputs' in model.distill_data
+        assert 'sr_inputs' in model.distill_data
+        assert 'sr_outputs' in model.distill_data
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_hit_module(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor, capsys):
+        """Test cache hit on second distill() call with same inputs."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # First call - should populate cache
+        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+
+        # Second call with same inputs - should hit cache
+        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+
+        # Check for cache hit message
+        captured = capsys.readouterr()
+        assert "Cache hit" in captured.out or "🔄" in captured.out
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_miss_different_inputs(self, mock_pysr_class, symbolic_model, fast_sr_params, mock_pysr_regressor):
+        """Test cache miss when inputs change."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # First call
+        inputs1 = torch.randn(50, 5)
+        symbolic_model.distill(inputs1, sr_params=fast_sr_params)
+
+        # Store first cache
+        first_cache_inputs = symbolic_model.distill_data['inputs'].copy()
+
+        # Second call with different inputs
+        inputs2 = torch.randn(50, 5)
+        symbolic_model.distill(inputs2, sr_params=fast_sr_params)
+
+        # Cache should be updated
+        second_cache_inputs = symbolic_model.distill_data['inputs']
+        assert not np.array_equal(first_cache_inputs, second_cache_inputs)
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_separate_slime_standard(self, mock_pysr_class, sample_inputs_np, fast_sr_params):
+        """Test that SLIME and standard mode use separate caches."""
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0", "loss": 0.001}
+        mock_pysr_class.return_value = mock_reg
+
+        def my_func(x):
+            return x[:, 0]
+
+        model = SymbolicModel(my_func, block_name="cache_separate")
+
+        # Standard distill
+        model.distill(sample_inputs_np, sr_params=fast_sr_params)
+        assert model.distill_data is not None
+        assert model.distill_data_slime is None
+
+        # SLIME distill
+        slime_params = {'x': sample_inputs_np[0], 'J_nn': 10, 'num_synthetic': 50}
+        model.distill(sample_inputs_np, SLIME=True, slime_params=slime_params, sr_params=fast_sr_params)
+
+        # Both caches should exist
+        assert model.distill_data is not None
+        assert model.distill_data_slime is not None
+
+        # SLIME cache should have slime_params
+        assert 'slime_params' in model.distill_data_slime
+        assert 'slime_params' not in model.distill_data
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_slime_params_validation(self, mock_pysr_class, sample_inputs_np, fast_sr_params):
+        """Test that cache is invalidated when SLIME params change."""
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0", "loss": 0.001}
+        mock_pysr_class.return_value = mock_reg
+
+        def my_func(x):
+            return x[:, 0]
+
+        model = SymbolicModel(my_func, block_name="cache_slime_validation")
+
+        # First SLIME distill with specific params
+        slime_params1 = {'x': sample_inputs_np[0], 'J_nn': 10, 'num_synthetic': 50}
+        model.distill(sample_inputs_np, SLIME=True, slime_params=slime_params1, sr_params=fast_sr_params)
+
+        first_cache = model.distill_data_slime.copy()
+
+        # Second SLIME distill with different params - should not hit cache
+        slime_params2 = {'x': sample_inputs_np[1], 'J_nn': 10, 'num_synthetic': 50}
+        model.distill(sample_inputs_np, SLIME=True, slime_params=slime_params2, sr_params=fast_sr_params)
+
+        # Cache should be updated
+        second_cache = model.distill_data_slime
+        assert not np.array_equal(first_cache['slime_params']['x'], second_cache['slime_params']['x'])
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_data_matches_forward_pass_module(self, mock_pysr_class, simple_layer, sample_inputs, fast_sr_params, mock_pysr_regressor):
+        """Test that cached sr_outputs match actual forward pass outputs for nn.Module."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        model = SymbolicModel(simple_layer, block_name="cache_validation")
+
+        # Get expected output from forward pass
+        with torch.no_grad():
+            expected_output = simple_layer(sample_inputs).detach().cpu().numpy()
+
+        # Run distill to populate cache
+        model.distill(sample_inputs, sr_params=fast_sr_params)
+
+        # Check that cached output matches forward pass
+        cached_output = model.distill_data['sr_outputs']
+        np.testing.assert_array_almost_equal(cached_output, expected_output, decimal=5)
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_data_matches_forward_pass_callable(self, mock_pysr_class, sample_inputs_np, fast_sr_params):
+        """Test that cached sr_outputs match actual function outputs for Callable."""
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0**2 + x1", "loss": 0.001}
+        mock_pysr_class.return_value = mock_reg
+
+        def my_func(x):
+            return x[:, 0]**2 + x[:, 1]
+
+        model = SymbolicModel(my_func, block_name="cache_callable_validation")
+
+        # Get expected output
+        expected_output = my_func(sample_inputs_np)
+
+        # Run distill to populate cache
+        model.distill(sample_inputs_np, sr_params=fast_sr_params)
+
+        # Check that cached output matches function output
+        cached_output = model.distill_data['sr_outputs'].flatten()
+        np.testing.assert_array_almost_equal(cached_output, expected_output, decimal=5)
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_clear_cache_method(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor, capsys):
+        """Test clear_cache() method."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # Populate cache
+        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+        assert symbolic_model.distill_data is not None
+
+        # Clear cache
+        symbolic_model.clear_cache()
+
+        # Check cache is cleared
+        assert symbolic_model.distill_data is None
+        assert symbolic_model.distill_data_slime is None
+
+        # Check for success message
+        captured = capsys.readouterr()
+        assert "Cache cleared" in captured.out or "✅" in captured.out
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_with_parent_model(self, mock_pysr_class, fast_sr_params, mock_pysr_regressor):
+        """Test that cache stores parent_model reference correctly."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # Create a simple parent model
+        layer = nn.Linear(5, 3)
+        symbolic_layer = SymbolicModel(layer, block_name="cache_parent")
+
+        class ParentModel(nn.Module):
+            def __init__(self, sym_layer):
+                super().__init__()
+                self.layer1 = nn.Linear(10, 5)
+                self.symbolic_layer = sym_layer
+                self.layer2 = nn.Linear(3, 2)
+
+            def forward(self, x):
+                x = self.layer1(x)
+                x = self.symbolic_layer(x)
+                x = self.layer2(x)
+                return x
+
+        parent = ParentModel(symbolic_layer)
+        inputs = torch.randn(50, 10)
+
+        # Distill with parent model
+        symbolic_layer.distill(inputs, parent_model=parent, sr_params=fast_sr_params)
+
+        # Check cache stores parent model reference
+        assert symbolic_layer.distill_data['parent_model'] is parent
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_invalidated_parent_model_change(self, mock_pysr_class, fast_sr_params, mock_pysr_regressor):
+        """Test that cache is invalidated when parent_model changes."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        layer = nn.Linear(5, 3)
+        symbolic_layer = SymbolicModel(layer, block_name="cache_parent_change")
+
+        inputs = torch.randn(50, 5)
+
+        # First distill without parent model
+        symbolic_layer.distill(inputs, sr_params=fast_sr_params)
+        assert symbolic_layer.distill_data['parent_model'] is None
+
+        # Create parent model
+        parent = nn.Sequential(nn.Linear(10, 5), symbolic_layer)
+        parent_inputs = torch.randn(50, 10)
+
+        # Distill with parent model - should not hit cache
+        symbolic_layer.distill(parent_inputs, parent_model=parent, sr_params=fast_sr_params)
+
+        # Cache should have parent model reference now
+        assert symbolic_layer.distill_data['parent_model'] is parent
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_with_variable_transforms(self, mock_pysr_class, sample_inputs, fast_sr_params, mock_pysr_regressor):
+        """Test that cache stores transformed inputs correctly."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        layer = nn.Linear(5, 2)
+        model = SymbolicModel(layer, block_name="cache_transforms")
+
+        # Define transforms
+        transforms = [
+            lambda x: x[:, 0],
+            lambda x: x[:, 1] ** 2,
+            lambda x: torch.sin(x[:, 2])
+        ]
+
+        variable_names = ['x', 'x_squared', 'sin_x']
+
+        # Distill with transforms
+        model.distill(
+            sample_inputs,
+            variable_transforms=transforms,
+            sr_params=fast_sr_params,
+            fit_params={'variable_names': variable_names}
+        )
+
+        # Cache should contain transformed inputs
+        assert model.distill_data is not None
+        assert model.distill_data['sr_inputs'].shape[1] == 3  # 3 transformed variables
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_cache_preserves_sr_params_rerun(self, mock_pysr_class, symbolic_model, sample_inputs, mock_pysr_regressor):
+        """Test that different SR params can be used with cached I/O data."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # First distill with low iterations
+        sr_params_low = {'niterations': 10}
+        symbolic_model.distill(sample_inputs, sr_params=sr_params_low)
+
+        # Get fit call count
+        first_fit_count = mock_pysr_regressor.fit.call_count
+
+        # Second distill with higher iterations but same inputs - should use cache
+        sr_params_high = {'niterations': 100}
+        symbolic_model.distill(sample_inputs, sr_params=sr_params_high)
+
+        # PySR fit should be called again even with cache hit
+        second_fit_count = mock_pysr_regressor.fit.call_count
+        assert second_fit_count > first_fit_count
