@@ -24,7 +24,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Symbolic Distillation of GNNs" href="gnns_demo.html" />
-    <link rel="prev" title="PruningMLP Demo" href="toolkit_demo.html" /> 
+    <link rel="prev" title="SupraLocal Interpretable Model Agnostic Explanations (SLIME)" href="api_demos/slime_demo.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -350,7 +350,7 @@ They can be useful in predicting behviour of physical systems, provided that obe
 </div>
 </div>
 <div class="cell_output docutils container">
-<img alt="../_images/0a25bc1f4f2fb2df0093775e27e0d5f512231125c71ca1847f6f9c855e6883cd.png" src="../_images/0a25bc1f4f2fb2df0093775e27e0d5f512231125c71ca1847f6f9c855e6883cd.png" />
+<img alt="../_images/22f694145659aec6e31e858aed0b7a77b338e31260893121bc1b2706cd283d78.png" src="../_images/22f694145659aec6e31e858aed0b7a77b338e31260893121bc1b2706cd283d78.png" />
 </div>
 </div>
 <p>The PINN was much better at predicting the true temperatures than the regular NN with the same architecture.</p>
@@ -362,7 +362,7 @@ They can be useful in predicting behviour of physical systems, provided that obe
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>predicted alpha = 0.198
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>predicted alpha = 0.196
 </pre></div>
 </div>
 </div>
@@ -373,7 +373,12 @@ They can be useful in predicting behviour of physical systems, provided that obe
 <h2>Use PyTorch to approximate the behaviour of the PINN<a class="headerlink" href="#use-pytorch-to-approximate-the-behaviour-of-the-pinn" title="Link to this heading"></a></h2>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicMLP</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">symtorch</span><span class="w"> </span><span class="kn">import</span> <span class="n">SymbolicModel</span>
+</pre></div>
+</div>
+</div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>Detected IPython. Loading juliacall extension. See https://juliapy.github.io/PythonCall.jl/stable/compat/#IPython
 </pre></div>
 </div>
 </div>
@@ -382,7 +387,7 @@ They can be useful in predicting behviour of physical systems, provided that obe
 <div class="cell_input docutils container">
 <div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">num_data</span> <span class="o">=</span> <span class="mi">5000</span> <span class="c1"># Create 5000 different data points</span>
 <span class="n">sample_data</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="n">num_data</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">float32</span><span class="p">)</span> 
-<span class="n">pinn</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">SymbolicMLP</span><span class="p">(</span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="p">,</span> <span class="s1">&#39;pinn&#39;</span><span class="p">)</span>
+<span class="n">pinn</span><span class="o">.</span><span class="n">net</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="p">,</span> <span class="s1">&#39;pinn&#39;</span><span class="p">)</span>
 
 <span class="n">sr_params</span> <span class="o">=</span> <span class="p">{</span><span class="s1">&#39;niterations&#39;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">,</span>
              <span class="s1">&#39;constraints&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">3</span><span class="p">},</span> 
@@ -390,7 +395,7 @@ They can be useful in predicting behviour of physical systems, provided that obe
              <span class="s2">&quot;unary_operators&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;inv(x) = 1/x&quot;</span><span class="p">,</span> <span class="s2">&quot;sin&quot;</span><span class="p">,</span> <span class="s2">&quot;exp&quot;</span><span class="p">],</span>
              <span class="s1">&#39;parsimony&#39;</span><span class="p">:</span> <span class="mf">0.01</span><span class="p">,</span>
              <span class="s1">&#39;nested_constraints&#39;</span><span class="p">:{</span><span class="s1">&#39;sin&#39;</span><span class="p">:{</span><span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">},</span> <span class="s1">&#39;exp&#39;</span><span class="p">:{</span><span class="s1">&#39;exp&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;sin&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">}},</span>
-             <span class="s1">&#39;verbose&#39;</span><span class="p">:</span> <span class="mi">0</span>
+             <span class="s1">&#39;verbosity&#39;</span><span class="p">:</span> <span class="mi">0</span>
              <span class="p">}</span>
 
 <span class="n">variable_names</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;x&#39;</span><span class="p">,</span> <span class="s1">&#39;t&#39;</span><span class="p">]</span>
@@ -407,15 +412,70 @@ They can be useful in predicting behviour of physical systems, provided that obe
 </pre></div>
 </div>
 </div>
+<div class="cell_output docutils container">
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>🛠️ Running SR on output dimension 0 of 0
+</pre></div>
+</div>
+<div class="output stderr highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>/Users/liz/PhD/SymTorch_project/symtorch_venv/lib/python3.11/site-packages/pysr/sr.py:2811: UserWarning: Note: it looks like you are running in Jupyter. The progress bar will be turned off.
+  warnings.warn(
+</pre></div>
+</div>
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>💡Best equation for output 0 found to be (sin(x * -3.1416416) * ((exp(t * -2.108336) * -0.9574661) + -0.044413462)) + ((t * (t * t)) * -0.026951205).
+❤️ SR on pinn complete.
+</pre></div>
+</div>
+<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>{0: PySRRegressor.equations_ = [
+ 	    pick     score                                           equation  \
+ 	0         0.000000                                          0.2781431   
+ 	1         0.050918                                 inv(t + 2.8472147)   
+ 	2         0.511774                      (t * -0.5400548) + 0.54739565   
+ 	3         0.065848                  inv(t + 0.90205467) + -0.46818647   
+ 	4         0.290576                     x * (inv(t + x) + -0.47152975)   
+ 	5         0.753261             (t + -0.9360194) * sin(x * -3.1696231)   
+ 	6         0.459206  (x * ((t + -1.0282526) * (x + -0.9901195))) * ...   
+ 	7         0.265628  x * ((x + -0.9911626) * (inv(t + 0.23931801) *...   
+ 	8         3.847941            sin(x * 3.1444418) * exp(t * -1.980765)   
+ 	9         0.002700  sin(x * -3.1448305) * (exp(t * -1.9846908) * -...   
+ 	10        0.175277  (sin(x * -3.1372554) * (exp(t * -1.941653) * -...   
+ 	11        0.150502  (sin(x * -3.1405466) * (exp(t * -1.9165117) * ...   
+ 	12        0.049582  ((sin(x * -3.1424396) * exp(t * -1.9286698)) *...   
+ 	13        0.163645  ((t * t) * -0.02136984) + (sin(x * -3.1408503)...   
+ 	14  &gt;&gt;&gt;&gt;  0.204466  (sin(x * -3.1416416) * ((exp(t * -2.108336) * ...   
+ 	15        0.095385  ((t * t) * ((t * t) * -0.028219905)) + (((exp(...   
+ 	16        0.001183  (((t * t) * ((t * t) * -0.027965615)) + (sin(x...   
+ 	
+ 	        loss  complexity  
+ 	0   0.049377           1  
+ 	1   0.042382           4  
+ 	2   0.025405           5  
+ 	3   0.023786           6  
+ 	4   0.013303           8  
+ 	5   0.002949          10  
+ 	6   0.001863          11  
+ 	7   0.001428          12  
+ 	8   0.000030          13  
+ 	9   0.000030          15  
+ 	10  0.000021          17  
+ 	11  0.000016          19  
+ 	12  0.000014          21  
+ 	13  0.000010          23  
+ 	14  0.000007          25  
+ 	15  0.000006          27  
+ 	16  0.000006          29  
+ ]}
+</pre></div>
+</div>
+</div>
 </div>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">pysr_regressor</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">get_best</span><span class="p">()</span><span class="o">.</span><span class="n">equation</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">show_symbolic_expression</span><span class="p">(</span><span class="n">complexity</span><span class="o">=</span><span class="p">[</span><span class="mi">13</span><span class="p">])</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
-<div class="output text_plain highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>&#39;(sin(x * -3.1387317) * (exp(t * -1.9645759) * -1.0069613)) + -0.003304621&#39;
+<div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>➡️ Dimension 0 - Complexity 13:
+   sin(x * 3.1444418) * exp(t * -1.980765) (loss: 3.046010e-05)
 </pre></div>
 </div>
 </div>
@@ -429,13 +489,13 @@ u(x,t) = e^{-\pi^2 \alpha t} \sin(\pi x) \approx e^{-1.97} \sin (3.14 x)
 (For more reliable SR performance, you should increase <code class="docutils literal notranslate"><span class="pre">niterations</span></code> until the Pareto front stablises, which may be &gt;1000).</p>
 <div class="cell docutils container">
 <div class="cell_input docutils container">
-<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">switch_to_equation</span><span class="p">()</span>
+<div class="highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">pinn</span><span class="o">.</span><span class="n">net</span><span class="o">.</span><span class="n">switch_to_symbolic</span><span class="p">(</span><span class="n">complexity</span><span class="o">=</span><span class="mi">13</span><span class="p">)</span>
 </pre></div>
 </div>
 </div>
 <div class="cell_output docutils container">
 <div class="output stream highlight-myst-ansi notranslate"><div class="highlight"><pre><span></span>✅ Successfully switched pinn to symbolic equations for all 1 dimensions:
-   Dimension 0: (sin(x * -3.1387317) * (exp(t * -1.9645759) * -1.0069613)) + -0.003304621
+   Dimension 0: sin(x * 3.1444418) * exp(t * -1.980765)
    Variables: [&#39;t&#39;, &#39;x&#39;]
 🎯 All 1 output dimensions now using symbolic equations.
 </pre></div>
@@ -461,7 +521,7 @@ u(x,t) = e^{-\pi^2 \alpha t} \sin(\pi x) \approx e^{-1.97} \sin (3.14 x)
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="toolkit_demo.html" class="btn btn-neutral float-left" title="PruningMLP Demo" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="api_demos/slime_demo.html" class="btn btn-neutral float-left" title="SupraLocal Interpretable Model Agnostic Explanations (SLIME)" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="gnns_demo.html" class="btn btn-neutral float-right" title="Symbolic Distillation of GNNs" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

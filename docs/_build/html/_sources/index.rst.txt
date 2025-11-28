@@ -26,30 +26,39 @@ Overview
 ========
 SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to automatically extract human-readable formulas from trained models. Instead of treating models as black boxes, it reveals the underlying mathematical relationships they've discovered.
 
-1. Layer-Level Analysis (``SymbolicMLP``)
------------------------------------------
-- Wraps individual PyTorch MLP layers within larger deep learning models 
-- Discovers symbolic equations approximating the behavior of individual layers 
-- Can switch between the MLP and the symbolic model during both forward pass and model training
-- See the :doc:`SymbolicMLP Demo <demos/getting_started_demo>` for usage information
+**Unified Architecture**: SymTorch provides a single ``SymbolicModel`` class that supports multiple modes of operation through parameter-based configuration. This unified approach eliminates code duplication and provides a consistent API across all use cases.
 
-2. Model-Level Analysis (``SymbolicModel``)
--------------------------------------------
-- Wraps entire models end-to-end 
-- Approximates the behavior of entire models with a symbolic model 
-- See the :doc:`SymbolicModel Demo<demos/symbolicmodel_api_demo.ipynb>` for usage information
+The ``SymbolicModel`` Class
+----------------------------
+All functionality is accessed through the unified ``SymbolicModel`` class, which supports four operational modes:
 
-3. Local Interpretability (``SLIMEModel``)
-------------------------------------------
-- Model-agnostic approach to approximating model behavior around a single point with a symbolic surrogate model 
-- Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)
-- See the :doc:`SLIMEModel Demo <demos/slime_api_demo>` for usage information.
+1. **Layer-Level Mode**
+   - Wraps individual PyTorch layers within larger deep learning models
+   - Discovers symbolic equations approximating the behavior of specific layers
+   - Can switch between the original layer and symbolic equations during forward pass and training
+   - See the :doc:`Getting Started Demo <demos/api_demos/getting_started_demo>`
 
-4. Reducing Model Flexibility (``PruningMLP``)
-----------------------------------------------
-- Automatically identifies and removes less important output dimensions on a PyTorch MLP layer-level basis
-- May encourage models to learn simpler and more interpretable patterns 
-- See the :doc:`PruningMLP Demo <demos/toolkit_demo>` for usage information
+2. **Model-Agnostic Mode**
+   - Works with any callable function (PyTorch, TensorFlow, scikit-learn, or pure Python)
+   - Approximates end-to-end model behavior with symbolic equations
+   - Framework-independent approach to symbolic regression
+   - Activated by passing a callable function to the constructor
+   - See the :doc:`Getting Started Demo <demos/api_demos/getting_started_demo>`
+
+3. **SLIME Mode** (Local Interpretability)
+   - Model-agnostic approach to approximating behavior around specific data points
+   - Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)
+   - Provides more expressive local explanations than linear models
+   - Activated by passing ``SLIME=True`` and ``slime_params`` to ``distill()``
+   - See the :doc:`SLIME Demo <demos/api_demos/slime_demo>`
+
+4. **Pruning Capabilities**
+   - Automatically identifies and removes less important output dimensions
+   - Works on a layer-level basis during training
+   - Encourages models to learn simpler and more interpretable patterns
+   - Activated by calling ``setup_pruning()`` before training
+   - See the :doc:`Pruning Demo <demos/api_demos/pruning_demo>`
+
 
 
 Contents

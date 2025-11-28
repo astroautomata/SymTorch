@@ -6,7 +6,7 @@ All of the following demos are available as Jupyter notebooks on our
 
 - :doc:`Getting Started Demo <demos/api_demos/getting_started_demo>`
 - :doc:`SLIME Demo <demos/api_demos/slime_demo>`
-- :doc:`Pruning Demo <demos/api_demos/toolkit_demo>`
+- :doc:`Pruning Demo <demos/api_demos/pruning_demo>`
 
 .. toctree::
    :hidden:

@@ -105,38 +105,35 @@
 <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h1>
 <p>SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to automatically extract human-readable formulas from trained models. Instead of treating models as black boxes, it reveals the underlying mathematical relationships they’ve discovered.</p>
-<section id="layer-level-analysis-symbolicmlp">
-<h2>1. Layer-Level Analysis (<code class="docutils literal notranslate"><span class="pre">SymbolicMLP</span></code>)<a class="headerlink" href="#layer-level-analysis-symbolicmlp" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Wraps individual PyTorch MLP layers within larger deep learning models</p></li>
-<li><p>Discovers symbolic equations approximating the behavior of individual layers</p></li>
-<li><p>Can switch between the MLP and the symbolic model during both forward pass and model training</p></li>
-<li><p>See the <a class="reference internal" href="demos/getting_started_demo.html"><span class="doc">SymbolicMLP Demo</span></a> for usage information</p></li>
-</ul>
-</section>
-<section id="model-level-analysis-symbolicmodel">
-<h2>2. Model-Level Analysis (<code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code>)<a class="headerlink" href="#model-level-analysis-symbolicmodel" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Wraps entire models end-to-end</p></li>
-<li><p>Approximates the behavior of entire models with a symbolic model</p></li>
-<li><p>See the <span class="xref std std-doc">SymbolicModel Demo</span> for usage information</p></li>
-</ul>
-</section>
-<section id="local-interpretability-slimemodel">
-<h2>3. Local Interpretability (<code class="docutils literal notranslate"><span class="pre">SLIMEModel</span></code>)<a class="headerlink" href="#local-interpretability-slimemodel" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Model-agnostic approach to approximating model behavior around a single point with a symbolic surrogate model</p></li>
-<li><p>Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)</p></li>
-<li><p>See the <a class="reference internal" href="demos/slime_api_demo.html"><span class="doc">SLIMEModel Demo</span></a> for usage information.</p></li>
-</ul>
-</section>
-<section id="reducing-model-flexibility-pruningmlp">
-<h2>4. Reducing Model Flexibility (<code class="docutils literal notranslate"><span class="pre">PruningMLP</span></code>)<a class="headerlink" href="#reducing-model-flexibility-pruningmlp" title="Link to this heading"></a></h2>
-<ul class="simple">
-<li><p>Automatically identifies and removes less important output dimensions on a PyTorch MLP layer-level basis</p></li>
-<li><p>May encourage models to learn simpler and more interpretable patterns</p></li>
-<li><p>See the <a class="reference internal" href="demos/toolkit_demo.html"><span class="doc">PruningMLP Demo</span></a> for usage information</p></li>
-</ul>
+<p><strong>Unified Architecture</strong>: SymTorch provides a single <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> class that supports multiple modes of operation through parameter-based configuration. This unified approach eliminates code duplication and provides a consistent API across all use cases.</p>
+<section id="the-symbolicmodel-class">
+<h2>The <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> Class<a class="headerlink" href="#the-symbolicmodel-class" title="Link to this heading"></a></h2>
+<p>All functionality is accessed through the unified <code class="docutils literal notranslate"><span class="pre">SymbolicModel</span></code> class, which supports four operational modes:</p>
+<ol class="arabic simple">
+<li><p><strong>Layer-Level Mode</strong>
+- Wraps individual PyTorch layers within larger deep learning models
+- Discovers symbolic equations approximating the behavior of specific layers
+- Can switch between the original layer and symbolic equations during forward pass and training
+- See the <a class="reference internal" href="demos/api_demos/getting_started_demo.html"><span class="doc">Getting Started Demo</span></a></p></li>
+<li><p><strong>Model-Agnostic Mode</strong>
+- Works with any callable function (PyTorch, TensorFlow, scikit-learn, or pure Python)
+- Approximates end-to-end model behavior with symbolic equations
+- Framework-independent approach to symbolic regression
+- Activated by passing a callable function to the constructor
+- See the <a class="reference internal" href="demos/api_demos/getting_started_demo.html"><span class="doc">Getting Started Demo</span></a></p></li>
+<li><p><strong>SLIME Mode</strong> (Local Interpretability)
+- Model-agnostic approach to approximating behavior around specific data points
+- Symbolic extension of Local Interpretable Model-Agnostic Explanations (LIME)
+- Provides more expressive local explanations than linear models
+- Activated by passing <code class="docutils literal notranslate"><span class="pre">SLIME=True</span></code> and <code class="docutils literal notranslate"><span class="pre">slime_params</span></code> to <code class="docutils literal notranslate"><span class="pre">distill()</span></code>
+- See the <a class="reference internal" href="demos/api_demos/slime_demo.html"><span class="doc">SLIME Demo</span></a></p></li>
+<li><p><strong>Pruning Capabilities</strong>
+- Automatically identifies and removes less important output dimensions
+- Works on a layer-level basis during training
+- Encourages models to learn simpler and more interpretable patterns
+- Activated by calling <code class="docutils literal notranslate"><span class="pre">setup_pruning()</span></code> before training
+- See the <a class="reference internal" href="demos/api_demos/pruning_demo.html"><span class="doc">Pruning Demo</span></a></p></li>
+</ol>
 </section>
 </section>
 <section id="contents">
