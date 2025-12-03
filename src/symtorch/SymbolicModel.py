@@ -1004,7 +1004,7 @@ class SymbolicModel(nn.Module):
 
         vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
         try:
-            f = lambdify(vars_sorted, expr, "numpy")
+            f = lambdify(vars_sorted, expr, "torch")
             return f, vars_sorted
         except Exception as e:
             print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
@@ -1159,6 +1159,34 @@ class SymbolicModel(nn.Module):
         else:
             print(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
 
+        # Apply torch.compile() optimization if available (PyTorch 2.0+)
+        if hasattr(torch, 'compile') and torch.cuda.is_available():
+            print("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
+            try:
+                # Compile with fullgraph=False to allow dynamic control flow
+                # mode="reduce-overhead" optimizes for repeated calls
+                self._original_forward = self.forward
+                self.forward = torch.compile(self.forward, mode="reduce-overhead", fullgraph=False)
+                print("✅ Forward pass compiled successfully")
+            except Exception as e:
+                print(f"⚠️ torch.compile() failed: {e}. Continuing without compilation.")
+                # Forward pass will still work, just without compilation optimization
+
+    def switch_to_block(self):
+        """
+        Switch back from symbolic equations to the original neural network block.
+
+        Also restores uncompiled forward pass if it was compiled.
+        """
+        self._using_equation = False
+
+        # Restore original forward if it was compiled
+        if hasattr(self, '_original_forward'):
+            self.forward = self._original_forward
+            delattr(self, '_original_forward')
+
+        print(f"✅ Switched {self.block_name} back to block")
+
     def get_symbolic_function(self, dim: int = 0, complexity: int = None, SLIME: bool = False):
         """
         Get a callable Python function for a specific output dimension's symbolic equation.
@@ -1261,7 +1289,7 @@ class SymbolicModel(nn.Module):
         vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
 
         try:
-            f = lambdify(vars_sorted, expr, "numpy")
+            f = lambdify(vars_sorted, expr, "torch")
         except Exception as e:
             raise RuntimeError(f"Could not create lambdify function for dimension {dim}: {e}")
 
@@ -1278,12 +1306,12 @@ class SymbolicModel(nn.Module):
             # Extract variables
             selected_inputs = self._extract_variables_for_equation(x_tensor, var_indices, dim)
 
-            # Convert to numpy
-            numpy_inputs = [inp.detach().cpu().numpy() if hasattr(inp, 'detach') else np.array(inp) for inp in selected_inputs]
+            # Evaluate the equation (torch backend, stays on device)
+            result = f(*selected_inputs)
 
-            # Evaluate the equation
-            result = f(*numpy_inputs)
-
+            # Convert to numpy only for output (API compatibility)
+            if isinstance(result, torch.Tensor):
+                return result.detach().cpu().numpy()
             return result
 
         return symbolic_func
@@ -1665,22 +1693,20 @@ class SymbolicModel(nn.Module):
                         # Extract variables needed for this dimension
                         selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
 
-                        # Convert to numpy for the equation function
-                        numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
+                        # Evaluate the equation for this dimension (torch backend, stays on device)
+                        result = equation_func(*selected_inputs)
 
-                        # Evaluate the equation for this dimension
-                        result = equation_func(*numpy_inputs)
-
-                        # Convert back to torch tensor with same device/dtype as input
-                        result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+                        # Convert to tensor if needed (torch backend may return Python scalars for constants)
+                        if not isinstance(result, torch.Tensor):
+                            result = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
 
                         # Ensure result is 1D (batch_size,)
-                        if result_tensor.dim() == 0:
-                            result_tensor = result_tensor.expand(batch_size)
-                        elif result_tensor.dim() > 1:
-                            result_tensor = result_tensor.flatten()
+                        if result.dim() == 0:
+                            result = result.expand(batch_size)
+                        elif result.dim() > 1:
+                            result = result.flatten()
 
-                        output[:, dim] = result_tensor
+                        output[:, dim] = result
 
                 # Apply pruning mask to ensure inactive dimensions are zero
                 result_tensor = output * self.pruning_mask
@@ -1699,22 +1725,20 @@ class SymbolicModel(nn.Module):
                     # Extract variables needed for this dimension
                     selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
 
-                    # Convert to numpy for the equation function
-                    numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
+                    # Evaluate the equation for this dimension (torch backend, stays on device)
+                    result = equation_func(*selected_inputs)
 
-                    # Evaluate the equation for this dimension
-                    result = equation_func(*numpy_inputs)
-
-                    # Convert back to torch tensor with same device/dtype as input
-                    result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+                    # Convert to tensor if needed (torch backend may return Python scalars for constants)
+                    if not isinstance(result, torch.Tensor):
+                        result = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
 
                     # Ensure result is 1D (batch_size,)
-                    if result_tensor.dim() == 0:
-                        result_tensor = result_tensor.expand(batch_size)
-                    elif result_tensor.dim() > 1:
-                        result_tensor = result_tensor.flatten()
+                    if result.dim() == 0:
+                        result = result.expand(batch_size)
+                    elif result.dim() > 1:
+                        result = result.flatten()
 
-                    outputs.append(result_tensor)
+                    outputs.append(result)
 
                 # Stack all dimensions to create (batch_size, output_dim) tensor
                 result_tensor = torch.stack(outputs, dim=1)
