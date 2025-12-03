@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
-from symtorch import SymbolicMLP
+from symtorch import SymbolicModel
 from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 
@@ -47,7 +47,7 @@ class SimpleModel(nn.Module):
         return x
 
     def save_model(self, save_path):
-        """Save model weights and SymbolicMLP if present."""
+        """Save model weights and SymbolicModel if present."""
         import pickle
         torch.save(self.state_dict(), f'{save_path}.pth')
         pickle.dump(
@@ -58,7 +58,7 @@ class SimpleModel(nn.Module):
             },
             open(f'{save_path}_dims.pkl', 'wb')
         )
-        if isinstance(self.hidden_layers, SymbolicMLP):
+        if isinstance(self.hidden_layers, SymbolicModel):
             self.hidden_layers.save_model(save_path)
 
     @classmethod
@@ -68,9 +68,9 @@ class SimpleModel(nn.Module):
         dims = pickle.load(open(f'{save_path}_dims.pkl', 'rb'))
         model = cls(dims['input_dim'], dims['output_dim'], dims['hidden_dim'])
 
-        # If SymbolicMLP was saved, load it separately
+        # If SymbolicModel was saved, load it separately
         if os.path.exists(f'{save_path}_metadata.pkl'):
-            model.hidden_layers = SymbolicMLP.load_model(
+            model.hidden_layers = SymbolicModel.load_model(
                 save_path, model.hidden_layers, device
             )
             # Load the rest of the model state (excluding hidden_layers)
@@ -81,7 +81,7 @@ class SimpleModel(nn.Module):
             }
             model.load_state_dict(state_dict, strict=False)
         else:
-            # No SymbolicMLP, load normally
+            # No SymbolicModel, load normally
             model.load_state_dict(torch.load(f'{save_path}.pth', map_location=device))
 
         return model
@@ -174,8 +174,8 @@ def load_or_train_model(
         model, losses = train_model(model, dataloader, opt, criterion, epochs)
 
         # Wrap the MLP
-        model.hidden_layers = SymbolicMLP(
-            model.hidden_layers, mlp_name='hidden_layers'
+        model.hidden_layers = SymbolicModel(
+            model.hidden_layers, block_name='hidden_layers'
         )
 
         # Configure the SR
@@ -185,7 +185,7 @@ def load_or_train_model(
                 'complexity_of_constants': 2,
                 'parsimony': 0.1,
                 'verbosity': 0,
-                'niterations': 100
+                'niterations': 1
             }
 
         # Distill the model
@@ -208,7 +208,7 @@ def benchmark_model(model, X_data, y_data, device='cpu', num_runs=100):
     Benchmark model performance comparing MLP vs symbolic equation modes.
 
     Args:
-        model: Model with SymbolicMLP hidden layers
+        model: Model with SymbolicModel hidden layers
         X_data: Input data for testing
         y_data: Ground truth output data
         device: Device to run on ('cpu' or 'cuda')
@@ -227,7 +227,7 @@ def benchmark_model(model, X_data, y_data, device='cpu', num_runs=100):
     results = {}
 
     # Benchmark MLP mode
-    model.hidden_layers.switch_to_mlp()
+    model.hidden_layers.switch_to_block()
     model.eval()
     with torch.no_grad():
         # Warmup
@@ -254,7 +254,7 @@ def benchmark_model(model, X_data, y_data, device='cpu', num_runs=100):
     }
 
     # Benchmark equation mode
-    model.hidden_layers.switch_to_equation()
+    model.hidden_layers.switch_to_symbolic()
     model.eval()
     with torch.no_grad():
         # Warmup
