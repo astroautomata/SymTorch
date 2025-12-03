@@ -18,11 +18,14 @@ setup(
         "torch",
         "pysr",
         "numpy",
-        "pandas", 
+        "pandas",
         "scikit-learn",
         "matplotlib",
         "sympy",
     ],
+    extras_require={
+        "dev": ["ipython", "ipdb"],
+    },
     classifiers=[
         "Programming Language :: Python :: 3.11",
         "License :: OSI Approved :: MIT License",
