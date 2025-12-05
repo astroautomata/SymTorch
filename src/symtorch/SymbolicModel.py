@@ -1004,7 +1004,7 @@ class SymbolicModel(nn.Module):
 
         vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
         try:
-            f = lambdify(vars_sorted, expr, "numpy")
+            f = lambdify(vars_sorted, expr, "torch")
             return f, vars_sorted
         except Exception as e:
             print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
@@ -1159,6 +1159,34 @@ class SymbolicModel(nn.Module):
         else:
             print(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
 
+        # Apply torch.compile() optimization if available (PyTorch 2.0+)
+        if hasattr(torch, 'compile') and torch.cuda.is_available():
+            print("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
+            try:
+                # Compile with fullgraph=False to allow dynamic control flow
+                # mode="reduce-overhead" optimizes for repeated calls
+                self._original_forward = self.forward
+                self.forward = torch.compile(self.forward, mode="reduce-overhead", fullgraph=False)
+                print("✅ Forward pass compiled successfully")
+            except Exception as e:
+                print(f"⚠️ torch.compile() failed: {e}. Continuing without compilation.")
+                # Forward pass will still work, just without compilation optimization
+
+    def switch_to_block(self):
+        """
+        Switch back from symbolic equations to the original neural network block.
+
+        Also restores uncompiled forward pass if it was compiled.
+        """
+        self._using_equation = False
+
+        # Restore original forward if it was compiled
+        if hasattr(self, '_original_forward'):
+            self.forward = self._original_forward
+            delattr(self, '_original_forward')
+
+        print(f"✅ Switched {self.block_name} back to block")
+
     def get_symbolic_function(self, dim: int = 0, complexity: int = None, SLIME: bool = False):
         """
         Get a callable Python function for a specific output dimension's symbolic equation.
@@ -1261,7 +1289,7 @@ class SymbolicModel(nn.Module):
         vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
 
         try:
-            f = lambdify(vars_sorted, expr, "numpy")
+            f = lambdify(vars_sorted, expr, "torch")
         except Exception as e:
             raise RuntimeError(f"Could not create lambdify function for dimension {dim}: {e}")
 
@@ -1278,12 +1306,12 @@ class SymbolicModel(nn.Module):
             # Extract variables
             selected_inputs = self._extract_variables_for_equation(x_tensor, var_indices, dim)
 
-            # Convert to numpy
-            numpy_inputs = [inp.detach().cpu().numpy() if hasattr(inp, 'detach') else np.array(inp) for inp in selected_inputs]
+            # Evaluate the equation (torch backend, stays on device)
+            result = f(*selected_inputs)
 
-            # Evaluate the equation
-            result = f(*numpy_inputs)
-
+            # Convert to numpy only for output (API compatibility)
+            if isinstance(result, torch.Tensor):
+                return result.detach().cpu().numpy()
             return result
 
         return symbolic_func
@@ -1665,22 +1693,20 @@ class SymbolicModel(nn.Module):
                         # Extract variables needed for this dimension
                         selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
 
-                        # Convert to numpy for the equation function
-                        numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
+                        # Evaluate the equation for this dimension (torch backend, stays on device)
+                        result = equation_func(*selected_inputs)
 
-                        # Evaluate the equation for this dimension
-                        result = equation_func(*numpy_inputs)
-
-                        # Convert back to torch tensor with same device/dtype as input
-                        result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+                        # Convert to tensor if needed (torch backend may return Python scalars for constants)
+                        if not isinstance(result, torch.Tensor):
+                            result = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
 
                         # Ensure result is 1D (batch_size,)
-                        if result_tensor.dim() == 0:
-                            result_tensor = result_tensor.expand(batch_size)
-                        elif result_tensor.dim() > 1:
-                            result_tensor = result_tensor.flatten()
+                        if result.dim() == 0:
+                            result = result.expand(batch_size)
+                        elif result.dim() > 1:
+                            result = result.flatten()
 
-                        output[:, dim] = result_tensor
+                        output[:, dim] = result
 
                 # Apply pruning mask to ensure inactive dimensions are zero
                 result_tensor = output * self.pruning_mask
@@ -1699,22 +1725,20 @@ class SymbolicModel(nn.Module):
                     # Extract variables needed for this dimension
                     selected_inputs = self._extract_variables_for_equation(x_torch, var_indices, dim)
 
-                    # Convert to numpy for the equation function
-                    numpy_inputs = [inp.detach().cpu().numpy() for inp in selected_inputs]
+                    # Evaluate the equation for this dimension (torch backend, stays on device)
+                    result = equation_func(*selected_inputs)
 
-                    # Evaluate the equation for this dimension
-                    result = equation_func(*numpy_inputs)
-
-                    # Convert back to torch tensor with same device/dtype as input
-                    result_tensor = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
+                    # Convert to tensor if needed (torch backend may return Python scalars for constants)
+                    if not isinstance(result, torch.Tensor):
+                        result = torch.tensor(result, dtype=x_torch.dtype, device=x_torch.device)
 
                     # Ensure result is 1D (batch_size,)
-                    if result_tensor.dim() == 0:
-                        result_tensor = result_tensor.expand(batch_size)
-                    elif result_tensor.dim() > 1:
-                        result_tensor = result_tensor.flatten()
+                    if result.dim() == 0:
+                        result = result.expand(batch_size)
+                    elif result.dim() > 1:
+                        result = result.flatten()
 
-                    outputs.append(result_tensor)
+                    outputs.append(result)
 
                 # Stack all dimensions to create (batch_size, output_dim) tensor
                 result_tensor = torch.stack(outputs, dim=1)
@@ -1794,3 +1818,220 @@ class SymbolicModel(nn.Module):
         self.distill_data = None
         self.distill_data_slime = None
         print(f"✅ Cache cleared for {self.block_name}.")
+
+	# XXX: These methods should probably should override _save_to_state_dict/_load_from_state_dict.
+	#   Another option is to override state_dict/load_state_dict.
+    def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
+        """
+        Save the SymbolicMLP model including PyTorch weights and PySR regressors.
+
+        Creates a comprehensive save that includes:
+        - PyTorch model state dict (if save_pytorch=True)
+        - All fitted PySR regressors (if save_regressors=True)
+        - Model metadata and configuration
+        - Variable transforms and names if used
+
+        Args:
+            save_path (str): Base path for saving (without extension)
+            save_pytorch (bool, optional): Whether to save PyTorch model state. Defaults to True.
+            save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.
+
+        Example:
+            >>> model.mlp = SymbolicMLP(model.mlp, block_name="encoder")
+            >>> # ... train and run distill ...
+            >>> model.mlp.save_model("./saved_models/my_model")
+
+        Note:
+            This creates multiple files:
+            - {save_path}_pytorch.pth: PyTorch model state
+            - {save_path}_metadata.pkl: Model configuration and metadata
+            - {save_path}_regressor_dim{i}.pkl: Individual PySR regressors (one per dimension)
+        """
+        os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
+
+        saved_files = []
+
+        # Save PyTorch model state
+        if save_pytorch:
+            pytorch_path = f"{save_path}_pytorch.pth"
+            torch.save(self.symtorch_block.state_dict(), pytorch_path)
+            saved_files.append(pytorch_path)
+            print(f"✅ Saved PyTorch model state to {pytorch_path}")
+
+        # Save model metadata
+        metadata = {
+            'block_name': self.block_name,
+            'output_dims': getattr(self, 'output_dims', None),
+            'variable_transforms_available': hasattr(self, '_variable_transforms') and self._variable_transforms is not None,
+            'variable_names': getattr(self, '_variable_names', None),
+            'using_equation': getattr(self, '_using_equation', False),
+            'class_name': self.__class__.__name__,
+            'equation_vars': getattr(self, '_equation_vars', {}),
+            'regressor_dimensions': list(self.pysr_regressor.keys()) if hasattr(self, 'pysr_regressor') else []
+        }
+
+        metadata_path = f"{save_path}_metadata.pkl"
+        with open(metadata_path, 'wb') as f:
+            pickle.dump(metadata, f)
+        saved_files.append(metadata_path)
+        print(f"✅ Saved model metadata to {metadata_path}")
+
+        # Save PySR regressors
+        if save_regressors and hasattr(self, 'pysr_regressor') and self.pysr_regressor:
+            regressor_files = []
+            for dim, regressor in self.pysr_regressor.items():
+                regressor_path = f"{save_path}_regressor_dim{dim}.pkl"
+                try:
+                    # Use PySR's built-in pickling support
+                    with open(regressor_path, 'wb') as f:
+                        pickle.dump(regressor, f)
+                    regressor_files.append(regressor_path)
+                    saved_files.append(regressor_path)
+                    print(f"✅ Saved regressor for dimension {dim} to {regressor_path}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not save regressor for dimension {dim}: {e}")
+
+            if regressor_files:
+                print(f"✅ Saved {len(regressor_files)} PySR regressors")
+        elif save_regressors:
+            print("ℹ️ No PySR regressors found to save")
+
+        print(f"🎯 Model save complete. Created {len(saved_files)} files with base name: {save_path}")
+        return saved_files
+
+    @classmethod
+    def load_model(cls, save_path: str, mlp_architecture: nn.Module = None, device: str = 'cpu'):
+        """
+        Load a previously saved SymbolicMLP model with all components.
+
+        Reconstructs the complete SymbolicMLP instance including:
+        - PyTorch model weights (requires architecture)
+        - All fitted PySR regressors
+        - Model metadata and configuration
+        - Variable transforms setup
+
+        Args:
+            save_path (str): Base path used during saving (without extension)
+            mlp_architecture (nn.Module, optional): PyTorch model architecture to load weights into.
+                                                   If None, only metadata and regressors are loaded.
+            device (str, optional): Device to load tensors to ('cpu', 'cuda', etc.). Defaults to 'cpu'.
+
+        Returns:
+            SymbolicMLP: Reconstructed SymbolicMLP instance with loaded components
+
+        Example:
+            >>> # Create same architecture as original
+            >>> mlp = nn.Sequential(nn.Linear(5, 64), nn.ReLU(), nn.Linear(64, 1))
+            >>> loaded_model = SymbolicMLP.load_model("./saved_models/my_model", mlp)
+            >>> # Model ready to use with equations
+            >>> loaded_model.switch_to_symbolic()
+
+        Note:
+            The mlp_architecture must match the original architecture exactly for weight loading.
+            If architecture is not provided, returns a model instance with regressors but no PyTorch weights.
+        """
+        # Load metadata first
+        metadata_path = f"{save_path}_metadata.pkl"
+        if not os.path.exists(metadata_path):
+            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+
+        with open(metadata_path, 'rb') as f:
+            metadata = pickle.load(f)
+
+        print(f"📂 Loading {metadata['class_name']} model: {metadata['block_name']}")
+
+        # Create instance based on class type
+        if metadata['class_name'] == 'PruningMLP':
+            # Import here to avoid circular imports
+            from .toolkit import PruningMLP
+
+            # Need to determine dimensions for PruningMLP
+            if mlp_architecture is None:
+                raise ValueError("mlp_architecture is required when loading PruningMLP")
+
+            # Try to infer dimensions from saved state
+            output_dims = metadata.get('output_dims', None)
+            if output_dims is None:
+                raise ValueError("Cannot determine output dimensions for PruningMLP")
+
+            # Create minimal PruningMLP - dimensions will be updated from saved state
+            instance = PruningMLP(mlp_architecture,
+                                  initial_dim=output_dims,
+                                  target_dim=1,  # Will be updated
+                                  block_name=metadata['block_name'])
+        else:
+            # Standard SymbolicMLP
+            instance = cls(mlp_architecture or nn.Identity(), metadata['block_name'])
+
+        # Load PyTorch weights if available and architecture provided
+        pytorch_path = f"{save_path}_pytorch.pth"
+        if os.path.exists(pytorch_path) and mlp_architecture is not None:
+            state_dict = torch.load(pytorch_path, map_location=device, weights_only=True)
+            instance.symtorch_block.load_state_dict(state_dict)
+            instance.symtorch_block.eval()  # Ensure model is in eval mode after loading
+            print(f"✅ Loaded PyTorch weights from {pytorch_path}")
+        elif mlp_architecture is not None:
+            print(f"⚠️ PyTorch weights file not found: {pytorch_path}")
+
+        # Restore metadata
+        instance.output_dims = metadata.get('output_dims')
+        instance._variable_names = metadata.get('variable_names')
+        instance._using_equation = metadata.get('using_equation', False)
+        instance._equation_vars = metadata.get('equation_vars', {})
+
+        # Load PySR regressors
+        regressor_dims = metadata.get('regressor_dimensions', [])
+        instance.pysr_regressor = {}
+        equation_funcs = {}
+
+        loaded_regressors = 0
+        for dim in regressor_dims:
+            regressor_path = f"{save_path}_regressor_dim{dim}.pkl"
+            if os.path.exists(regressor_path):
+                try:
+                    with open(regressor_path, 'rb') as f:
+                        regressor = pickle.load(f)
+                    instance.pysr_regressor[dim] = regressor
+
+                    # Rebuild equation function if model was using equations
+                    if instance._using_equation and dim in instance._equation_vars:
+                        try:
+                            result = instance._get_equation(dim)
+                            if result is not None:
+                                equation_funcs[dim] = result[0]
+                        except Exception as e:
+                            print(f"⚠️ Warning: Could not rebuild equation for dimension {dim}: {e}")
+                            # Don't use equations for this dimension if we can't rebuild it
+                            pass
+
+                    loaded_regressors += 1
+                    print(f"✅ Loaded regressor for dimension {dim}")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not load regressor for dimension {dim}: {e}")
+            else:
+                print(f"⚠️ Warning: Regressor file not found for dimension {dim}: {regressor_path}")
+
+        if loaded_regressors > 0:
+            print(f"✅ Loaded {loaded_regressors} PySR regressors")
+
+            # Restore equation functions if model was using equations
+            if instance._using_equation and equation_funcs:
+                # Check if we have equation functions for all required dimensions
+                required_dims = set(instance._equation_vars.keys())
+                available_dims = set(equation_funcs.keys())
+
+                if required_dims == available_dims:
+                    instance._equation_funcs = equation_funcs
+                    print(f"✅ Restored symbolic equation functions for {len(equation_funcs)} dimensions")
+                else:
+                    missing_dims = required_dims - available_dims
+                    print(f"⚠️ Could not restore equations for dimensions {missing_dims}, switching to MLP mode")
+                    instance._using_equation = False
+            elif instance._using_equation:
+                print("⚠️ Model was saved in equation mode but no equations could be restored, switching to MLP mode")
+                instance._using_equation = False
+        else:
+            print("ℹ️ No PySR regressors found to load")
+
+        print(f"🎯 Model loading complete: {metadata['block_name']}")
+        return instance
