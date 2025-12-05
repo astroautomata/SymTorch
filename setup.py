@@ -24,7 +24,7 @@ setup(
         "sympy",
     ],
     extras_require={
-        "dev": ["ipython", "ipdb"],
+        "dev": ["ipython", "ipdb", "pytest"],
     },
     classifiers=[
         "Programming Language :: Python :: 3.11",
