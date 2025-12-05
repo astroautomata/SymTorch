@@ -20,7 +20,7 @@ class SimpleModel(nn.Module):
     """
     Simple model class.
     """
-    def __init__(self, input_dim, output_dim, hidden_dim = 32):
+    def __init__(self, input_dim, output_dim, hidden_dim = 64):
         super(SimpleModel, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
