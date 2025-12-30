@@ -75,6 +75,23 @@ class SymbolicModel(nn.Module):
             >>> from sklearn.ensemble import RandomForestRegressor
             >>> rf = RandomForestRegressor().fit(X_train, y_train)
             >>> symbolic_rf = SymbolicModel(rf.predict, block_name='rf_model')
+
+        Save/Load:
+            SymbolicModel supports PyTorch's standard save/load mechanisms:
+
+            >>> # Save model state (recommended)
+            >>> torch.save(model.state_dict(), 'model.pth')
+            >>>
+            >>> # Load model state
+            >>> model = SymbolicModel(architecture, block_name='my_model')
+            >>> model.load_state_dict(torch.load('model.pth'))
+            >>>
+            >>> # Full model save/load also works
+            >>> torch.save(model, 'full_model.pth')
+            >>> model = torch.load('full_model.pth', weights_only=False)
+
+            Note: Variable transforms (Callables) cannot be serialized and must be
+            re-provided after loading if needed for equation mode.
         """
 
         super().__init__()
@@ -1819,219 +1836,333 @@ class SymbolicModel(nn.Module):
         self.distill_data_slime = None
         print(f"✅ Cache cleared for {self.block_name}.")
 
+    def _save_to_state_dict(self, destination, prefix, keep_vars):
+        """
+        Save SymbolicModel state to state dict using PyTorch's built-in mechanism.
+
+        This method is automatically called by state_dict() and enables users to save
+        models using standard PyTorch patterns:
+            torch.save(model.state_dict(), 'model.pth')
+
+        Saves:
+            - PyTorch parameters and buffers (handled by parent class)
+            - Metadata (block_name, output_dims, etc.)
+            - PySR regressors (pickled)
+            - SLIME regressors (pickled)
+            - Pruning state
+            - Equation mode state
+
+        Note:
+            Variable transforms (_variable_transforms) cannot be serialized as they
+            contain arbitrary Callables. A warning flag is saved instead.
+        """
+        # Call parent to save parameters and buffers (including pruning_mask)
+        super()._save_to_state_dict(destination, prefix, keep_vars)
+
+        # Note: We DO save _original_block if it exists (needed for switch_to_block())
+
+        # Save metadata
+        metadata = {
+            'block_name': self.block_name,
+            'output_dims': getattr(self, 'output_dims', None),
+            '_variable_names': getattr(self, '_variable_names', None),
+            '_using_equation': getattr(self, '_using_equation', False),
+            '_equation_vars': getattr(self, '_equation_vars', {}),
+            '_variable_transforms_used': hasattr(self, '_variable_transforms') and self._variable_transforms is not None,
+        }
+
+        # Add pruning metadata if present
+        if hasattr(self, 'pruning_schedule') and self.pruning_schedule is not None:
+            metadata.update({
+                'initial_dim': self.initial_dim,
+                'target_dim': self.target_dim,
+                'current_dim': self.current_dim,
+                'pruning_schedule': self.pruning_schedule,
+            })
+
+        destination[prefix + '_symtorch_metadata'] = metadata
+
+        # Save PySR regressors (pickle each one)
+        if hasattr(self, 'pysr_regressor') and self.pysr_regressor:
+            for dim, regressor in self.pysr_regressor.items():
+                key = f'_pysr_regressor_dim_{dim}'
+                try:
+                    destination[prefix + key] = pickle.dumps(regressor)
+                except Exception as e:
+                    warnings.warn(f"Could not serialize PySR regressor for dimension {dim}: {e}")
+
+        # Save SLIME PySR regressors
+        if hasattr(self, 'SLIME_pysr_regressor') and self.SLIME_pysr_regressor:
+            for dim, regressor in self.SLIME_pysr_regressor.items():
+                key = f'_slime_regressor_dim_{dim}'
+                try:
+                    destination[prefix + key] = pickle.dumps(regressor)
+                except Exception as e:
+                    warnings.warn(f"Could not serialize SLIME regressor for dimension {dim}: {e}")
+
+        # Store list of regressor dimensions for easier reconstruction
+        destination[prefix + '_pysr_dims'] = list(self.pysr_regressor.keys()) if hasattr(self, 'pysr_regressor') else []
+        destination[prefix + '_slime_dims'] = list(self.SLIME_pysr_regressor.keys()) if hasattr(self, 'SLIME_pysr_regressor') else []
+
+    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
+                              missing_keys, unexpected_keys, error_msgs):
+        """
+        Load SymbolicModel state from state dict using PyTorch's built-in mechanism.
+
+        This method is automatically called by load_state_dict() and enables users to load
+        models using standard PyTorch patterns:
+            model.load_state_dict(torch.load('model.pth'))
+
+        Restores:
+            - PyTorch parameters and buffers (handled by parent class)
+            - Metadata
+            - PySR regressors
+            - SLIME regressors
+            - Pruning state
+            - Equation functions (rebuilt from regressors)
+
+        Note:
+            Variable transforms cannot be restored and must be re-provided by the user
+            if needed for equation mode.
+        """
+        # Load metadata first
+        metadata_key = prefix + '_symtorch_metadata'
+        if metadata_key in state_dict:
+            metadata = state_dict.pop(metadata_key)
+
+            # Restore basic metadata
+            self.block_name = metadata.get('block_name', self.block_name)
+            self.output_dims = metadata.get('output_dims')
+            self._variable_names = metadata.get('_variable_names')
+            self._using_equation = metadata.get('_using_equation', False)
+            self._equation_vars = metadata.get('_equation_vars', {})
+
+            # Restore pruning metadata if present
+            if 'initial_dim' in metadata:
+                self.initial_dim = metadata['initial_dim']
+                self.target_dim = metadata['target_dim']
+                self.current_dim = metadata['current_dim']
+                self.pruning_schedule = metadata['pruning_schedule']
+
+                # Register pruning_mask buffer if not already registered
+                # This allows loading models with pruning without calling setup_pruning first
+                if not hasattr(self, 'pruning_mask'):
+                    self.register_buffer('pruning_mask', torch.ones(self.initial_dim, dtype=torch.bool))
+
+            # Warn about variable transforms
+            if metadata.get('_variable_transforms_used', False):
+                warnings.warn(
+                    f"Model '{self.block_name}' was saved with variable transforms, "
+                    "but transforms cannot be serialized. You must re-provide "
+                    "variable_transforms if you need to use equation mode."
+                )
+                self._variable_transforms = None
+
+        # Load PySR regressors
+        pysr_dims_key = prefix + '_pysr_dims'
+        if pysr_dims_key in state_dict:
+            pysr_dims = state_dict.pop(pysr_dims_key)
+            self.pysr_regressor = {}
+
+            for dim in pysr_dims:
+                key = prefix + f'_pysr_regressor_dim_{dim}'
+                if key in state_dict:
+                    try:
+                        self.pysr_regressor[dim] = pickle.loads(state_dict.pop(key))
+                    except Exception as e:
+                        error_msgs.append(f"Could not load PySR regressor for dimension {dim}: {e}")
+        else:
+            self.pysr_regressor = {}
+
+        # Load SLIME regressors
+        slime_dims_key = prefix + '_slime_dims'
+        if slime_dims_key in state_dict:
+            slime_dims = state_dict.pop(slime_dims_key)
+            self.SLIME_pysr_regressor = {}
+
+            for dim in slime_dims:
+                key = prefix + f'_slime_regressor_dim_{dim}'
+                if key in state_dict:
+                    try:
+                        self.SLIME_pysr_regressor[dim] = pickle.loads(state_dict.pop(key))
+                    except Exception as e:
+                        error_msgs.append(f"Could not load SLIME regressor for dimension {dim}: {e}")
+        else:
+            self.SLIME_pysr_regressor = {}
+
+        # Initialize cache as None (not serialized)
+        self.distill_data = None
+        self.distill_data_slime = None
+
+        # Check if state_dict contains _original_block (means model was in equation mode)
+        has_original_block = any(key.startswith(prefix + '_original_block.') for key in state_dict.keys())
+
+        # If we need to restore _original_block, create it BEFORE calling parent
+        # This allows PyTorch to load it naturally
+        if has_original_block and self._using_equation:
+            import copy
+            # Create a placeholder _original_block that will be populated by parent's load
+            self._original_block = copy.deepcopy(self.symtorch_block)
+
+        # Call parent to load parameters and buffers (including _original_block if present)
+        super()._load_from_state_dict(state_dict, prefix, local_metadata, strict,
+                                       missing_keys, unexpected_keys, error_msgs)
+
+        # Rebuild equation functions if model was in equation mode
+        if self._using_equation and self._equation_vars:
+            try:
+                self._rebuild_equation_funcs()
+            except Exception as e:
+                warnings.warn(
+                    f"Model was saved in equation mode but equations could not be rebuilt: {e}. "
+                    f"Switching to block mode."
+                )
+                self._using_equation = False
+                self._equation_funcs = {}
+
+    def _rebuild_equation_funcs(self):
+        """
+        Rebuild lambdified equation functions from loaded PySR regressors.
+
+        Called during load_state_dict when model was saved in equation mode.
+        Attempts to reconstruct _equation_funcs from the stored regressors.
+
+        Raises:
+            RuntimeError: If equations cannot be rebuilt from regressors
+        """
+        if not hasattr(self, '_equation_vars') or not self._equation_vars:
+            raise RuntimeError("Cannot rebuild equations: _equation_vars not found")
+
+        self._equation_funcs = {}
+
+        for dim, var_indices in self._equation_vars.items():
+            # Get equation from regressor
+            result = self._get_equation(dim, complexity=None, SLIME=False)
+            if result is None:
+                raise RuntimeError(f"Cannot rebuild equation for dimension {dim}")
+
+            equation_func, vars_sorted = result
+            self._equation_funcs[dim] = equation_func
+
 	# XXX: These methods should probably should override _save_to_state_dict/_load_from_state_dict.
 	#   Another option is to override state_dict/load_state_dict.
     def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
         """
-        Save the SymbolicMLP model including PyTorch weights and PySR regressors.
+        DEPRECATED: Use torch.save(model.state_dict(), path) instead.
 
-        Creates a comprehensive save that includes:
-        - PyTorch model state dict (if save_pytorch=True)
-        - All fitted PySR regressors (if save_regressors=True)
-        - Model metadata and configuration
-        - Variable transforms and names if used
+        Save the SymbolicModel using PyTorch's state dict mechanism.
+        This method is maintained for backward compatibility but will be removed
+        in a future version.
+
+        Migration guide:
+            Old: model.save_model('path')
+            New: torch.save(model.state_dict(), 'path.pth')
+
+            Old: model.save_model('path', save_pytorch=True, save_regressors=True)
+            New: torch.save(model.state_dict(), 'path.pth')  # Saves everything
 
         Args:
-            save_path (str): Base path for saving (without extension)
-            save_pytorch (bool, optional): Whether to save PyTorch model state. Defaults to True.
-            save_regressors (bool, optional): Whether to save PySR regressors. Defaults to True.
+            save_path (str): Path to save (extension will be added if not present)
+            save_pytorch (bool): Ignored (always saved in state dict)
+            save_regressors (bool): Ignored (always saved in state dict)
+
+        Returns:
+            list: List containing the single save file path
 
         Example:
-            >>> model.mlp = SymbolicMLP(model.mlp, block_name="encoder")
-            >>> # ... train and run distill ...
-            >>> model.mlp.save_model("./saved_models/my_model")
-
-        Note:
-            This creates multiple files:
-            - {save_path}_pytorch.pth: PyTorch model state
-            - {save_path}_metadata.pkl: Model configuration and metadata
-            - {save_path}_regressor_dim{i}.pkl: Individual PySR regressors (one per dimension)
+            >>> # Deprecated usage (still works):
+            >>> model.save_model("./saved_models/my_model")
+            >>>
+            >>> # Recommended usage:
+            >>> torch.save(model.state_dict(), "./saved_models/my_model.pth")
         """
+        warnings.warn(
+            "save_model() is deprecated and will be removed in version 2.0. "
+            "Use torch.save(model.state_dict(), 'path.pth') instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
+
+        # Ensure directory exists
         os.makedirs(os.path.dirname(save_path) if os.path.dirname(save_path) else '.', exist_ok=True)
 
-        saved_files = []
+        # Add .pth extension if not present
+        if not save_path.endswith('.pth'):
+            save_path = save_path + '.pth'
 
-        # Save PyTorch model state
-        if save_pytorch:
-            pytorch_path = f"{save_path}_pytorch.pth"
-            torch.save(self.symtorch_block.state_dict(), pytorch_path)
-            saved_files.append(pytorch_path)
-            print(f"✅ Saved PyTorch model state to {pytorch_path}")
+        # Use new state dict mechanism
+        torch.save(self.state_dict(), save_path)
 
-        # Save model metadata
-        metadata = {
-            'block_name': self.block_name,
-            'output_dims': getattr(self, 'output_dims', None),
-            'variable_transforms_available': hasattr(self, '_variable_transforms') and self._variable_transforms is not None,
-            'variable_names': getattr(self, '_variable_names', None),
-            'using_equation': getattr(self, '_using_equation', False),
-            'class_name': self.__class__.__name__,
-            'equation_vars': getattr(self, '_equation_vars', {}),
-            'regressor_dimensions': list(self.pysr_regressor.keys()) if hasattr(self, 'pysr_regressor') else []
-        }
+        print(f"✅ Model saved to {save_path}")
+        print(f"💡 To load: model.load_state_dict(torch.load('{save_path}'))")
 
-        metadata_path = f"{save_path}_metadata.pkl"
-        with open(metadata_path, 'wb') as f:
-            pickle.dump(metadata, f)
-        saved_files.append(metadata_path)
-        print(f"✅ Saved model metadata to {metadata_path}")
-
-        # Save PySR regressors
-        if save_regressors and hasattr(self, 'pysr_regressor') and self.pysr_regressor:
-            regressor_files = []
-            for dim, regressor in self.pysr_regressor.items():
-                regressor_path = f"{save_path}_regressor_dim{dim}.pkl"
-                try:
-                    # Use PySR's built-in pickling support
-                    with open(regressor_path, 'wb') as f:
-                        pickle.dump(regressor, f)
-                    regressor_files.append(regressor_path)
-                    saved_files.append(regressor_path)
-                    print(f"✅ Saved regressor for dimension {dim} to {regressor_path}")
-                except Exception as e:
-                    print(f"⚠️ Warning: Could not save regressor for dimension {dim}: {e}")
-
-            if regressor_files:
-                print(f"✅ Saved {len(regressor_files)} PySR regressors")
-        elif save_regressors:
-            print("ℹ️ No PySR regressors found to save")
-
-        print(f"🎯 Model save complete. Created {len(saved_files)} files with base name: {save_path}")
-        return saved_files
+        return [save_path]
 
     @classmethod
     def load_model(cls, save_path: str, mlp_architecture: nn.Module = None, device: str = 'cpu'):
         """
-        Load a previously saved SymbolicMLP model with all components.
+        DEPRECATED: Use model.load_state_dict(torch.load(path)) instead.
 
-        Reconstructs the complete SymbolicMLP instance including:
-        - PyTorch model weights (requires architecture)
-        - All fitted PySR regressors
-        - Model metadata and configuration
-        - Variable transforms setup
+        Load a previously saved SymbolicModel using PyTorch's state dict mechanism.
+        This method is maintained for backward compatibility but will be removed
+        in a future version.
+
+        Migration guide:
+            Old:
+                loaded = SymbolicModel.load_model('path', architecture)
+
+            New:
+                model = SymbolicModel(architecture, block_name='...')
+                model.load_state_dict(torch.load('path.pth', map_location=device))
 
         Args:
-            save_path (str): Base path used during saving (without extension)
-            mlp_architecture (nn.Module, optional): PyTorch model architecture to load weights into.
-                                                   If None, only metadata and regressors are loaded.
-            device (str, optional): Device to load tensors to ('cpu', 'cuda', etc.). Defaults to 'cpu'.
+            save_path (str): Path to saved model (with or without .pth extension)
+            mlp_architecture (nn.Module): Architecture to wrap (required)
+            device (str): Device to load tensors to
 
         Returns:
-            SymbolicMLP: Reconstructed SymbolicMLP instance with loaded components
+            SymbolicModel: Instance with loaded state
 
         Example:
-            >>> # Create same architecture as original
-            >>> mlp = nn.Sequential(nn.Linear(5, 64), nn.ReLU(), nn.Linear(64, 1))
-            >>> loaded_model = SymbolicMLP.load_model("./saved_models/my_model", mlp)
-            >>> # Model ready to use with equations
-            >>> loaded_model.switch_to_symbolic()
-
-        Note:
-            The mlp_architecture must match the original architecture exactly for weight loading.
-            If architecture is not provided, returns a model instance with regressors but no PyTorch weights.
+            >>> # Deprecated usage (still works):
+            >>> loaded = SymbolicModel.load_model("./saved_models/my_model", architecture)
+            >>>
+            >>> # Recommended usage:
+            >>> model = SymbolicModel(architecture, block_name='my_model')
+            >>> model.load_state_dict(torch.load("./saved_models/my_model.pth"))
         """
-        # Load metadata first
-        metadata_path = f"{save_path}_metadata.pkl"
-        if not os.path.exists(metadata_path):
-            raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
+        warnings.warn(
+            "load_model() is deprecated and will be removed in version 2.0. "
+            "Create a SymbolicModel instance and use load_state_dict() instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
 
-        with open(metadata_path, 'rb') as f:
-            metadata = pickle.load(f)
+        if mlp_architecture is None:
+            raise ValueError(
+                "mlp_architecture is required. The new loading mechanism requires "
+                "you to create the model architecture first:\n"
+                "  model = SymbolicModel(architecture, block_name='...')\n"
+                "  model.load_state_dict(torch.load('path.pth'))"
+            )
 
-        print(f"📂 Loading {metadata['class_name']} model: {metadata['block_name']}")
+        # Add .pth extension if not present
+        if not save_path.endswith('.pth'):
+            save_path = save_path + '.pth'
 
-        # Create instance based on class type
-        if metadata['class_name'] == 'PruningMLP':
-            # Import here to avoid circular imports
-            from .toolkit import PruningMLP
+        # Load state dict
+        state_dict = torch.load(save_path, map_location=device, weights_only=False)
 
-            # Need to determine dimensions for PruningMLP
-            if mlp_architecture is None:
-                raise ValueError("mlp_architecture is required when loading PruningMLP")
+        # Extract block_name from metadata if available
+        block_name = state_dict.get('_symtorch_metadata', {}).get('block_name', 'loaded_model')
 
-            # Try to infer dimensions from saved state
-            output_dims = metadata.get('output_dims', None)
-            if output_dims is None:
-                raise ValueError("Cannot determine output dimensions for PruningMLP")
+        # Create instance
+        instance = cls(mlp_architecture, block_name=block_name)
 
-            # Create minimal PruningMLP - dimensions will be updated from saved state
-            instance = PruningMLP(mlp_architecture,
-                                  initial_dim=output_dims,
-                                  target_dim=1,  # Will be updated
-                                  block_name=metadata['block_name'])
-        else:
-            # Standard SymbolicMLP
-            instance = cls(mlp_architecture or nn.Identity(), metadata['block_name'])
+        # Load state
+        instance.load_state_dict(state_dict)
 
-        # Load PyTorch weights if available and architecture provided
-        pytorch_path = f"{save_path}_pytorch.pth"
-        if os.path.exists(pytorch_path) and mlp_architecture is not None:
-            state_dict = torch.load(pytorch_path, map_location=device, weights_only=True)
-            instance.symtorch_block.load_state_dict(state_dict)
-            instance.symtorch_block.eval()  # Ensure model is in eval mode after loading
-            print(f"✅ Loaded PyTorch weights from {pytorch_path}")
-        elif mlp_architecture is not None:
-            print(f"⚠️ PyTorch weights file not found: {pytorch_path}")
+        print(f"✅ Model loaded from {save_path}")
+        print(f"💡 Next time, use: model = SymbolicModel(...); model.load_state_dict(torch.load('{save_path}'))")
 
-        # Restore metadata
-        instance.output_dims = metadata.get('output_dims')
-        instance._variable_names = metadata.get('variable_names')
-        instance._using_equation = metadata.get('using_equation', False)
-        instance._equation_vars = metadata.get('equation_vars', {})
-
-        # Load PySR regressors
-        regressor_dims = metadata.get('regressor_dimensions', [])
-        instance.pysr_regressor = {}
-        equation_funcs = {}
-
-        loaded_regressors = 0
-        for dim in regressor_dims:
-            regressor_path = f"{save_path}_regressor_dim{dim}.pkl"
-            if os.path.exists(regressor_path):
-                try:
-                    with open(regressor_path, 'rb') as f:
-                        regressor = pickle.load(f)
-                    instance.pysr_regressor[dim] = regressor
-
-                    # Rebuild equation function if model was using equations
-                    if instance._using_equation and dim in instance._equation_vars:
-                        try:
-                            result = instance._get_equation(dim)
-                            if result is not None:
-                                equation_funcs[dim] = result[0]
-                        except Exception as e:
-                            print(f"⚠️ Warning: Could not rebuild equation for dimension {dim}: {e}")
-                            # Don't use equations for this dimension if we can't rebuild it
-                            pass
-
-                    loaded_regressors += 1
-                    print(f"✅ Loaded regressor for dimension {dim}")
-                except Exception as e:
-                    print(f"⚠️ Warning: Could not load regressor for dimension {dim}: {e}")
-            else:
-                print(f"⚠️ Warning: Regressor file not found for dimension {dim}: {regressor_path}")
-
-        if loaded_regressors > 0:
-            print(f"✅ Loaded {loaded_regressors} PySR regressors")
-
-            # Restore equation functions if model was using equations
-            if instance._using_equation and equation_funcs:
-                # Check if we have equation functions for all required dimensions
-                required_dims = set(instance._equation_vars.keys())
-                available_dims = set(equation_funcs.keys())
-
-                if required_dims == available_dims:
-                    instance._equation_funcs = equation_funcs
-                    print(f"✅ Restored symbolic equation functions for {len(equation_funcs)} dimensions")
-                else:
-                    missing_dims = required_dims - available_dims
-                    print(f"⚠️ Could not restore equations for dimensions {missing_dims}, switching to MLP mode")
-                    instance._using_equation = False
-            elif instance._using_equation:
-                print("⚠️ Model was saved in equation mode but no equations could be restored, switching to MLP mode")
-                instance._using_equation = False
-        else:
-            print("ℹ️ No PySR regressors found to load")
-
-        print(f"🎯 Model loading complete: {metadata['block_name']}")
         return instance

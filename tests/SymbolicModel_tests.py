@@ -25,6 +25,34 @@ from symtorch import SymbolicModel
 
 
 # ============================================================================
+# Helper Classes for Testing
+# ============================================================================
+
+class PicklableMockRegressor:
+    """A picklable mock PySR regressor for testing save/load functionality."""
+
+    def __init__(self, equation="x0 + x1", loss=0.01, complexity=3):
+        self.equation = equation
+        self.loss = loss
+        self.complexity_value = complexity
+
+        # Create equations DataFrame
+        self.equations_ = pd.DataFrame({
+            "equation": [equation],
+            "sympy_format": [sympy.sympify(equation)],
+            "complexity": [complexity],
+            "loss": [loss]
+        })
+
+    def get_best(self):
+        return {"equation": self.equation, "loss": self.loss}
+
+    def fit(self, X, y, **kwargs):
+        """Mock fit method."""
+        pass
+
+
+# ============================================================================
 # Fixtures
 # ============================================================================
 
@@ -82,6 +110,12 @@ def mock_pysr_regressor():
         "loss": [0.01]
     })
     return mock_reg
+
+
+@pytest.fixture
+def picklable_mock_regressor():
+    """Picklable mock PySR regressor for save/load testing."""
+    return PicklableMockRegressor()
 
 
 # ============================================================================
@@ -1263,3 +1297,385 @@ class TestIOCaching:
         # PySR fit should be called again even with cache hit
         second_fit_count = mock_pysr_regressor.fit.call_count
         assert second_fit_count > first_fit_count
+
+
+# ============================================================================
+# Test State Dict Save/Load
+# ============================================================================
+
+class TestStateDictSaveLoad:
+    """Tests for state_dict-based save/load functionality."""
+
+    def test_state_dict_keys_basic(self, symbolic_model):
+        """Test that state_dict contains expected keys."""
+        state = symbolic_model.state_dict()
+
+        # Should have metadata
+        assert '_symtorch_metadata' in state
+        assert isinstance(state['_symtorch_metadata'], dict)
+
+        # Should have regressor dimension lists
+        assert '_pysr_dims' in state
+        assert '_slime_dims' in state
+
+    def test_state_dict_metadata_content(self, symbolic_model):
+        """Test metadata content in state dict."""
+        symbolic_model.output_dims = 3
+        symbolic_model._variable_names = ['x', 'y', 'z']
+
+        state = symbolic_model.state_dict()
+        metadata = state['_symtorch_metadata']
+
+        assert metadata['block_name'] == 'test_model'
+        assert metadata['output_dims'] == 3
+        assert metadata['_variable_names'] == ['x', 'y', 'z']
+        assert metadata['_using_equation'] == False
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_save_load_basic_workflow(self, mock_pysr_class, sample_inputs, fast_sr_params, picklable_mock_regressor, tmp_path):
+        """Test basic save/load workflow with state_dict."""
+        mock_pysr_class.return_value = picklable_mock_regressor
+
+        # Create and train model
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="save_test")
+        model1.distill(sample_inputs, sr_params=fast_sr_params)
+
+        # Save state dict
+        save_path = tmp_path / "model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load into new model
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="load_test")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Verify loaded state
+        assert model2.block_name == "save_test"
+        assert len(model2.pysr_regressor) == len(model1.pysr_regressor)
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_save_load_with_regressors(self, mock_pysr_class, sample_inputs, fast_sr_params, picklable_mock_regressor, tmp_path):
+        """Test that PySR regressors are saved and loaded correctly."""
+        mock_pysr_class.return_value = picklable_mock_regressor
+
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="regressor_test")
+        model1.distill(sample_inputs, sr_params=fast_sr_params)
+
+        # Check regressors exist
+        assert len(model1.pysr_regressor) == 3
+
+        # Save and load
+        save_path = tmp_path / "model_with_regressors.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Verify regressors loaded
+        assert len(model2.pysr_regressor) == 3
+        for dim in range(3):
+            assert dim in model2.pysr_regressor
+
+    def test_save_load_with_pruning(self, tmp_path):
+        """Test save/load with pruning state."""
+        layer = nn.Linear(5, 10)
+        model1 = SymbolicModel(layer, block_name="pruning_test")
+        model1.setup_pruning(initial_dim=10, target_dim=5, total_steps=1000)
+
+        # Prune at a step
+        sample_data = torch.randn(50, 5)
+        model1.prune(step=250, sample_data=sample_data)
+
+        # Save and load
+        save_path = tmp_path / "pruned_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 10)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Verify pruning state loaded
+        assert hasattr(model2, 'initial_dim')
+        assert model2.initial_dim == 10
+        assert model2.target_dim == 5
+        assert model2.current_dim == model1.current_dim
+        assert torch.equal(model2.pruning_mask, model1.pruning_mask)
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_save_load_equation_mode(self, mock_pysr_class, sample_inputs, picklable_mock_regressor, tmp_path):
+        """Test save/load in equation mode."""
+        # Use picklable mock with simple equation
+        mock_reg = PicklableMockRegressor(equation="x0", loss=0.001, complexity=1)
+        mock_pysr_class.return_value = mock_reg
+
+        # Create model and switch to equation mode
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="equation_test")
+        model1.distill(sample_inputs)
+        model1.switch_to_symbolic()
+
+        assert model1._using_equation == True
+
+        # Save and load
+        save_path = tmp_path / "equation_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Verify equation mode restored
+        assert model2._using_equation == True
+        assert model2._equation_funcs is not None
+
+    def test_save_load_variable_names(self, tmp_path):
+        """Test that variable names are preserved."""
+        layer = nn.Linear(5, 2)
+        model1 = SymbolicModel(layer, block_name="varnames_test")
+        model1._variable_names = ['alpha', 'beta', 'gamma']
+        model1.output_dims = 2
+
+        save_path = tmp_path / "varnames_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 2)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        assert model2._variable_names == ['alpha', 'beta', 'gamma']
+
+    def test_save_load_variable_transforms_warning(self, tmp_path):
+        """Test that loading with variable transforms shows warning."""
+        layer = nn.Linear(5, 2)
+        model1 = SymbolicModel(layer, block_name="transforms_test")
+        model1._variable_transforms = [lambda x: x[:, 0], lambda x: x[:, 1]**2]
+
+        save_path = tmp_path / "transforms_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 2)
+        model2 = SymbolicModel(layer2, block_name="temp")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            model2.load_state_dict(torch.load(save_path))
+
+            # Should have warning about transforms
+            assert len(w) > 0
+            assert "variable transforms" in str(w[0].message).lower()
+
+        # Transforms should be None
+        assert model2._variable_transforms is None
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_forward_consistency_after_load(self, mock_pysr_class, sample_inputs, fast_sr_params, mock_pysr_regressor, tmp_path):
+        """Test that forward pass produces same results after save/load."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        # Create and train model
+        layer = nn.Linear(5, 3)
+        torch.manual_seed(42)  # For reproducibility
+        model1 = SymbolicModel(layer, block_name="consistency_test")
+
+        # Get output before save
+        test_input = torch.randn(10, 5)
+        torch.manual_seed(42)  # Reset for consistent weights
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="consistency_test")
+
+        with torch.no_grad():
+            output1 = model1(test_input)
+
+        # Save and load
+        save_path = tmp_path / "consistency_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        torch.manual_seed(43)  # Different seed to ensure load actually works
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Get output after load
+        with torch.no_grad():
+            output2 = model2(test_input)
+
+        # Should be identical
+        torch.testing.assert_close(output1, output2)
+
+    def test_full_model_save_load(self, tmp_path):
+        """Test saving/loading entire model object with torch.save/load."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="full_save_test")
+        model1.output_dims = 3
+
+        # Save entire model
+        save_path = tmp_path / "full_model.pth"
+        torch.save(model1, save_path)
+
+        # Load entire model (weights_only=False for full object loading)
+        model2 = torch.load(save_path, weights_only=False)
+
+        # Verify it's a SymbolicModel
+        assert isinstance(model2, SymbolicModel)
+        assert model2.block_name == "full_save_test"
+        assert model2.output_dims == 3
+
+    def test_cross_device_save_load(self, tmp_path):
+        """Test save on one device, load on another."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="device_test")
+
+        # Save (on CPU)
+        save_path = tmp_path / "device_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load with different device specification
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        state_dict = torch.load(save_path, map_location='cpu')
+        model2.load_state_dict(state_dict)
+
+        # Should work without errors
+        test_input = torch.randn(5, 5)
+        output = model2(test_input)
+        assert output.shape == (5, 3)
+
+    def test_deprecated_save_model_warning(self, symbolic_model, tmp_path):
+        """Test that old save_model() shows deprecation warning."""
+        save_path = tmp_path / "deprecated_save"
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            symbolic_model.save_model(str(save_path))
+
+            # Should have deprecation warning
+            assert len(w) > 0
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
+
+    def test_deprecated_load_model_warning(self, tmp_path):
+        """Test that old load_model() shows deprecation warning."""
+        # Create and save a model
+        layer = nn.Linear(5, 3)
+        model = SymbolicModel(layer, block_name="deprecated_test")
+        save_path = tmp_path / "deprecated_load.pth"
+        torch.save(model.state_dict(), save_path)
+
+        # Load with deprecated method
+        layer2 = nn.Linear(5, 3)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            loaded = SymbolicModel.load_model(str(save_path), layer2)
+
+            # Should have deprecation warning
+            assert len(w) > 0
+            assert issubclass(w[0].category, DeprecationWarning)
+            assert "deprecated" in str(w[0].message).lower()
+
+    def test_state_dict_no_cache_data(self, symbolic_model, sample_inputs):
+        """Test that cache data is not included in state dict."""
+        # Populate cache
+        symbolic_model.distill_data = {'inputs': sample_inputs.numpy()}
+        symbolic_model.distill_data_slime = {'inputs': sample_inputs.numpy()}
+
+        # Get state dict
+        state = symbolic_model.state_dict()
+
+        # Should not contain cache keys
+        for key in state.keys():
+            assert 'distill_data' not in key
+            assert 'cache' not in key.lower()
+
+    def test_load_state_dict_initializes_cache(self, tmp_path):
+        """Test that loading sets cache to None."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="cache_init_test")
+
+        save_path = tmp_path / "cache_init_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Cache should be None
+        assert model2.distill_data is None
+        assert model2.distill_data_slime is None
+
+    def test_empty_regressors(self, tmp_path):
+        """Test save/load with no regressors."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="empty_regressors_test")
+        # Don't call distill, so no regressors
+
+        save_path = tmp_path / "empty_regressors.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Should have empty regressor dicts
+        assert model2.pysr_regressor == {}
+        assert model2.SLIME_pysr_regressor == {}
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_rebuild_equation_funcs_success(self, mock_pysr_class, sample_inputs, picklable_mock_regressor, tmp_path):
+        """Test that equation functions are rebuilt on load."""
+        # Use picklable mock
+        mock_reg = PicklableMockRegressor(equation="x0 + x1", loss=0.001, complexity=2)
+        mock_pysr_class.return_value = mock_reg
+
+        layer = nn.Linear(5, 2)
+        model1 = SymbolicModel(layer, block_name="rebuild_test")
+        model1.distill(sample_inputs)
+        model1.switch_to_symbolic()
+
+        # Should be in equation mode
+        assert model1._using_equation == True
+        assert len(model1._equation_funcs) == 2
+
+        # Save and load
+        save_path = tmp_path / "rebuild_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 2)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Equation mode should be restored
+        assert model2._using_equation == True
+        assert len(model2._equation_funcs) == 2
+
+    def test_partial_regressors(self, picklable_mock_regressor, tmp_path):
+        """Test save/load with partial dimension coverage."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="partial_test")
+
+        # Manually create partial regressors (only for dims 0 and 2)
+        model1.output_dims = 3
+        model1.pysr_regressor = {
+            0: PicklableMockRegressor(),
+            2: PicklableMockRegressor()
+        }
+
+        # Should only have regressors for dims 0 and 2
+        assert 0 in model1.pysr_regressor
+        assert 1 not in model1.pysr_regressor
+        assert 2 in model1.pysr_regressor
+
+        # Save and load
+        save_path = tmp_path / "partial_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Should preserve partial coverage
+        assert 0 in model2.pysr_regressor
+        assert 1 not in model2.pysr_regressor
+        assert 2 in model2.pysr_regressor
