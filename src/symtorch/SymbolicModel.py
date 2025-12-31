@@ -2086,7 +2086,7 @@ class SymbolicModel(nn.Module):
             >>> torch.save(model.state_dict(), "./saved_models/my_model.pth")
         """
         warnings.warn(
-            "save_model() is deprecated and will be removed in version 2.0. "
+            "save_model() is deprecated and will be removed in future versions. "
             "Use torch.save(model.state_dict(), 'path.pth') instead.",
             DeprecationWarning,
             stacklevel=2
@@ -2141,7 +2141,7 @@ class SymbolicModel(nn.Module):
             >>> model.load_state_dict(torch.load("./saved_models/my_model.pth"))
         """
         warnings.warn(
-            "load_model() is deprecated and will be removed in version 2.0. "
+            "load_model() is deprecated and will be removed in future versions. "
             "Create a SymbolicModel instance and use load_state_dict() instead.",
             DeprecationWarning,
             stacklevel=2

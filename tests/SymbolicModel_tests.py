@@ -28,6 +28,7 @@ from symtorch import SymbolicModel
 # Helper Classes for Testing
 # ============================================================================
 
+# TODO: Consolidate to one mock class?
 class PicklableMockRegressor:
     """A picklable mock PySR regressor for testing save/load functionality."""
 
@@ -1732,4 +1733,4 @@ class TestStateDictSaveLoad:
         test_val = np.array([2.0])
         assert model2._variable_transforms[0](test_val) == 4.0  # square_transform: x ** 2
         assert model2._variable_transforms[1](test_val) == 4.0  # lambda: x * 2
-        assert model2._variable_transforms[2](test_val) == 2.0  # np.abs
+        assert model2._variable_transforms[2](test_val) == 2.0  # abs
