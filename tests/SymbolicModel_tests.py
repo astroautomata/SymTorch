@@ -1524,38 +1524,6 @@ class TestStateDictSaveLoad:
         output = model2(test_input)
         assert output.shape == (5, 3)
 
-    def test_deprecated_save_model_warning(self, symbolic_model, tmp_path):
-        """Test that old save_model() shows deprecation warning."""
-        save_path = tmp_path / "deprecated_save"
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            symbolic_model.save_model(str(save_path))
-
-            # Should have deprecation warning
-            assert len(w) > 0
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "deprecated" in str(w[0].message).lower()
-
-    def test_deprecated_load_model_warning(self, tmp_path):
-        """Test that old load_model() shows deprecation warning."""
-        # Create and save a model
-        layer = nn.Linear(5, 3)
-        model = SymbolicModel(layer, block_name="deprecated_test")
-        save_path = tmp_path / "deprecated_load.pth"
-        torch.save(model.state_dict(), save_path)
-
-        # Load with deprecated method
-        layer2 = nn.Linear(5, 3)
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            loaded = SymbolicModel.load_model(str(save_path), layer2)
-
-            # Should have deprecation warning
-            assert len(w) > 0
-            assert issubclass(w[0].category, DeprecationWarning)
-            assert "deprecated" in str(w[0].message).lower()
-
     def test_state_dict_no_cache_data(self, symbolic_model, sample_inputs):
         """Test that cache data is not included in state dict."""
         # Populate cache
@@ -1734,3 +1702,40 @@ class TestStateDictSaveLoad:
         assert model2._variable_transforms[0](test_val) == 4.0  # square_transform: x ** 2
         assert model2._variable_transforms[1](test_val) == 4.0  # lambda: x * 2
         assert model2._variable_transforms[2](test_val) == 2.0  # abs
+
+    def test_save_load_unserializable_transforms_warning(self, tmp_path):
+        """Test that non-serializable transforms trigger warning and gracefully degrade."""
+
+        # Create a transform that explicitly prevents serialization
+        class UnserializableTransform:
+            def __getstate__(self):
+                raise TypeError("This transform cannot be pickled!")
+
+            def __call__(self, x):
+                return x ** 2
+
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="unserializable_test")
+        model1._variable_transforms = [UnserializableTransform()]
+
+        # Save should warn about serialization failure
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            save_path = tmp_path / "model_unserializable.pth"
+            torch.save(model1.state_dict(), save_path)
+
+            # Should get warning about failed serialization
+            assert len(w) > 0
+            warning_messages = [str(warning.message).lower() for warning in w]
+            assert any("could not serialize variable transforms" in msg for msg in warning_messages)
+
+        # Load should work without crashing
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            model2.load_state_dict(torch.load(save_path))
+
+            # Transforms should be None since serialization failed
+            assert model2._variable_transforms is None
