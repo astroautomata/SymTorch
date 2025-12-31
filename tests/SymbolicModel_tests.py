@@ -28,8 +28,6 @@ from symtorch import SymbolicModel
 # Helper Classes for Testing
 # ============================================================================
 
-# XXX: If we switch to dill for pickling this shouldn't be necessary right? even
-#   if it is still necessary we should just have one mock regressor not two right?
 class PicklableMockRegressor:
     """A picklable mock PySR regressor for testing save/load functionality."""
 
@@ -1452,29 +1450,6 @@ class TestStateDictSaveLoad:
 
         assert model2._variable_names == ['alpha', 'beta', 'gamma']
 
-    def test_save_load_variable_transforms_warning(self, tmp_path):
-        """Test that loading with variable transforms shows warning."""
-        layer = nn.Linear(5, 2)
-        model1 = SymbolicModel(layer, block_name="transforms_test")
-        model1._variable_transforms = [lambda x: x[:, 0], lambda x: x[:, 1]**2]
-
-        save_path = tmp_path / "transforms_model.pth"
-        torch.save(model1.state_dict(), save_path)
-
-        layer2 = nn.Linear(5, 2)
-        model2 = SymbolicModel(layer2, block_name="temp")
-
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            model2.load_state_dict(torch.load(save_path))
-
-            # Should have warning about transforms
-            assert len(w) > 0
-            assert "variable transforms" in str(w[0].message).lower()
-
-        # Transforms should be None
-        assert model2._variable_transforms is None
-
     @patch('symtorch.SymbolicModel.PySRRegressor')
     def test_forward_consistency_after_load(self, mock_pysr_class, sample_inputs, fast_sr_params, mock_pysr_regressor, tmp_path):
         """Test that forward pass produces same results after save/load."""
@@ -1712,3 +1687,49 @@ class TestStateDictSaveLoad:
         # Verify SLIME regressors loaded
         assert len(model2.SLIME_pysr_regressor) == len(model1.SLIME_pysr_regressor)
         assert len(model2.SLIME_pysr_regressor) > 0
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_save_load_with_variable_transforms(self, mock_pysr_class, sample_inputs, tmp_path):
+        """Test that variable transforms are serialized and restored with dill."""
+        mock_reg = PicklableMockRegressor()
+        mock_pysr_class.return_value = mock_reg
+
+        # Create model with variable transforms
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="transform_test")
+
+        # Define various types of transforms to test dill serialization
+        def square_transform(x):
+            return x ** 2
+
+        lambda_transform = lambda x: x * 2
+
+        # Use a mix of callable types (functions, lambdas, built-ins)
+        transforms = [square_transform, lambda_transform, abs]
+
+        # Distill with variable transforms
+        sr_params = {'niterations': 10}
+        model1.distill(sample_inputs, variable_transforms=transforms, sr_params=sr_params)
+
+        # Verify transforms are set
+        assert model1._variable_transforms is not None
+        assert len(model1._variable_transforms) == 3
+
+        # Save state dict
+        save_path = tmp_path / "model_with_transforms.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load into new model
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Verify transforms were restored
+        assert model2._variable_transforms is not None
+        assert len(model2._variable_transforms) == 3
+
+        # Verify transforms actually work (test that they produce correct outputs)
+        test_val = np.array([2.0])
+        assert model2._variable_transforms[0](test_val) == 4.0  # square_transform: x ** 2
+        assert model2._variable_transforms[1](test_val) == 4.0  # lambda: x * 2
+        assert model2._variable_transforms[2](test_val) == 2.0  # np.abs

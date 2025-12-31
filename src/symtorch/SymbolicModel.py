@@ -14,7 +14,7 @@ import sympy
 from sympy import lambdify
 import numpy as np
 import os
-import pickle
+import dill
 from typing import List, Callable, Optional, Union, Dict, Any
 from contextlib import contextmanager
 from typing import Literal
@@ -1825,8 +1825,6 @@ class SymbolicModel(nn.Module):
         self.distill_data_slime = None
         print(f"✅ Cache cleared for {self.block_name}.")
 
-    # XXX: we should be able to pickle variable transforms if we use dill which is
-    #   already a dependency of the project.
     def _save_to_state_dict(self, destination, prefix, keep_vars):
         """
         Save SymbolicModel state to state dict using PyTorch's built-in mechanism.
@@ -1838,14 +1836,16 @@ class SymbolicModel(nn.Module):
         Saves:
             - PyTorch parameters and buffers (handled by parent class)
             - Metadata (block_name, output_dims, etc.)
-            - PySR regressors (pickled)
-            - SLIME regressors (pickled)
+            - PySR regressors (serialized with dill)
+            - SLIME regressors (serialized with dill)
             - Pruning state
             - Equation mode state
+            - Variable transforms (serialized with dill)
 
         Note:
-            Variable transforms (_variable_transforms) cannot be serialized as they
-            contain arbitrary Callables. A warning flag is saved instead.
+            Variable transforms (_variable_transforms) are serialized using dill.
+            If serialization fails, a warning is issued and transforms will need
+            to be re-provided after loading.
         """
         # Call parent to save parameters and buffers (including pruning_mask)
         super()._save_to_state_dict(destination, prefix, keep_vars)
@@ -1858,8 +1858,21 @@ class SymbolicModel(nn.Module):
             '_variable_names': getattr(self, '_variable_names', None),
             '_using_equation': getattr(self, '_using_equation', False),
             '_equation_vars': getattr(self, '_equation_vars', {}),
-            '_variable_transforms_used': hasattr(self, '_variable_transforms') and self._variable_transforms is not None,
         }
+
+        # Try to serialize variable transforms with dill
+        if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+            try:
+                metadata['_variable_transforms'] = dill.dumps(self._variable_transforms)
+                metadata['_variable_transforms_serialized'] = True
+            except Exception as e:
+                warnings.warn(
+                    f"Could not serialize variable transforms for '{self.block_name}': {e}. "
+                    "Transforms will need to be re-provided after loading."
+                )
+                metadata['_variable_transforms_serialized'] = False
+        else:
+            metadata['_variable_transforms_serialized'] = False
 
         # Add pruning metadata if present
         if hasattr(self, 'pruning_schedule') and self.pruning_schedule is not None:
@@ -1872,12 +1885,12 @@ class SymbolicModel(nn.Module):
 
         destination[prefix + '_symtorch_metadata'] = metadata
 
-        # Save PySR regressors (pickle each one)
+        # Save PySR regressors (serialize with dill)
         if hasattr(self, 'pysr_regressor') and self.pysr_regressor:
             for dim, regressor in self.pysr_regressor.items():
                 key = f'_pysr_regressor_dim_{dim}'
                 try:
-                    destination[prefix + key] = pickle.dumps(regressor)
+                    destination[prefix + key] = dill.dumps(regressor)
                 except Exception as e:
                     warnings.warn(f"Could not serialize PySR regressor for dimension {dim}: {e}")
 
@@ -1886,7 +1899,7 @@ class SymbolicModel(nn.Module):
             for dim, regressor in self.SLIME_pysr_regressor.items():
                 key = f'_slime_regressor_dim_{dim}'
                 try:
-                    destination[prefix + key] = pickle.dumps(regressor)
+                    destination[prefix + key] = dill.dumps(regressor)
                 except Exception as e:
                     warnings.warn(f"Could not serialize SLIME regressor for dimension {dim}: {e}")
 
@@ -1910,10 +1923,12 @@ class SymbolicModel(nn.Module):
             - SLIME regressors
             - Pruning state
             - Equation functions (rebuilt from regressors)
+            - Variable transforms (deserialized with dill)
 
         Note:
-            Variable transforms cannot be restored and must be re-provided by the user
-            if needed for equation mode.
+            Variable transforms are restored from dill serialization if available.
+            If deserialization fails or transforms weren't serialized, they must
+            be re-provided by the user if needed for equation mode.
         """
         # Load metadata first
         metadata_key = prefix + '_symtorch_metadata'
@@ -1939,13 +1954,17 @@ class SymbolicModel(nn.Module):
                 if not hasattr(self, 'pruning_mask'):
                     self.register_buffer('pruning_mask', torch.ones(self.initial_dim, dtype=torch.bool))
 
-            # Warn about variable transforms
-            if metadata.get('_variable_transforms_used', False):
-                warnings.warn(
-                    f"Model '{self.block_name}' was saved with variable transforms, "
-                    "but transforms cannot be serialized. You must re-provide "
-                    "variable_transforms if you need to use equation mode."
-                )
+            # Restore variable transforms if they were serialized
+            if metadata.get('_variable_transforms_serialized', False):
+                try:
+                    self._variable_transforms = dill.loads(metadata['_variable_transforms'])
+                except Exception as e:
+                    warnings.warn(
+                        f"Could not deserialize variable transforms for '{self.block_name}': {e}. "
+                        "You must re-provide variable_transforms if you need to use equation mode."
+                    )
+                    self._variable_transforms = None
+            else:
                 self._variable_transforms = None
 
         # Load PySR regressors
@@ -1958,7 +1977,7 @@ class SymbolicModel(nn.Module):
                 key = prefix + f'_pysr_regressor_dim_{dim}'
                 if key in state_dict:
                     try:
-                        self.pysr_regressor[dim] = pickle.loads(state_dict.pop(key))
+                        self.pysr_regressor[dim] = dill.loads(state_dict.pop(key))
                     except Exception as e:
                         error_msgs.append(f"Could not load PySR regressor for dimension {dim}: {e}")
         else:
@@ -1974,7 +1993,7 @@ class SymbolicModel(nn.Module):
                 key = prefix + f'_slime_regressor_dim_{dim}'
                 if key in state_dict:
                     try:
-                        self.SLIME_pysr_regressor[dim] = pickle.loads(state_dict.pop(key))
+                        self.SLIME_pysr_regressor[dim] = dill.loads(state_dict.pop(key))
                     except Exception as e:
                         error_msgs.append(f"Could not load SLIME regressor for dimension {dim}: {e}")
         else:
