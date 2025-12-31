@@ -1874,3 +1874,82 @@ class TestStateDictSaveLoad:
 
         # Transforms should be None due to deserialization failure
         assert model2._variable_transforms is None
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_rebuild_equation_funcs_failure(self, mock_pysr_class, sample_inputs, tmp_path):
+        """Test graceful handling when equation functions cannot be rebuilt during load."""
+        mock_reg = PicklableMockRegressor(equation="x0 + x1", loss=0.001, complexity=2)
+        mock_pysr_class.return_value = mock_reg
+
+        # Create model and switch to equation mode
+        layer = nn.Linear(5, 2)
+        model1 = SymbolicModel(layer, block_name="rebuild_fail_test")
+        model1.distill(sample_inputs)
+        model1.switch_to_symbolic()
+
+        assert model1._using_equation == True
+        assert len(model1._equation_funcs) == 2
+
+        # Save state dict
+        save_path = tmp_path / "rebuild_fail_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load state dict and remove regressors to force rebuild failure
+        state_dict = torch.load(save_path)
+        # Remove the regressors - rebuild will fail without them
+        del state_dict['_pysr_regressor_dim_0']
+        del state_dict['_pysr_regressor_dim_1']
+
+        # Try to load without regressors (but equation mode is still True)
+        layer2 = nn.Linear(5, 2)
+        model2 = SymbolicModel(layer2, block_name="temp")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            model2.load_state_dict(state_dict)
+
+            # Should get warning about rebuild failure
+            assert len(w) > 0
+            warning_messages = [str(warning.message).lower() for warning in w]
+            assert any("could not be rebuilt" in msg and "switching to block mode" in msg for msg in warning_messages)
+
+        # Should fall back to block mode
+        assert model2._using_equation == False
+        assert model2._equation_funcs == {}
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_regressor_deserialization_failure(self, mock_pysr_class, sample_inputs, tmp_path):
+        """Test handling when regressor deserialization fails (corrupted data)."""
+        mock_reg = PicklableMockRegressor()
+        mock_pysr_class.return_value = mock_reg
+
+        # Create model with regressors
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="regressor_deserialize_fail_test")
+        sr_params = {'niterations': 10}
+        model1.distill(sample_inputs, sr_params=sr_params)
+
+        # Verify regressors exist
+        assert len(model1.pysr_regressor) == 3
+
+        # Save state dict
+        save_path = tmp_path / "regressor_corrupted.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load state dict and corrupt a regressor
+        state_dict = torch.load(save_path)
+        # Corrupt one of the serialized regressors to force deserialization failure
+        state_dict['_pysr_regressor_dim_1'] = b'corrupted_regressor_bytes_not_valid'
+
+        # Try to load with corrupted regressor - should raise RuntimeError with specific message
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+
+        # PyTorch raises RuntimeError when error_msgs are present (even with strict=False)
+        with pytest.raises(RuntimeError) as exc_info:
+            model2.load_state_dict(state_dict, strict=False)
+
+        # Verify the error message mentions the deserialization failure
+        error_msg = str(exc_info.value).lower()
+        assert "could not load pysr regressor" in error_msg
+        assert "dimension 1" in error_msg
