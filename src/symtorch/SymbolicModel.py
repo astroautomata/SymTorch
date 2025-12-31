@@ -92,9 +92,6 @@ class SymbolicModel(nn.Module):
             >>> # Full model save/load also works
             >>> torch.save(model, 'full_model.pth')
             >>> model = torch.load('full_model.pth', weights_only=False)
-
-            Note: Variable transforms (Callables) cannot be serialized and must be
-            re-provided after loading if needed for equation mode.
         """
 
         super().__init__()
