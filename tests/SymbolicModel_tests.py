@@ -1739,3 +1739,138 @@ class TestStateDictSaveLoad:
 
             # Transforms should be None since serialization failed
             assert model2._variable_transforms is None
+
+    def test_save_load_empty_transforms_list(self, tmp_path):
+        """Test save/load with empty transforms list."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="empty_transforms_test")
+        model1._variable_transforms = []  # Empty list
+
+        # Save state dict
+        save_path = tmp_path / "model_empty_transforms.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load into new model
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Empty list should be preserved (dill can serialize empty lists)
+        assert model2._variable_transforms == []
+
+    def test_save_load_none_transforms(self, tmp_path):
+        """Test save/load with None transforms."""
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="none_transforms_test")
+        model1._variable_transforms = None  # Explicitly None
+
+        # Save state dict
+        save_path = tmp_path / "model_none_transforms.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load into new model
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Should be None
+        assert model2._variable_transforms is None
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_multiple_save_load_cycles(self, mock_pysr_class, sample_inputs, tmp_path):
+        """Test that multiple save/load cycles preserve state correctly."""
+        mock_reg = PicklableMockRegressor()
+        mock_pysr_class.return_value = mock_reg
+
+        # Create model with transforms
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="cycle_test")
+
+        def transform_fn(x):
+            return x ** 2
+
+        transforms = [transform_fn, lambda x: x * 3]
+        sr_params = {'niterations': 10}
+        model1.distill(sample_inputs, variable_transforms=transforms, sr_params=sr_params)
+
+        # First save/load cycle
+        save_path1 = tmp_path / "cycle1.pth"
+        torch.save(model1.state_dict(), save_path1)
+
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+        model2.load_state_dict(torch.load(save_path1))
+
+        # Verify transforms work after first cycle
+        assert model2._variable_transforms is not None
+        assert len(model2._variable_transforms) == 2
+        test_val = np.array([2.0])
+        assert model2._variable_transforms[0](test_val) == 4.0
+        assert model2._variable_transforms[1](test_val) == 6.0
+
+        # Second save/load cycle (save model2, load into model3)
+        save_path2 = tmp_path / "cycle2.pth"
+        torch.save(model2.state_dict(), save_path2)
+
+        layer3 = nn.Linear(5, 3)
+        model3 = SymbolicModel(layer3, block_name="temp2")
+        model3.load_state_dict(torch.load(save_path2))
+
+        # Verify transforms still work after second cycle
+        assert model3._variable_transforms is not None
+        assert len(model3._variable_transforms) == 2
+        assert model3._variable_transforms[0](test_val) == 4.0
+        assert model3._variable_transforms[1](test_val) == 6.0
+
+        # Third save/load cycle
+        save_path3 = tmp_path / "cycle3.pth"
+        torch.save(model3.state_dict(), save_path3)
+
+        layer4 = nn.Linear(5, 3)
+        model4 = SymbolicModel(layer4, block_name="temp3")
+        model4.load_state_dict(torch.load(save_path3))
+
+        # Verify transforms STILL work after third cycle
+        assert model4._variable_transforms is not None
+        assert len(model4._variable_transforms) == 2
+        assert model4._variable_transforms[0](test_val) == 4.0
+        assert model4._variable_transforms[1](test_val) == 6.0
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_save_load_deserialization_failure(self, mock_pysr_class, sample_inputs, tmp_path):
+        """Test graceful handling when transforms fail to deserialize (corrupted data)."""
+        mock_reg = PicklableMockRegressor()
+        mock_pysr_class.return_value = mock_reg
+
+        # Create model with transforms
+        layer = nn.Linear(5, 3)
+        model1 = SymbolicModel(layer, block_name="deserialize_fail_test")
+
+        transforms = [lambda x: x ** 2]
+        sr_params = {'niterations': 10}
+        model1.distill(sample_inputs, variable_transforms=transforms, sr_params=sr_params)
+
+        # Save state dict
+        save_path = tmp_path / "model_corrupted.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        # Load state dict and corrupt the serialized transforms
+        state_dict = torch.load(save_path)
+        # Corrupt the serialized transforms bytes to force deserialization failure
+        state_dict['_symtorch_metadata']['_variable_transforms'] = b'corrupted_bytes_not_valid_pickle'
+
+        # Try to load with corrupted transforms
+        layer2 = nn.Linear(5, 3)
+        model2 = SymbolicModel(layer2, block_name="temp")
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            model2.load_state_dict(state_dict)
+
+            # Should get warning about failed deserialization
+            assert len(w) > 0
+            warning_messages = [str(warning.message).lower() for warning in w]
+            assert any("could not deserialize variable transforms" in msg for msg in warning_messages)
+
+        # Transforms should be None due to deserialization failure
+        assert model2._variable_transforms is None
