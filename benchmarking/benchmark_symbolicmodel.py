@@ -20,7 +20,7 @@ class SimpleModel(nn.Module):
     """
     Simple model class.
     """
-    def __init__(self, input_dim, output_dim, hidden_dim = 64):
+    def __init__(self, input_dim, output_dim, hidden_dim = 4):
         super(SimpleModel, self).__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -45,46 +45,6 @@ class SimpleModel(nn.Module):
         for layer in (self.input_layer, self.hidden_layers, self.output_layer):
             x = layer(x)
         return x
-
-    def save_model(self, save_path):
-        """Save model weights and SymbolicModel if present."""
-        import pickle
-        torch.save(self.state_dict(), f'{save_path}.pth')
-        pickle.dump(
-            {
-                'input_dim': self.input_dim,
-                'output_dim': self.output_dim,
-                'hidden_dim': self.hidden_dim
-            },
-            open(f'{save_path}_dims.pkl', 'wb')
-        )
-        if isinstance(self.hidden_layers, SymbolicModel):
-            self.hidden_layers.save_model(save_path)
-
-    @classmethod
-    def load_model(cls, save_path, device=None):
-        """Load saved model."""
-        import pickle
-        dims = pickle.load(open(f'{save_path}_dims.pkl', 'rb'))
-        model = cls(dims['input_dim'], dims['output_dim'], dims['hidden_dim'])
-
-        # If SymbolicModel was saved, load it separately
-        if os.path.exists(f'{save_path}_metadata.pkl'):
-            model.hidden_layers = SymbolicModel.load_model(
-                save_path, model.hidden_layers, device
-            )
-            # Load the rest of the model state (excluding hidden_layers)
-            state_dict = torch.load(f'{save_path}.pth', map_location=device)
-            state_dict = {
-                k: v for k, v in state_dict.items()
-                if not k.startswith('hidden_layers.')
-            }
-            model.load_state_dict(state_dict, strict=False)
-        else:
-            # No SymbolicModel, load normally
-            model.load_state_dict(torch.load(f'{save_path}.pth', map_location=device))
-
-        return model
 
 
 def train_model(model, dataloader, opt, criterion, epochs = 100):
@@ -156,9 +116,9 @@ def load_or_train_model(
     Returns:
         Trained model with symbolic regression fitted
     """
-    if os.path.exists(f'{model_path}_dims.pkl') and not retrain:
+    if os.path.exists(f'{model_path}.pt') and not retrain:
         print(f"Loading existing model from {model_path}")
-        model = SimpleModel.load_model(model_path)
+        model = torch.load(f"{model_path}.pt", weights_only=False)
         model.eval()
     else:
         print(f"Training new model (saving to {model_path})")
@@ -198,7 +158,7 @@ def load_or_train_model(
         # Save the model
         if os.path.dirname(model_path):
             os.makedirs(os.path.dirname(model_path), exist_ok=True)
-        model.save_model(model_path)
+        torch.save(model, f"{model_path}.pt")
 
     return model
 
