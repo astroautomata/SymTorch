@@ -22,6 +22,9 @@ import math
 from sklearn.neighbors import NearestNeighbors
 
 
+# TODO: switch to using a logger.
+# TODO: break up this class using composition?
+# TODO: integrate dim reduction workflow (e.g., pca, proj. layer training, etc...)
 class SymbolicModel(nn.Module):
 
     # Default PySR parameters
@@ -1176,6 +1179,7 @@ class SymbolicModel(nn.Module):
         else:
             print(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
 
+        # TODO: Make torch compiling optional for user.
         # Apply torch.compile() optimization if available (PyTorch 2.0+)
         if hasattr(torch, 'compile') and torch.cuda.is_available():
             print("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
@@ -1188,21 +1192,6 @@ class SymbolicModel(nn.Module):
             except Exception as e:
                 print(f"⚠️ torch.compile() failed: {e}. Continuing without compilation.")
                 # Forward pass will still work, just without compilation optimization
-
-    def switch_to_block(self):
-        """
-        Switch back from symbolic equations to the original neural network block.
-
-        Also restores uncompiled forward pass if it was compiled.
-        """
-        self._using_equation = False
-
-        # Restore original forward if it was compiled
-        if hasattr(self, '_original_forward'):
-            self.forward = self._original_forward
-            delattr(self, '_original_forward')
-
-        print(f"✅ Switched {self.block_name} back to block")
 
     def get_symbolic_function(self, dim: int = 0, complexity: int = None, SLIME: bool = False):
         """
@@ -1461,24 +1450,24 @@ class SymbolicModel(nn.Module):
                 print(f"\n➡️ Dimension {i} - Complexity {comp}:")
                 print(f"   {matching_rows['equation'].values[0]} (loss: {matching_rows['loss'].values[0]:.6e})")
 
-
-                
-
     def switch_to_block(self):
         """
         Switch back to using the original model block for forward passes.
-        
+
         Restores the neural network as the primary forward pass mechanism,
         reverting any previous switch_to_symbolic() call.
-            
+
         Example:
             >>> model.switch_to_symbolic()  # Use symbolic equation
             >>> # ... do some analysis ...
             >>> model.switch_to_block()       # Switch back to neural network
         """
         self._using_equation = False
+
+        # Restore original block if it was saved
         if hasattr(self, '_original_block'):
             self.symtorch_block = self._original_block
+
         print(f"✅ Switched {self.block_name} back to block")
 
     def setup_pruning(self, initial_dim: int, target_dim: int, total_steps: int,
@@ -1836,6 +1825,8 @@ class SymbolicModel(nn.Module):
         self.distill_data_slime = None
         print(f"✅ Cache cleared for {self.block_name}.")
 
+    # XXX: we should be able to pickle variable transforms if we use dill which is
+    #   already a dependency of the project.
     def _save_to_state_dict(self, destination, prefix, keep_vars):
         """
         Save SymbolicModel state to state dict using PyTorch's built-in mechanism.
@@ -1860,7 +1851,6 @@ class SymbolicModel(nn.Module):
         super()._save_to_state_dict(destination, prefix, keep_vars)
 
         # Note: We DO save _original_block if it exists (needed for switch_to_block())
-
         # Save metadata
         metadata = {
             'block_name': self.block_name,
@@ -1997,8 +1987,10 @@ class SymbolicModel(nn.Module):
         # Check if state_dict contains _original_block (means model was in equation mode)
         has_original_block = any(key.startswith(prefix + '_original_block.') for key in state_dict.keys())
 
-        # If we need to restore _original_block, create it BEFORE calling parent
-        # This allows PyTorch to load it naturally
+        # _original_block IS saved automatically by PyTorch (it's an nn.Module).
+        # We create a placeholder here BEFORE calling parent's load_state_dict so PyTorch
+        # knows where to load the saved _original_block weights. Without this, strict mode
+        # would complain about unexpected keys in the state dict.
         if has_original_block and self._using_equation:
             import copy
             # Create a placeholder _original_block that will be populated by parent's load
@@ -2044,8 +2036,6 @@ class SymbolicModel(nn.Module):
             equation_func, vars_sorted = result
             self._equation_funcs[dim] = equation_func
 
-	# XXX: These methods should probably should override _save_to_state_dict/_load_from_state_dict.
-	#   Another option is to override state_dict/load_state_dict.
     def save_model(self, save_path: str, save_pytorch: bool = True, save_regressors: bool = True):
         """
         DEPRECATED: Use torch.save(model.state_dict(), path) instead.

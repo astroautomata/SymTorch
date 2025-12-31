@@ -28,6 +28,8 @@ from symtorch import SymbolicModel
 # Helper Classes for Testing
 # ============================================================================
 
+# XXX: If we switch to dill for pickling this shouldn't be necessary right? even
+#   if it is still necessary we should just have one mock regressor not two right?
 class PicklableMockRegressor:
     """A picklable mock PySR regressor for testing save/load functionality."""
 
@@ -1379,6 +1381,9 @@ class TestStateDictSaveLoad:
         for dim in range(3):
             assert dim in model2.pysr_regressor
 
+        # Verify model is in block mode after load (not equation mode)
+        assert model2._using_equation == False
+
     def test_save_load_with_pruning(self, tmp_path):
         """Test save/load with pruning state."""
         layer = nn.Linear(5, 10)
@@ -1679,3 +1684,31 @@ class TestStateDictSaveLoad:
         assert 0 in model2.pysr_regressor
         assert 1 not in model2.pysr_regressor
         assert 2 in model2.pysr_regressor
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_save_load_with_slime_regressors(self, mock_pysr_class, sample_inputs_np, tmp_path):
+        """Test that SLIME regressors are saved and loaded correctly."""
+        mock_reg = PicklableMockRegressor()
+        mock_pysr_class.return_value = mock_reg
+
+        # Create callable for SLIME mode
+        def test_func(x):
+            return x[:, 0]
+
+        model1 = SymbolicModel(test_func, block_name="slime_test")
+
+        # Distill with SLIME (x should be a single point for local interpretability)
+        slime_params = {'x': sample_inputs_np[0], 'J_nn': 10, 'num_synthetic': 50}
+        sr_params = {'niterations': 10}
+        model1.distill(sample_inputs_np, SLIME=True, slime_params=slime_params, sr_params=sr_params)
+
+        # Save and load
+        save_path = tmp_path / "slime_model.pth"
+        torch.save(model1.state_dict(), save_path)
+
+        model2 = SymbolicModel(test_func, block_name="temp")
+        model2.load_state_dict(torch.load(save_path))
+
+        # Verify SLIME regressors loaded
+        assert len(model2.SLIME_pysr_regressor) == len(model1.SLIME_pysr_regressor)
+        assert len(model2.SLIME_pysr_regressor) > 0
