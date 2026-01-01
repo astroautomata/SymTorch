@@ -22,6 +22,7 @@ setup(
         "scikit-learn",
         "matplotlib",
         "sympy",
+        "dill",
     ],
     extras_require={
         "dev": ["ipython", "ipdb", "pytest"],
