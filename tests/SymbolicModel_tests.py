@@ -4,23 +4,25 @@ Unit tests for SymbolicModel class using pytest.
 This module provides comprehensive test coverage for the unified SymbolicModel class,
 including all operational modes: layer-level, model-agnostic, SLIME, and pruning.
 """
+import logging
+import os
+import shutil
+import sys
+import tempfile
+import warnings
+from unittest.mock import MagicMock, Mock, patch
 
-import pytest
 import numpy as np
+import pandas as pd
+import pytest
+import sympy
 import torch
 import torch.nn as nn
-import tempfile
-import shutil
-import os
-import warnings
-from unittest.mock import Mock, MagicMock, patch
-import sys
-import pandas as pd
-import sympy
 
 # Add the src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
+# Local application imports
 from symtorch import SymbolicModel
 
 
@@ -1046,7 +1048,7 @@ class TestIOCaching:
         assert 'sr_outputs' in model.distill_data
 
     @patch('symtorch.SymbolicModel.PySRRegressor')
-    def test_cache_hit_module(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor, capsys):
+    def test_cache_hit_module(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor, caplog):
         """Test cache hit on second distill() call with same inputs."""
         mock_pysr_class.return_value = mock_pysr_regressor
 
@@ -1054,11 +1056,12 @@ class TestIOCaching:
         symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
 
         # Second call with same inputs - should hit cache
-        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+        with caplog.at_level(logging.INFO):
+            symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
 
-        # Check for cache hit message
-        captured = capsys.readouterr()
-        assert "Cache hit" in captured.out or "🔄" in captured.out
+        # Check for cache hit message in log records
+        log_messages = [record.message for record in caplog.records]
+        assert any("Cache hit" in msg or "🔄" in msg for msg in log_messages)
 
     @patch('symtorch.SymbolicModel.PySRRegressor')
     def test_cache_miss_different_inputs(self, mock_pysr_class, symbolic_model, fast_sr_params, mock_pysr_regressor):
@@ -1176,7 +1179,7 @@ class TestIOCaching:
         np.testing.assert_array_almost_equal(cached_output, expected_output, decimal=5)
 
     @patch('symtorch.SymbolicModel.PySRRegressor')
-    def test_clear_cache_method(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor, capsys):
+    def test_clear_cache_method(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor, caplog):
         """Test clear_cache() method."""
         mock_pysr_class.return_value = mock_pysr_regressor
 
@@ -1185,15 +1188,16 @@ class TestIOCaching:
         assert symbolic_model.distill_data is not None
 
         # Clear cache
-        symbolic_model.clear_cache()
+        with caplog.at_level(logging.INFO):
+            symbolic_model.clear_cache()
 
         # Check cache is cleared
         assert symbolic_model.distill_data is None
         assert symbolic_model.distill_data_slime is None
 
-        # Check for success message
-        captured = capsys.readouterr()
-        assert "Cache cleared" in captured.out or "✅" in captured.out
+        # Check for success message in log records
+        log_messages = [record.message for record in caplog.records]
+        assert any("Cache cleared" in msg or "✅" in msg for msg in log_messages)
 
     @patch('symtorch.SymbolicModel.PySRRegressor')
     def test_cache_with_parent_model(self, mock_pysr_class, fast_sr_params, mock_pysr_regressor):

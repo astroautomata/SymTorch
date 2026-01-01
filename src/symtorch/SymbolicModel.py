@@ -4,25 +4,33 @@ SymTorch SymbolicModel Module
 This module provides a wrapper for components of (or whole) ML models that adds symbolic regression
 capabilities using PySR (Python Symbolic Regression).
 """
+# Warnings configuration
 import warnings
 warnings.filterwarnings("ignore", message="torch was imported before juliacall")
-from pysr import *
+
+# Standard library
+import logging
+import math
+import os
+import time
+from contextlib import contextmanager
+from typing import Any, Callable, Dict, List, Literal, Optional, Union
+
+# Third-party libraries
+import dill
+import numpy as np
+import sympy
 import torch
 import torch.nn as nn
-import time
-import sympy
-from sympy import lambdify
-import numpy as np
-import os
-import dill
-from typing import List, Callable, Optional, Union, Dict, Any
-from contextlib import contextmanager
-from typing import Literal
-import math
+from pysr import *
 from sklearn.neighbors import NearestNeighbors
+from sympy import lambdify
 
 
-# TODO: switch to using a logger.
+# Logger initialization
+logger = logging.getLogger(__name__)
+
+
 # TODO: break up this class using composition?
 # TODO: integrate dim reduction workflow (e.g., pca, proj. layer training, etc...)
 class SymbolicModel(nn.Module):
@@ -99,7 +107,7 @@ class SymbolicModel(nn.Module):
         self.block_name = block_name or f"block_{id(self)}"
 
         if not block_name:
-            print(f"No name specified for this block. Label is {self.block_name}.")
+            logger.info(f"No name specified for this block. Label is {self.block_name}.")
 
         self.pysr_regressor = {}
         self.SLIME_pysr_regressor = {}
@@ -111,30 +119,30 @@ class SymbolicModel(nn.Module):
     def _create_sr_params(self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Create SR parameters by merging defaults with custom parameters.
-        
+
         Args:
             save_path (str): Output directory path for SR results
             run_id (str): Unique run identifier
             custom_params (Dict[str, Any], optional): Custom parameters to override defaults
-            
+
         Returns:
             Dict[str, Any]: Final SR parameters for PySRRegressor
         """
         output_name = f"SR_output/{self.block_name}"
         if save_path is not None:
             output_name = f"{save_path}/{self.block_name}"
-        
+
         base_params = {
             **self.DEFAULT_SR_PARAMS,
             "output_directory": output_name,
             "run_id": run_id
         }
-        
+
         if custom_params:
             base_params.update(custom_params)
-            
+
         return base_params
-    
+
     @contextmanager
     def _capture_layer_output(self, parent_model, inputs):
         """
@@ -149,44 +157,44 @@ class SymbolicModel(nn.Module):
         """
         layer_inputs = []
         layer_outputs = []
-        
+
         def hook_fn(module, input, output):
             if module is self.symtorch_block: # Only captures layer data for the layers we want to distil
                 layer_inputs.append(input[0].clone())
                 layer_outputs.append(output.clone())
-        
+
         # Register forward hook
         hook = self.symtorch_block.register_forward_hook(hook_fn)
-        
+
         try:
             # Run parent model to capture intermediate activations
             parent_model.eval()
             with torch.no_grad():
                 _ = parent_model(inputs)
-            
+
             yield layer_inputs, layer_outputs
         finally:
             # Always remove hook
             hook.remove()
-    
+
     def _extract_variables_for_equation(self, x: torch.Tensor, var_indices: List[int], dim: int) -> List[torch.Tensor]:
         """
         Extract and transform variables needed for a specific equation dimension.
         Each output dimension may only depend on a subset of the input variables.
-        
+
         Args:
             x (torch.Tensor): Input tensor
             var_indices (List[int]): List of variable indices needed
             dim (int): Output dimension being processed
-            
+
         Returns:
             List[torch.Tensor]: List of extracted/transformed variables
-            
+
         Raises:
             ValueError: If required variables/transforms are not available
         """
         selected_inputs = []
-        
+
         if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
             # Apply transformations and select needed variables
             for idx in var_indices:
@@ -204,9 +212,9 @@ class SymbolicModel(nn.Module):
                     selected_inputs.append(x[:, idx])
                 else:
                     raise ValueError(f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions")
-        
+
         return selected_inputs
-    
+
     def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
         """
         Map symbolic variables to their corresponding indices.
@@ -425,13 +433,13 @@ class SymbolicModel(nn.Module):
             fit_params = fit_params.copy()
             fit_params['weights'] = slime_weights
 
-            print(f"🔍 SLIME mode: Using {len(sr_inputs_slime)} points ({len(real_inputs)} real + {num_synthetic} synthetic)")
-            print(f"   Point of interest: {x0}")
+            logger.info(f"🔍 SLIME mode: Using {len(sr_inputs_slime)} points ({len(real_inputs)} real + {num_synthetic} synthetic)")
+            logger.info(f"   Point of interest: {x0}")
 
             return sr_inputs_slime, slime_outputs, sr_params, fit_params
         else:
             # Global SLIME (no local focus)
-            print("🔍 SLIME mode: Global (no local focus point)")
+            logger.info("🔍 SLIME mode: Global (no local focus point)")
             return inputs_np, function_to_call(inputs_np), sr_params, fit_params
 
     def distill(self, inputs, output_dim: int = None, parent_model=None,
@@ -551,7 +559,7 @@ class SymbolicModel(nn.Module):
         cache_hit, cached_sr_inputs, cached_sr_outputs = self._check_cache_hit(inputs, parent_model, SLIME, slime_params)
 
         if cache_hit:
-            print(f"🔄 Cache hit! Reusing I/O data from previous distill call.")
+            logger.info(f"🔄 Cache hit! Reusing I/O data from previous distill call.")
             actual_inputs_numpy = cached_sr_inputs
             # cached_sr_outputs is already numpy array
             if SLIME or (hasattr(cached_sr_outputs, 'ndim') and cached_sr_outputs.ndim == 1):
@@ -598,7 +606,7 @@ class SymbolicModel(nn.Module):
                 if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
                     active_dims = self.get_active_dimensions()
                     if not active_dims:
-                        print("❗No active dimensions to distill!")
+                        logger.warning("❗No active dimensions to distill!")
                         return {}
 
                     # Filter to active dimensions only
@@ -607,7 +615,7 @@ class SymbolicModel(nn.Module):
                     # Filter active dimensions based on output_dim parameter
                     if output_dim is not None:
                         if output_dim not in active_dims:
-                            print(f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}")
+                            logger.warning(f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}")
                             return {}
                         target_dims = [output_dim]
                     else:
@@ -642,9 +650,9 @@ class SymbolicModel(nn.Module):
                     self._variable_transforms = variable_transforms
                     self._variable_names = variable_names
 
-                    print(f"🔄 Applied {len(variable_transforms)} variable transformations")
+                    logger.info(f"🔄 Applied {len(variable_transforms)} variable transformations")
                     if variable_names:
-                        print(f"   Variable names: {variable_names}")
+                        logger.info(f"   Variable names: {variable_names}")
                 else:
                     # Use original inputs
                     actual_inputs_numpy = actual_inputs.detach().cpu().numpy()
@@ -715,7 +723,7 @@ class SymbolicModel(nn.Module):
                 self.output_dims = self.initial_dim
 
                 for i, dim_idx in enumerate(target_dims):
-                    print(f"🛠️ Running SR on active dimension {dim_idx} ({i+1}/{len(target_dims)})")
+                    logger.info(f"🛠️ Running SR on active dimension {dim_idx} ({i+1}/{len(target_dims)})")
 
                     run_id = f"dim{dim_idx}_{timestamp}"
                     final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -733,9 +741,9 @@ class SymbolicModel(nn.Module):
 
                     pysr_regressors[dim_idx] = regressor
 
-                    print(f"💡Best equation for active dimension {dim_idx}: {regressor.get_best()['equation']}.")
+                    logger.info(f"💡Best equation for active dimension {dim_idx}: {regressor.get_best()['equation']}.")
 
-                print(f"❤️ SR on {self.block_name} active dimensions complete.")
+                logger.info(f"❤️ SR on {self.block_name} active dimensions complete.")
             else:
                 # Standard mode - no pruning
                 output_dims = output.shape[1]  # Number of output dimensions
@@ -745,7 +753,7 @@ class SymbolicModel(nn.Module):
                     # If output dimension is not specified, run SR on all dims
                     for dim in range(output_dims):
 
-                        print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
+                        logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
 
                         run_id = f"dim{dim}_{timestamp}"
                         final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -759,11 +767,11 @@ class SymbolicModel(nn.Module):
 
                         pysr_regressors[dim] = regressor
 
-                        print(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+                        logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
 
                 else:
 
-                    print(f"🛠️ Running SR on output dimension {output_dim}.")
+                    logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
 
                     run_id = f"dim{output_dim}_{timestamp}"
                     final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -776,9 +784,9 @@ class SymbolicModel(nn.Module):
                     regressor.fit(*fit_args, **final_fit_params)
                     pysr_regressors[output_dim] = regressor
 
-                    print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
+                    logger.info(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
 
-                print(f"❤️ SR on {self.block_name} complete.")
+                logger.info(f"❤️ SR on {self.block_name} complete.")
 
             # Store in appropriate dictionary
             if SLIME:
@@ -791,7 +799,7 @@ class SymbolicModel(nn.Module):
                 return pysr_regressors.get(output_dim)
             else:
                 return pysr_regressors
-            
+
         else: #code for Callable function
             # Extract fit parameters (needed for both cache hit and miss)
             if fit_params is None:
@@ -853,9 +861,9 @@ class SymbolicModel(nn.Module):
                     self._variable_transforms = variable_transforms
                     self._variable_names = variable_names
 
-                    print(f"🔄 Applied {len(variable_transforms)} variable transformations")
+                    logger.info(f"🔄 Applied {len(variable_transforms)} variable transformations")
                     if variable_names:
-                        print(f"   Variable names: {variable_names}")
+                        logger.info(f"   Variable names: {variable_names}")
                 else:
                     # No transforms used
                     self._variable_transforms = None
@@ -919,7 +927,7 @@ class SymbolicModel(nn.Module):
             if output_dim is None:
                 # Run on all output dimensions
                 for dim in range(output_dims):
-                    print(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
+                    logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
 
                     run_id = f"dim{dim}_{timestamp}"
                     final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -933,14 +941,14 @@ class SymbolicModel(nn.Module):
 
                     pysr_regressors[dim] = regressor
 
-                    print(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+                    logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
 
             else:
                 # Run on specific output dimension
                 if output_dim >= output_dims:
                     raise ValueError(f"output_dim {output_dim} is out of range for outputs with {output_dims} dimensions")
 
-                print(f"🛠️ Running SR on output dimension {output_dim}.")
+                logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
 
                 run_id = f"dim{output_dim}_{timestamp}"
                 final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -954,9 +962,9 @@ class SymbolicModel(nn.Module):
 
                 pysr_regressors[output_dim] = regressor
 
-                print(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
+                logger.info(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
 
-            print(f"❤️ SR on {self.block_name} complete.")
+            logger.info(f"❤️ SR on {self.block_name} complete.")
 
             # Store in appropriate dictionary
             if SLIME:
@@ -969,7 +977,7 @@ class SymbolicModel(nn.Module):
                 return pysr_regressors[output_dim]
             else:
                 return pysr_regressors
-            
+
     def _get_equation(self, dim, complexity: int = None, SLIME: bool = False):
         """
         Extract symbolic equation function from fitted regressor.
@@ -1000,22 +1008,22 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not hasattr(self, regressor_dict.__class__.__name__.replace('dict', 'pysr_regressor')) or regressor_dict is None:
-            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+            logger.error(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return None
         if dim not in regressor_dict:
-            print(f"❗No {mode_name} equation found for output dimension {dim}. You need to first run .distill with SLIME={SLIME}.")
+            logger.error(f"❗No {mode_name} equation found for output dimension {dim}. You need to first run .distill with SLIME={SLIME}.")
             return None
 
         regressor = regressor_dict[dim]
-        
+
         if complexity is None:
-            best_str = regressor.get_best()["equation"] 
+            best_str = regressor.get_best()["equation"]
             expr = regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
         else:
             matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
             if matching_rows.empty:
                 available_complexities = sorted(regressor.equations_["complexity"].unique())
-                print(f"⚠️ Warning: No equation found with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}")
+                logger.warning(f"⚠️ Warning: No equation found with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}")
                 return None
             expr = matching_rows["sympy_format"].values[0]
 
@@ -1024,7 +1032,7 @@ class SymbolicModel(nn.Module):
             f = lambdify(vars_sorted, expr, "torch")
             return f, vars_sorted
         except Exception as e:
-            print(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
+            logger.warning(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
             return None
 
     def switch_to_symbolic(self, complexity: list = None, SLIME: bool = False):
@@ -1056,11 +1064,11 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not regressor_dict:
-            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+            logger.error(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return
 
         if not hasattr(self, 'output_dims'):
-            print("❗No output dimension information found. You need to first run .distill.")
+            logger.error("❗No output dimension information found. You need to first run .distill.")
             return
 
         # Check if pruning is enabled
@@ -1068,7 +1076,7 @@ class SymbolicModel(nn.Module):
             # Pruning mode - only need equations for active dimensions
             active_dims = self.get_active_dimensions()
             if not active_dims:
-                print("❗No active dimensions to switch to equations.")
+                logger.error("❗No active dimensions to switch to equations.")
                 return
 
             # Check that we have equations for all active dimensions
@@ -1078,7 +1086,7 @@ class SymbolicModel(nn.Module):
                     missing_dims.append(dim)
 
             if missing_dims:
-                print(f"❗Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first.")
+                logger.error(f"❗Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first.")
                 return
 
             dimensions_to_process = active_dims
@@ -1090,9 +1098,9 @@ class SymbolicModel(nn.Module):
                     missing_dims.append(dim)
 
             if missing_dims:
-                print(f"❗Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first.")
-                print(f"Available dimensions: {list(regressor_dict.keys())}")
-                print(f"Required dimensions: {list(range(self.output_dims))}")
+                logger.error(f"❗Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first.")
+                logger.error(f"Available dimensions: {list(regressor_dict.keys())}")
+                logger.error(f"Required dimensions: {list(range(self.output_dims))}")
                 return
 
             dimensions_to_process = list(range(self.output_dims))
@@ -1114,14 +1122,14 @@ class SymbolicModel(nn.Module):
                     if i < len(complexity):
                         dim_complexity = complexity[i]
                     else:
-                        print(f"⚠️ Warning: Not enough complexity values provided. Using default for dimension {dim}")
+                        logger.warning(f"⚠️ Warning: Not enough complexity values provided. Using default for dimension {dim}")
                 else:
                     # If complexity is a single value, use it for all dimensions
                     dim_complexity = complexity
 
             result = self._get_equation(dim, dim_complexity, SLIME=SLIME)
             if result is None:
-                print(f"⚠️ Failed to get equation for dimension {dim}")
+                logger.warning(f"⚠️ Failed to get equation for dimension {dim}")
                 return
 
             f, vars_sorted = result
@@ -1148,12 +1156,12 @@ class SymbolicModel(nn.Module):
         # Print success messages
         mode_label = f"{mode_name} " if SLIME else ""
         if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
-            print(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for {len(dimensions_to_process)} active dimensions:")
+            logger.info(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for {len(dimensions_to_process)} active dimensions:")
         else:
-            print(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for all {len(dimensions_to_process)} dimensions:")
+            logger.info(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for all {len(dimensions_to_process)} dimensions:")
 
         for dim in dimensions_to_process:
-            print(f"   Dimension {dim}: {equation_strs[dim]}")
+            logger.info(f"   Dimension {dim}: {equation_strs[dim]}")
 
             # Display variable names properly
             var_names_display = []
@@ -1168,26 +1176,26 @@ class SymbolicModel(nn.Module):
                 # Use default x0, x1, etc. format
                 var_names_display = [f'x{i}' for i in equation_vars[dim]]
 
-            print(f"   Variables: {var_names_display}")
+            logger.info(f"   Variables: {var_names_display}")
 
         if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
-            print(f"🎯 Active dimensions {dimensions_to_process} now using {mode_label}symbolic equations.")
-            print(f"🔒 Inactive dimensions will output zeros.")
+            logger.info(f"🎯 Active dimensions {dimensions_to_process} now using {mode_label}symbolic equations.")
+            logger.info(f"🔒 Inactive dimensions will output zeros.")
         else:
-            print(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
+            logger.info(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
 
         # TODO: Make torch compiling optional for user.
         # Apply torch.compile() optimization if available (PyTorch 2.0+)
         if hasattr(torch, 'compile') and torch.cuda.is_available():
-            print("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
+            logger.info("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
             try:
                 # Compile with fullgraph=False to allow dynamic control flow
                 # mode="reduce-overhead" optimizes for repeated calls
                 self._original_forward = self.forward
                 self.forward = torch.compile(self.forward, mode="reduce-overhead", fullgraph=False)
-                print("✅ Forward pass compiled successfully")
+                logger.info("✅ Forward pass compiled successfully")
             except Exception as e:
-                print(f"⚠️ torch.compile() failed: {e}. Continuing without compilation.")
+                logger.warning(f"⚠️ torch.compile() failed: {e}. Continuing without compilation.")
                 # Forward pass will still work, just without compilation optimization
 
     def get_symbolic_function(self, dim: int = 0, complexity: int = None, SLIME: bool = False):
@@ -1387,11 +1395,11 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not regressor_dict:
-            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+            logger.error(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return
 
         if not hasattr(self, 'output_dims'):
-            print("❗No output dimension information found. You need to first run .distill.")
+            logger.error("❗No output dimension information found. You need to first run .distill.")
             return
 
         # Convert single values to lists
@@ -1402,7 +1410,7 @@ class SymbolicModel(nn.Module):
             if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
                 dims_to_show = self.get_active_dimensions()
                 if dims_to_show:
-                    print(f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
+                    logger.info(f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
             else:
                 dims_to_show = list(range(self.output_dims))
         else:
@@ -1412,13 +1420,13 @@ class SymbolicModel(nn.Module):
         if complexity is None:
             for i in dims_to_show:
                 if i not in regressor_dict:
-                    print(f"❌ No {mode_name} expression distilled for output dimension {i}.")
+                    logger.error(f"❌ No {mode_name} expression distilled for output dimension {i}.")
                     continue
                 regressor = regressor_dict[i]
-                print(f"\n➡️ {mode_name.capitalize()} symbolic expressions for output dimension {i}:")
-                print(regressor.equations_)
+                logger.info(f"\n➡️ {mode_name.capitalize()} symbolic expressions for output dimension {i}:")
+                logger.info(regressor.equations_)
                 best_equation = regressor.get_best()
-                print(f"🏆 Best: {best_equation['equation']} (loss: {best_equation['loss']:.6e})")
+                logger.info(f"🏆 Best: {best_equation['equation']} (loss: {best_equation['loss']:.6e})")
 
         # Show specific complexity for each dimension
         else:
@@ -1428,12 +1436,12 @@ class SymbolicModel(nn.Module):
                 complexities = complexity
 
             if len(complexities) != len(dims_to_show):
-                print(f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})")
+                logger.error(f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})")
                 return
 
             for i, comp in zip(dims_to_show, complexities):
                 if i not in regressor_dict:
-                    print(f"❌ No {mode_name} expression distilled for output dimension {i}.")
+                    logger.error(f"❌ No {mode_name} expression distilled for output dimension {i}.")
                     continue
 
                 regressor = regressor_dict[i]
@@ -1441,11 +1449,11 @@ class SymbolicModel(nn.Module):
 
                 if matching_rows.empty:
                     available = sorted(regressor.equations_["complexity"].unique())
-                    print(f"❌ No equation with complexity {comp} for dimension {i}. Available: {available}")
+                    logger.error(f"❌ No equation with complexity {comp} for dimension {i}. Available: {available}")
                     continue
 
-                print(f"\n➡️ Dimension {i} - Complexity {comp}:")
-                print(f"   {matching_rows['equation'].values[0]} (loss: {matching_rows['loss'].values[0]:.6e})")
+                logger.info(f"\n➡️ Dimension {i} - Complexity {comp}:")
+                logger.info(f"   {matching_rows['equation'].values[0]} (loss: {matching_rows['loss'].values[0]:.6e})")
 
     def switch_to_block(self):
         """
@@ -1465,7 +1473,7 @@ class SymbolicModel(nn.Module):
         if hasattr(self, '_original_block'):
             self.symtorch_block = self._original_block
 
-        print(f"✅ Switched {self.block_name} back to block")
+        logger.info(f"✅ Switched {self.block_name} back to block")
 
     def setup_pruning(self, initial_dim: int, target_dim: int, total_steps: int,
                       end_step_frac: float = 0.5,
@@ -1501,11 +1509,11 @@ class SymbolicModel(nn.Module):
         self.pruning_schedule = self._set_pruning_schedule(total_steps, decay_rate, end_step_frac)
         self.register_buffer('pruning_mask', torch.ones(self.current_dim, dtype=torch.bool))
 
-        print(f"✅ Pruning successfully set up for block {self.block_name}.")
-        print(f"   Initial dimensions: {initial_dim}")
-        print(f"   Target dimensions: {target_dim}")
-        print(f"   Total steps: {total_steps}")
-        print(f"   Pruning will complete at step {int(end_step_frac * total_steps)}")
+        logger.info(f"✅ Pruning successfully set up for block {self.block_name}.")
+        logger.info(f"   Initial dimensions: {initial_dim}")
+        logger.info(f"   Target dimensions: {target_dim}")
+        logger.info(f"   Total steps: {total_steps}")
+        logger.info(f"   Pruning will complete at step {int(end_step_frac * total_steps)}")
 
         return None
 
@@ -1566,7 +1574,7 @@ class SymbolicModel(nn.Module):
             schedule_dict[step] = self.target_dim
 
         return schedule_dict
-    
+
     def prune(self, step: int, sample_data: torch.Tensor, parent_model=None):
         """
         Perform pruning for the current training step based on the pruning schedule.
@@ -1820,7 +1828,7 @@ class SymbolicModel(nn.Module):
         """
         self.distill_data = None
         self.distill_data_slime = None
-        print(f"✅ Cache cleared for {self.block_name}.")
+        logger.info(f"✅ Cache cleared for {self.block_name}.")
 
     def _save_to_state_dict(self, destination, prefix, keep_vars):
         """
