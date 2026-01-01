@@ -4,6 +4,7 @@ Estimates the speedup gained by replacing layers of a simple torch model with
 symbolic equations.
 """
 import argparse
+import logging
 import os
 
 import torch
@@ -314,12 +315,15 @@ def main():
     args = parse_args()
     model_path = os.path.join(args.outdir, 'model')
 
+    # Configure logging
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
     # Generate data
     x, y, X_train, y_train = generate_data()
 
     # Load or train model with symbolic regression
     model = load_or_train_model(
-        model_path, x, y, X_train, y_train, epochs=20, retrain=args.retrain
+        model_path, x, y, X_train, y_train, epochs=25, retrain=args.retrain
     )
 
     # Benchmark on CPU

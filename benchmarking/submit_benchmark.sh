@@ -20,4 +20,5 @@ echo ""
 export PYTHONUNBUFFERED=1
 python /cephfs/store/gr-mc2473/as3591/code/SymTorch/benchmarking/benchmark_symbolicmodel.py "$@"
 
-echo "\nJob completed!"
+echo ""
+echo "Job completed!"
