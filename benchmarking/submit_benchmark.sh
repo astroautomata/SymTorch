@@ -17,6 +17,7 @@ echo ""
 # source /path/to/your/venv/bin/activate
 
 # Run the benchmark
-python /cephfs/store/gr-mc2473/as3591/code/SymTorch/scratch/benchmark_symbolicmodel.py "$@"
+export PYTHONUNBUFFERED=1
+python /cephfs/store/gr-mc2473/as3591/code/SymTorch/benchmarking/benchmark_symbolicmodel.py "$@"
 
 echo "\nJob completed!"
