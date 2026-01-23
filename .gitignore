@@ -21,6 +21,7 @@ redundant/
 #demo sr_output files
 case_studies/pinn_demo/SR_output
 case_studies/pruning_demo/SR_output
+docs/_build/jupyter_execute/demos/llm_maths_demo_models
 
 .DS_Store
 .coverage

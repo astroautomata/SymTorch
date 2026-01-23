@@ -19,9 +19,31 @@ Whether you're working on physics-informed neural networks, graph neural network
 Featured Projects
 -----------------
 
-*This section will showcase projects and research using SymTorch.*
+.. grid:: 3
 
-Currently, we're building our showcase! Be the first to have your work featured here.
+   .. grid-item-card:: Symbolic Surrogates of Transformer MLPs
+      :link: https://github.com/elizabethsztan/LLM_PCA
+
+      .. image:: _static/symtorch_gallery/llm_pca.png
+
+      +++
+      Novel proof-of-concept framework to increase LLM throughput by replacing MLPs with symbolic expressions.
+
+   .. grid-item-card:: Recovering Physical Laws from GNNs
+      :link: https://github.com/elizabethsztan/SymTorch_symbolic_distillation_GNNs
+
+      .. image:: _static/symtorch_gallery/gnn.png
+
+      +++
+      Detailed reproduction of the `paper <https://arxiv.org/abs/2006.11287>`_ with SymTorch.
+
+   .. grid-item-card:: Upcoming Work
+      :link: https://github.com/elizabethsztan/SymTorch
+
+      .. image:: _static/symtorch_gallery/more_work.png
+
+      +++
+      Your work could go here!
 
 Share Your Work With Us
 -----------------------

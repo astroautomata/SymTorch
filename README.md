@@ -1,11 +1,15 @@
 ![logo](https://raw.githubusercontent.com/elizabethsztan/InterpretSR/main/docs/_static/symtorch_logo.png)
 
-*SymTorch* allows you to approximate the behaviour of multi-layer perceptrons (MLPs) in deep learning models with symbolic equations using [PySR](https://ai.damtp.cam.ac.uk/pysr/).
+*SymTorch* allows you to approximate the behaviour of components within deep learning models with symbolic equations using [PySR](https://ai.damtp.cam.ac.uk/pysr/).
 
 ## Installation
 
+SymTorch will soon be available on [PyPI](https://pypi.org/)!
+
+For now, you can download the package from the source. 
+
 ```bash
-pip install torch-symbolic
+pip install git+https://github.com/elizabethsztan/SymTorch
 ```
 
 ## Documentation

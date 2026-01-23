@@ -14,19 +14,13 @@ Welcome to the SymTorch Documentation
 Installation
 ============
 
-*SymTorch* can be installed from `PyPI <https://pypi.org/project/torch-symbolic/>`_.
-
-.. code-block:: bash
-
-   pip install torch-symbolic
+*SymTorch* will soon be released on `PyPI <https://pypi.org/project/torch-symbolic/>`_.
 
 To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>`_.
 
 Overview
 ========
 SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to automatically extract human-readable formulas from trained models. Instead of treating models as black boxes, it reveals the underlying mathematical relationships they've discovered.
-
-**Unified Architecture**: SymTorch provides a single ``SymbolicModel`` class that supports multiple modes of operation through parameter-based configuration. This unified approach eliminates code duplication and provides a consistent API across all use cases.
 
 The ``SymbolicModel`` Class
 ----------------------------

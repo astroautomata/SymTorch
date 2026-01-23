@@ -10,6 +10,7 @@
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+      <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
 
   
     <link rel="shortcut icon" href="_static/symtorch_favicon.png"/>
@@ -18,6 +19,7 @@
       <script src="_static/documentation_options.js?v=58fbf978"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="_static/design-tabs.js?v=f930bc37"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -65,10 +67,10 @@
 <li class="toctree-l4"><a class="reference internal" href="#symtorch.SymbolicModel.clear_cache"><code class="docutils literal notranslate"><span class="pre">SymbolicModel.clear_cache()</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#configuration-and-parameters">Configuration and Parameters</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#pysr-parameters">PySR Parameters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#saving-and-loading">Saving and Loading</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="api_demos.html">API Demos</a></li>
@@ -117,12 +119,12 @@
 <h2>SymbolicModel<a class="headerlink" href="#symbolicmodel" title="Link to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="symtorch.SymbolicModel">
-<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">symtorch.</span></span><span class="sig-name descname"><span class="pre">SymbolicModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><span class="pre">Module</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SymbolicModel.html#SymbolicModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SymbolicModel" title="Link to this definition"></a></dt>
-<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></p>
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">symtorch.</span></span><span class="sig-name descname"><span class="pre">SymbolicModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><span class="pre">Module</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SymbolicModel.html#SymbolicModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SymbolicModel" title="Link to this definition"></a></dt>
+<dd><p>Bases: <a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a></p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>block</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>]</span>)</p></li>
+<li><p><strong>block</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Union</span></code>[<a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><code class="xref py py-class docutils literal notranslate"><span class="pre">Module</span></code></a>, <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><code class="xref py py-data docutils literal notranslate"><span class="pre">Callable</span></code></a>]</span>)</p></li>
 <li><p><strong>block_name</strong> (<span class="sphinx_autodoc_typehints-type"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></a></span>)</p></li>
 </ul>
 </dd>
@@ -139,7 +141,7 @@
 
 <dl class="py method">
 <dt class="sig sig-object py" id="symtorch.SymbolicModel.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.9)"><span class="pre">Module</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SymbolicModel.html#SymbolicModel.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SymbolicModel.__init__" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module" title="(in PyTorch v2.10)"><span class="pre">Module</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Callable" title="(in Python v3.14)"><span class="pre">Callable</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SymbolicModel.html#SymbolicModel.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SymbolicModel.__init__" title="Link to this definition"></a></dt>
 <dd><p>Initialize a SymbolicModel wrapper for symbolic regression.</p>
 <p>Creates a unified wrapper that can perform symbolic regression on either
 PyTorch nn.Module layers or any callable function. This is the entry point
@@ -179,6 +181,22 @@ If None, generates a unique name based on object ID.</p></li>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">symbolic_rf</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">rf</span><span class="o">.</span><span class="n">predict</span><span class="p">,</span> <span class="n">block_name</span><span class="o">=</span><span class="s1">&#39;rf_model&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
+<dl>
+<dt>Save/Load:</dt><dd><p>SymbolicModel supports PyTorch’s standard save/load mechanisms:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Save model state (recommended)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="s1">&#39;model.pth&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Load model state</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">architecture</span><span class="p">,</span> <span class="n">block_name</span><span class="o">=</span><span class="s1">&#39;my_model&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;model.pth&#39;</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="c1"># Full model save/load also works</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;full_model.pth&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;full_model.pth&#39;</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py method">
@@ -196,7 +214,7 @@ expressions that approximate the behavior of the wrapped block or function.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>inputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>torch.Tensor</em></a><em> or </em><em>np.ndarray</em>) – Input data for symbolic regression.
+<li><p><strong>inputs</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>torch.Tensor</em></a><em> or </em><em>np.ndarray</em>) – Input data for symbolic regression.
 - For layer-level mode with parent_model: inputs to the parent model
 - For direct mode: inputs to the block/function itself
 Shape: (num_samples, input_dim)</p></li>
@@ -526,7 +544,7 @@ Defaults to 0.5 (pruning ends halfway through training)</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="symtorch.SymbolicModel.prune">
-<span class="sig-name descname"><span class="pre">prune</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><span class="pre">Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SymbolicModel.html#SymbolicModel.prune"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SymbolicModel.prune" title="Link to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">prune</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><span class="pre">int</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">sample_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><span class="pre">Tensor</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">parent_model</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/symtorch/SymbolicModel.html#SymbolicModel.prune"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#symtorch.SymbolicModel.prune" title="Link to this definition"></a></dt>
 <dd><p>Perform pruning for the current training step based on the pruning schedule.</p>
 <p>Evaluates the importance of each output dimension by computing the standard deviation
 of activations across the sample data. Retains the most important dimensions according
@@ -535,7 +553,7 @@ to the current step’s target dimensionality.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>step</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#int" title="(in Python v3.14)"><em>int</em></a>) – Current training step</p></li>
-<li><p><strong>sample_data</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>torch.Tensor</em></a>) – Sample input data to evaluate dimension importance.
+<li><p><strong>sample_data</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>torch.Tensor</em></a>) – Sample input data to evaluate dimension importance.
 Typically a subset of validation data.</p></li>
 <li><p><strong>parent_model</strong> (<em>nn.Module</em><em>, </em><em>optional</em>) – The parent model containing this SymbolicModel instance.
 If provided, will trace intermediate activations to get
@@ -593,7 +611,7 @@ type conversions automatically.</p>
 <p>If pruning is enabled, applies pruning mask to enforce zero outputs for inactive dimensions.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>x</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.9)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.3)"><em>numpy.ndarray</em></a>) – Input data of shape (batch_size, input_dim)</p>
+<dd class="field-odd"><p><strong>x</strong> (<a class="reference external" href="https://docs.pytorch.org/docs/stable/tensors.html#torch.Tensor" title="(in PyTorch v2.10)"><em>torch.Tensor</em></a><em> or </em><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v2.4)"><em>numpy.ndarray</em></a>) – Input data of shape (batch_size, input_dim)</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><dl class="simple">
@@ -650,13 +668,51 @@ next distill() call will perform a fresh forward pass through the model/function
 
 </dd></dl>
 
-<section id="configuration-and-parameters">
-<h3>Configuration and Parameters<a class="headerlink" href="#configuration-and-parameters" title="Link to this heading"></a></h3>
-</section>
 </section>
 <section id="pysr-parameters">
 <h2>PySR Parameters<a class="headerlink" href="#pysr-parameters" title="Link to this heading"></a></h2>
-<p>The <a class="reference internal" href="#symtorch.SymbolicModel.distill" title="symtorch.SymbolicModel.distill"><code class="xref py py-meth docutils literal notranslate"><span class="pre">distill()</span></code></a> method parses in parameters to a <cite>PySRRegressor</cite> class. Please see <a class="reference external" href="https://ai.damtp.cam.ac.uk/pysr/api/">PySR</a> for more details.</p>
+<p>The <a class="reference internal" href="#symtorch.SymbolicModel.distill" title="symtorch.SymbolicModel.distill"><code class="xref py py-meth docutils literal notranslate"><span class="pre">distill()</span></code></a> method parses in parameters to a <cite>PySRRegressor</cite> class. Please see <a class="reference external" href="https://ai.damtp.cam.ac.uk/pysr/api/">PySR</a> for more details.The default PySR parameters are</p>
+<table class="docutils align-default" id="tab-def-sr-params">
+<caption><span class="caption-text">Default configurations</span><a class="headerlink" href="#tab-def-sr-params" title="Link to this table"></a></caption>
+<thead>
+<tr class="row-odd"><th class="head"><p>SR Parameter</p></th>
+<th class="head"><p>Configuration</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Binary operators</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">+,</span> <span class="pre">*</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Unary operators</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">inv(x)=1/x,</span> <span class="pre">sin,</span> <span class="pre">exp</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Extra sympy mappings</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&quot;inv&quot;:</span> <span class="pre">lambda</span> <span class="pre">x:</span> <span class="pre">1/x</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Number of iterations</p></td>
+<td><p>400</p></td>
+</tr>
+<tr class="row-even"><td><p>Complexity of operators</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sin:</span> <span class="pre">3,</span> <span class="pre">exp:</span> <span class="pre">3</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="saving-and-loading">
+<h2>Saving and Loading<a class="headerlink" href="#saving-and-loading" title="Link to this heading"></a></h2>
+<p>SymbolicModel supports PyTorch’s standard save/load mechanisms:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="linenos"> 1</span><span class="c1"># Save model state (recommended)</span>
+<span class="linenos"> 2</span><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="o">.</span><span class="n">state_dict</span><span class="p">(),</span> <span class="s1">&#39;model.pth&#39;</span><span class="p">)</span>
+<span class="linenos"> 3</span>
+<span class="linenos"> 4</span><span class="c1"># Load model state</span>
+<span class="linenos"> 5</span><span class="n">model</span> <span class="o">=</span> <span class="n">SymbolicModel</span><span class="p">(</span><span class="n">architecture</span><span class="p">,</span> <span class="n">block_name</span><span class="o">=</span><span class="s1">&#39;my_model&#39;</span><span class="p">)</span>
+<span class="linenos"> 6</span><span class="n">model</span><span class="o">.</span><span class="n">load_state_dict</span><span class="p">(</span><span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;model.pth&#39;</span><span class="p">))</span>
+<span class="linenos"> 7</span>
+<span class="linenos"> 8</span><span class="c1"># Full model save/load also works</span>
+<span class="linenos"> 9</span><span class="n">torch</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="s1">&#39;full_model.pth&#39;</span><span class="p">)</span>
+<span class="linenos">10</span><span class="n">model</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;full_model.pth&#39;</span><span class="p">,</span> <span class="n">weights_only</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 </section>
 

@@ -1395,11 +1395,11 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not regressor_dict:
-            logger.error(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
             return
 
         if not hasattr(self, 'output_dims'):
-            logger.error("❗No output dimension information found. You need to first run .distill.")
+            print("❗No output dimension information found. You need to first run .distill.")
             return
 
         # Convert single values to lists
@@ -1410,7 +1410,7 @@ class SymbolicModel(nn.Module):
             if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
                 dims_to_show = self.get_active_dimensions()
                 if dims_to_show:
-                    logger.info(f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
+                    print(f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
             else:
                 dims_to_show = list(range(self.output_dims))
         else:
@@ -1420,13 +1420,13 @@ class SymbolicModel(nn.Module):
         if complexity is None:
             for i in dims_to_show:
                 if i not in regressor_dict:
-                    logger.error(f"❌ No {mode_name} expression distilled for output dimension {i}.")
+                    print(f"❌ No {mode_name} expression distilled for output dimension {i}.")
                     continue
                 regressor = regressor_dict[i]
-                logger.info(f"\n➡️ {mode_name.capitalize()} symbolic expressions for output dimension {i}:")
-                logger.info(regressor.equations_)
+                print(f"\n➡️ {mode_name.capitalize()} symbolic expressions for output dimension {i}:")
+                print(regressor.equations_)
                 best_equation = regressor.get_best()
-                logger.info(f"🏆 Best: {best_equation['equation']} (loss: {best_equation['loss']:.6e})")
+                print(f"🏆 Best: {best_equation['equation']} (loss: {best_equation['loss']:.6e})")
 
         # Show specific complexity for each dimension
         else:
@@ -1436,12 +1436,12 @@ class SymbolicModel(nn.Module):
                 complexities = complexity
 
             if len(complexities) != len(dims_to_show):
-                logger.error(f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})")
+                print(f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})")
                 return
 
             for i, comp in zip(dims_to_show, complexities):
                 if i not in regressor_dict:
-                    logger.error(f"❌ No {mode_name} expression distilled for output dimension {i}.")
+                    print(f"❌ No {mode_name} expression distilled for output dimension {i}.")
                     continue
 
                 regressor = regressor_dict[i]
@@ -1449,11 +1449,11 @@ class SymbolicModel(nn.Module):
 
                 if matching_rows.empty:
                     available = sorted(regressor.equations_["complexity"].unique())
-                    logger.error(f"❌ No equation with complexity {comp} for dimension {i}. Available: {available}")
+                    print(f"❌ No equation with complexity {comp} for dimension {i}. Available: {available}")
                     continue
 
-                logger.info(f"\n➡️ Dimension {i} - Complexity {comp}:")
-                logger.info(f"   {matching_rows['equation'].values[0]} (loss: {matching_rows['loss'].values[0]:.6e})")
+                print(f"\n➡️ Dimension {i} - Complexity {comp}:")
+                print(f"   {matching_rows['equation'].values[0]} (loss: {matching_rows['loss'].values[0]:.6e})")
 
     def switch_to_block(self):
         """

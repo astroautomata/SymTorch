@@ -10,6 +10,7 @@
       <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
       <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=e59714d7" />
       <link rel="stylesheet" type="text/css" href="../../_static/mystnb.8ecb98da25f57f5357bf6f572d296f466b2cfe2517ffebfabe82451661e28f02.css" />
+      <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
 
   
     <link rel="shortcut icon" href="../../_static/symtorch_favicon.png"/>
@@ -18,6 +19,7 @@
       <script src="../../_static/documentation_options.js?v=58fbf978"></script>
       <script src="../../_static/doctools.js?v=9bcbadda"></script>
       <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script src="../../_static/design-tabs.js?v=f930bc37"></script>
       <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
       <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script src="../../_static/js/theme.js"></script>
@@ -112,8 +114,8 @@
 <li><p>Make predictions with the surrogate symbolic model</p></li>
 </ul>
 <p>SLIME is a very similar model interpretability technique to <a class="reference external" href="https://arxiv.org/pdf/1602.04938">LIME</a> (Local Interpretable Model Agnostic Explanations). Essentially, LIME is a technique that approximates any black box machine learning model with a linear model around a certain point. The surrogate model is fitted with Gaussian perturbed samples around the point.</p>
+<p><img alt="SLIME_conceptual_pic0" src="../../_images/slime_conceptual_pic.png" /></p>
 <p>SLIME extends this idea. Here, we implement the framework as presented by the <a class="reference external" href="https://dl.acm.org/doi/10.1145/3712255.3726721">SLIME paper</a> (Fong, Motani 2025).</p>
-<p><img alt="SLIME_conceptual_pic" src="../../_images/SLIME.png" /></p>
 <p><strong>SLIME Algorithm</strong>: Suppose we have a black-box model <span class="math notranslate nohighlight">\(f(x)\)</span>,</p>
 <ol class="arabic simple">
 <li><p>We want to fit a local surrogate model <span class="math notranslate nohighlight">\(g^{*}(x) \in \mathcal{G}\)</span> where <span class="math notranslate nohighlight">\(\mathcal{S}\)</span> is the space of closed-form analytic expressions (symbolic models) to estimate the behaviour of <span class="math notranslate nohighlight">\(f(x)\)</span> around point <span class="math notranslate nohighlight">\(x_0\)</span>.</p></li>
@@ -139,6 +141,7 @@ g^*(x) = \arg\min_{g \in \mathcal{S}} \sum_{z_i \in \text{synthetic}} \pi_x(z_i)
 <li><p>PySR parameters (<code class="docutils literal notranslate"><span class="pre">pysr_params=None</span></code> defaults to default parameters)</p></li>
 </ul>
 <p>The model is fitted using the <code class="docutils literal notranslate"><span class="pre">.distill(SLIME</span> <span class="pre">=</span> <span class="pre">True)</span></code> method and predictions can be made using <code class="docutils literal notranslate"><span class="pre">.predict()</span></code>.</p>
+<p><img alt="SLIME_conceptual_pic" src="../../_images/SLIME.png" /></p>
 <section id="conceptual-example">
 <h2>Conceptual example<a class="headerlink" href="#conceptual-example" title="Link to this heading"></a></h2>
 <p>Let us see an example of how SLIME can be effective at analysing black box models by using a spiral dataset.</p>
