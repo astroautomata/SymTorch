@@ -1,6 +1,7 @@
 sphinx>=4.0
 sphinx-rtd-theme
 sphinx-autodoc-typehints
+sphinx-design
 torch
 pysr
 sympy
