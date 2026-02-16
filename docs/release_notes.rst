@@ -1,4 +1,5 @@
 Release Notes 
 =============
 
-Release notes will be published here after SymTorch is uploaded to PyPI.
+**v.1.0.1.post1** - 16 Feb 2026
+* First publically available SymTorch version
