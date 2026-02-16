@@ -4,9 +4,13 @@
 
 ## Installation
 
-SymTorch will soon be available on [PyPI](https://pypi.org/)!
+SymTorch is available on [PyPI](https://pypi.org/) as `torch-symbolic`:
 
-For now, you can download the package from the source. 
+```bash
+pip install torch-symbolic
+```
+
+You can also install directly from the source:
 
 ```bash
 pip install git+https://github.com/elizabethsztan/SymTorch

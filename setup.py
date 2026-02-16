@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="torch-symbolic",
-    version="2.1.2",
+    version="1.0.1.post1",
     author="Liz Tan",
     author_email= "eszt2@cam.ac.uk",
     description="Deep Learning Interpretability with Symbolic Regression.",
