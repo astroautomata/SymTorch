@@ -10,11 +10,9 @@ SymTorch is available on [PyPI](https://pypi.org/) as `torch-symbolic`:
 pip install torch-symbolic
 ```
 
-You can also install directly from the source:
+## Paper
 
-```bash
-pip install git+https://github.com/elizabethsztan/SymTorch
-```
+Our paper is available on [arXiv](https://arxiv.org/abs/2602.21307). You can also visit the [accompanying website](https://astroautomata.github.io/symtorch-web/) for more information.
 
 ## Documentation
 
