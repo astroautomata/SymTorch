@@ -18,6 +18,22 @@ Our paper is available on [arXiv](https://arxiv.org/abs/2602.21307). You can als
 
 Full documentation is available at [ReadTheDocs](https://symtorch.readthedocs.io/en/latest/).
 
+## Citation
+
+If you use SymTorch in your research, please cite:
+
+```bibtex
+@misc{symtorch2026,
+  title        = {SymTorch: A Framework for Symbolic Distillation of Deep Neural Networks},
+  author       = {Tan, Elizabeth S.Z. and Soubki, Adil and Cranmer, Miles},
+  year         = {2026},
+  eprint       = {2602.21307},
+  archivePrefix= {arXiv},
+  primaryClass = {cs.LG},
+  url          = {https://arxiv.org/abs/2602.21307}
+}
+```
+
 ## License
 
 MIT License

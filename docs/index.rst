@@ -31,11 +31,14 @@ If you use SymTorch in your research, please cite:
 
 .. code-block:: bibtex
 
-   @article{symtorch2025,
-      title={SymTorch: Symbolic Regression for Interpretable Deep Learning},
-      author={Tan, Elizabeth S. Z.},
-      journal={arXiv preprint arXiv:2602.21307},
-      year={2025}
+   @misc{symtorch2026,
+      title        = {SymTorch: A Framework for Symbolic Distillation of Deep Neural Networks},
+      author       = {Tan, Elizabeth S.Z. and Soubki, Adil and Cranmer, Miles},
+      year         = {2026},
+      eprint       = {2602.21307},
+      archivePrefix= {arXiv},
+      primaryClass = {cs.LG},
+      url          = {https://arxiv.org/abs/2602.21307}
    }
 
 Overview
