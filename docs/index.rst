@@ -14,9 +14,29 @@ Welcome to the SymTorch Documentation
 Installation
 ============
 
-*SymTorch* will soon be released on `PyPI <https://pypi.org/project/torch-symbolic/>`_.
+*SymTorch* is available on `PyPI <https://pypi.org/project/torch-symbolic/>`_:
+
+.. code-block:: bash
+
+   pip install torch-symbolic
 
 To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>`_.
+
+Citation
+========
+
+Our paper is available on `arXiv <https://arxiv.org/abs/2602.21307>`_. You can also visit the `accompanying website <https://astroautomata.github.io/symtorch-web/>`_ for more information.
+
+If you use SymTorch in your research, please cite:
+
+.. code-block:: bibtex
+
+   @article{symtorch2025,
+      title={SymTorch: Symbolic Regression for Interpretable Deep Learning},
+      author={Tan, Elizabeth S. Z.},
+      journal={arXiv preprint arXiv:2602.21307},
+      year={2025}
+   }
 
 Overview
 ========
