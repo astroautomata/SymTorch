@@ -1,8 +1,6 @@
 API Demos
 =========
 
-All of the following demos are available as Jupyter notebooks on our
-`GitHub <https://github.com/elizabethsztan/SymTorch>`_.
 
 - :doc:`Getting Started Demo <demos/api_demos/getting_started_demo>`
 - :doc:`SLIME Demo <demos/api_demos/slime_demo>`
