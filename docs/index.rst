@@ -22,25 +22,6 @@ Installation
 
 To view or install the most recent version of SymTorch, please see our `GitHub <https://github.com/elizabethsztan/SymTorch>`_.
 
-Citation
-========
-
-Our paper is available on `arXiv <https://arxiv.org/abs/2602.21307>`_. You can also visit the `accompanying website <https://astroautomata.github.io/symtorch-web/>`_ for more information.
-
-If you use SymTorch in your research, please cite:
-
-.. code-block:: bibtex
-
-   @misc{symtorch2026,
-      title        = {SymTorch: A Framework for Symbolic Distillation of Deep Neural Networks},
-      author       = {Tan, Elizabeth S.Z. and Soubki, Adil and Cranmer, Miles},
-      year         = {2026},
-      eprint       = {2602.21307},
-      archivePrefix= {arXiv},
-      primaryClass = {cs.LG},
-      url          = {https://arxiv.org/abs/2602.21307}
-   }
-
 Overview
 ========
 SymTorch combines PyTorch (neural networks) with PySR (symbolic regression) to automatically extract human-readable formulas from trained models. Instead of treating models as black boxes, it reveals the underlying mathematical relationships they've discovered.
@@ -76,7 +57,24 @@ All functionality is accessed through the unified ``SymbolicModel`` class, which
    - Activated by calling ``setup_pruning()`` before training
    - See the :doc:`Pruning Demo <demos/api_demos/pruning_demo>`
 
+Citation
+========
 
+Our paper is available on `arXiv <https://arxiv.org/abs/2602.21307>`_. You can also visit the `accompanying website <https://astroautomata.github.io/symtorch-web/>`_ for more information.
+
+If you use SymTorch in your research, please cite:
+
+.. code-block:: bibtex
+
+   @misc{symtorch2026,
+      title        = {SymTorch: A Framework for Symbolic Distillation of Deep Neural Networks},
+      author       = {Tan, Elizabeth S.Z. and Soubki, Adil and Cranmer, Miles},
+      year         = {2026},
+      eprint       = {2602.21307},
+      archivePrefix= {arXiv},
+      primaryClass = {cs.LG},
+      url          = {https://arxiv.org/abs/2602.21307}
+   }
 
 Contents
 ========
