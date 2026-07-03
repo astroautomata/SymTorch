@@ -4,28 +4,27 @@ SymTorch SymbolicModel Module
 This module provides a wrapper for components of (or whole) ML models that adds symbolic regression
 capabilities using PySR (Python Symbolic Regression).
 """
+
 # Warnings configuration
 import warnings
-warnings.filterwarnings("ignore", message="torch was imported before juliacall")
+
+warnings.filterwarnings("ignore", message="torch was imported before juliacall")  # noqa: E402
 
 # Standard library
-import logging
-import math
-import os
-import time
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, List, Literal, Optional, Union
+import logging  # noqa: E402
+import math  # noqa: E402
+import time  # noqa: E402
+from contextlib import contextmanager  # noqa: E402
+from typing import Any, Callable, Dict, List, Literal, Optional, Union  # noqa: E402
 
 # Third-party libraries
-import dill
-import numpy as np
-import sympy
-import torch
-import torch.nn as nn
-from pysr import *
-from sklearn.neighbors import NearestNeighbors
-from sympy import lambdify
-
+import dill  # noqa: E402
+import numpy as np  # noqa: E402
+import torch  # noqa: E402
+import torch.nn as nn  # noqa: E402
+from pysr import PySRRegressor  # noqa: E402
+from sklearn.neighbors import NearestNeighbors  # noqa: E402
+from sympy import lambdify  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -34,24 +33,23 @@ logger = logging.getLogger(__name__)
 # TODO: break up this class using composition?
 # TODO: integrate dim reduction workflow (e.g., pca, proj. layer training, etc...)
 class SymbolicModel(nn.Module):
-
     # Default PySR parameters
     DEFAULT_SR_PARAMS = {
         "binary_operators": ["+", "*"],
         "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
-        "extra_sympy_mappings": {"inv": lambda x: 1/x},
+        "extra_sympy_mappings": {"inv": lambda x: 1 / x},
         "niterations": 400,
-        "complexity_of_operators": {"sin": 3, "exp": 3}
+        "complexity_of_operators": {"sin": 3, "exp": 3},
     }
 
     # Default SLIME parameters
     DEFAULT_SLIME_PARAMS = {
-        "x": None,                  # Point of interest for local explanation
-        "J_nn": 10,                 # Number of nearest neighbors
-        "num_synthetic": 100,       # Number of synthetic samples
-        "real_weighting": 1.0,      # Weight for real samples vs synthetic
-        "nn_metric": 'euclidean',   # Distance metric for nearest neighbors
-        "var": None                 # Variance for perturbations (auto-computed if None)
+        "x": None,  # Point of interest for local explanation
+        "J_nn": 10,  # Number of nearest neighbors
+        "num_synthetic": 100,  # Number of synthetic samples
+        "real_weighting": 1.0,  # Weight for real samples vs synthetic
+        "nn_metric": "euclidean",  # Distance metric for nearest neighbors
+        "var": None,  # Variance for perturbations (auto-computed if None)
     }
 
     def __init__(self, block: Union[nn.Module, Callable], block_name: str = None):
@@ -116,7 +114,9 @@ class SymbolicModel(nn.Module):
         self.distill_data = None  # Cache for standard distill
         self.distill_data_slime = None  # Cache for SLIME distill
 
-    def _create_sr_params(self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _create_sr_params(
+        self, save_path: str, run_id: str, custom_params: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
         """
         Create SR parameters by merging defaults with custom parameters.
 
@@ -132,11 +132,7 @@ class SymbolicModel(nn.Module):
         if save_path is not None:
             output_name = f"{save_path}/{self.block_name}"
 
-        base_params = {
-            **self.DEFAULT_SR_PARAMS,
-            "output_directory": output_name,
-            "run_id": run_id
-        }
+        base_params = {**self.DEFAULT_SR_PARAMS, "output_directory": output_name, "run_id": run_id}
 
         if custom_params:
             base_params.update(custom_params)
@@ -159,7 +155,7 @@ class SymbolicModel(nn.Module):
         layer_outputs = []
 
         def hook_fn(module, input, output):
-            if module is self.symtorch_block: # Only captures layer data for the layers we want to distil
+            if module is self.symtorch_block:  # Only captures layer data for the layers we want to distil
                 layer_inputs.append(input[0].clone())
                 layer_outputs.append(output.clone())
 
@@ -195,7 +191,7 @@ class SymbolicModel(nn.Module):
         """
         selected_inputs = []
 
-        if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+        if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
             # Apply transformations and select needed variables
             for idx in var_indices:
                 if idx < len(self._variable_transforms):
@@ -204,14 +200,18 @@ class SymbolicModel(nn.Module):
                         transformed_var = transformed_var.flatten()
                     selected_inputs.append(transformed_var)
                 else:
-                    raise ValueError(f"Equation for dimension {dim} requires transform {idx} but only {len(self._variable_transforms)} transforms available")
+                    raise ValueError(
+                        f"Equation for dimension {dim} requires transform {idx} but only {len(self._variable_transforms)} transforms available"
+                    )
         else:
             # Original behavior - extract by column index
             for idx in var_indices:
                 if idx < x.shape[1]:
                     selected_inputs.append(x[:, idx])
                 else:
-                    raise ValueError(f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions")
+                    raise ValueError(
+                        f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions"
+                    )
 
         return selected_inputs
 
@@ -238,20 +238,22 @@ class SymbolicModel(nn.Module):
             idx = None
 
             # Try to match with custom variable names first
-            if hasattr(self, '_variable_names') and self._variable_names:
+            if hasattr(self, "_variable_names") and self._variable_names:
                 try:
                     idx = self._variable_names.index(var_str)
                 except ValueError:
                     pass  # Variable not found in custom names, try other methods
 
             # If not found in custom names, try default x0, x1, etc. format
-            if idx is None and var_str.startswith('x'):
+            if idx is None and var_str.startswith("x"):
                 try:
                     idx = int(var_str[1:])
                     # With transforms, validate index is within range
-                    if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+                    if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
                         if idx >= len(self._variable_transforms):
-                            raise ValueError(f"Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}")
+                            raise ValueError(
+                                f"Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}"
+                            )
                 except ValueError as e:
                     if "exceeds available transforms" in str(e):
                         raise e
@@ -259,12 +261,12 @@ class SymbolicModel(nn.Module):
 
             if idx is None:
                 error_msg = f"Could not map variable '{var_str}' for dimension {dim}"
-                if hasattr(self, '_variable_names') and self._variable_names:
+                if hasattr(self, "_variable_names") and self._variable_names:
                     error_msg += f"\n   Available custom names: {self._variable_names}"
-                if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+                if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
                     error_msg += f"\n   Available transforms: {len(self._variable_transforms)}"
                 else:
-                    error_msg += f"\n   Expected format: x0, x1, x2, etc."
+                    error_msg += "\n   Expected format: x0, x1, x2, etc."
                 raise ValueError(error_msg)
 
             var_indices.append(idx)
@@ -286,7 +288,7 @@ class SymbolicModel(nn.Module):
                    and cached_inputs/outputs are numpy arrays if hit, else None
         """
         # Convert inputs to numpy for comparison
-        if hasattr(inputs, 'detach'):  # torch tensor
+        if hasattr(inputs, "detach"):  # torch tensor
             inputs_np = inputs.detach().cpu().numpy()
         else:
             inputs_np = np.array(inputs)
@@ -302,12 +304,12 @@ class SymbolicModel(nn.Module):
             return False, None, None
 
         # Check if inputs match
-        cached_inputs = cache['inputs']
+        cached_inputs = cache["inputs"]
         if not np.array_equal(inputs_np, cached_inputs):
             return False, None, None
 
         # Check if parent_model matches (both None or both same object)
-        if cache['parent_model'] is not parent_model:
+        if cache["parent_model"] is not parent_model:
             return False, None, None
 
         # For SLIME mode, also check if slime_params match
@@ -317,14 +319,14 @@ class SymbolicModel(nn.Module):
             if slime_params is not None:
                 final_slime_params.update(slime_params)
 
-            cached_slime_params = cache['slime_params']
+            cached_slime_params = cache["slime_params"]
 
             # Compare all SLIME params except 'x' (which needs special handling for numpy arrays)
             for key in final_slime_params:
-                if key == 'x':
+                if key == "x":
                     # Handle numpy array comparison for point of interest
-                    cached_x = cached_slime_params.get('x')
-                    current_x = final_slime_params.get('x')
+                    cached_x = cached_slime_params.get("x")
+                    current_x = final_slime_params.get("x")
 
                     # Convert to numpy if needed
                     if isinstance(cached_x, torch.Tensor):
@@ -344,7 +346,7 @@ class SymbolicModel(nn.Module):
                         return False, None, None
 
         # Cache hit!
-        return True, cache['sr_inputs'], cache['sr_outputs']
+        return True, cache["sr_inputs"], cache["sr_outputs"]
 
     def _apply_slime_sampling(self, inputs_np, function_to_call, slime_params, sr_params, fit_params):
         """
@@ -365,12 +367,12 @@ class SymbolicModel(nn.Module):
         if slime_params is not None:
             final_slime_params.update(slime_params)
 
-        x0 = final_slime_params['x']
-        J_nn = final_slime_params['J_nn']
-        num_synthetic = final_slime_params['num_synthetic']
-        real_weighting = final_slime_params['real_weighting']
-        nn_metric = final_slime_params['nn_metric']
-        var = final_slime_params['var']
+        x0 = final_slime_params["x"]
+        J_nn = final_slime_params["J_nn"]
+        num_synthetic = final_slime_params["num_synthetic"]
+        real_weighting = final_slime_params["real_weighting"]
+        nn_metric = final_slime_params["nn_metric"]
+        var = final_slime_params["var"]
 
         # Validation
         if real_weighting != 1.0 and num_synthetic == 0:
@@ -402,9 +404,7 @@ class SymbolicModel(nn.Module):
 
             # Generate synthetic samples
             synthetic_samples = np.random.normal(
-                loc=x0,
-                scale=np.sqrt(var_computed),
-                size=(num_synthetic, len(x0))
+                loc=x0, scale=np.sqrt(var_computed), size=(num_synthetic, len(x0))
             ).astype(np.float64)
 
             # Combine real and synthetic inputs
@@ -414,26 +414,27 @@ class SymbolicModel(nn.Module):
             slime_outputs = function_to_call(sr_inputs_slime)
 
             # Prepare weights
-            synthetic_distances_sq = np.sum((synthetic_samples - x0)**2 / var_computed, axis=1)
+            synthetic_distances_sq = np.sum((synthetic_samples - x0) ** 2 / var_computed, axis=1)
             gaussian_weights = np.exp(-synthetic_distances_sq).astype(np.float64)
-            slime_weights = np.concatenate([
-                np.full(len(real_inputs), real_weighting, dtype=np.float64),
-                gaussian_weights
-            ])
+            slime_weights = np.concatenate(
+                [np.full(len(real_inputs), real_weighting, dtype=np.float64), gaussian_weights]
+            )
 
             # Update sr_params with weighted loss
             if sr_params is None:
                 sr_params = {}
             sr_params = sr_params.copy()
-            sr_params['elementwise_loss'] = "loss(prediction, target, weight) = weight * (prediction - target)^2"
+            sr_params["elementwise_loss"] = "loss(prediction, target, weight) = weight * (prediction - target)^2"
 
             # Update fit_params with weights
             if fit_params is None:
                 fit_params = {}
             fit_params = fit_params.copy()
-            fit_params['weights'] = slime_weights
+            fit_params["weights"] = slime_weights
 
-            logger.info(f"🔍 SLIME mode: Using {len(sr_inputs_slime)} points ({len(real_inputs)} real + {num_synthetic} synthetic)")
+            logger.info(
+                f"🔍 SLIME mode: Using {len(sr_inputs_slime)} points ({len(real_inputs)} real + {num_synthetic} synthetic)"
+            )
             logger.info(f"   Point of interest: {x0}")
 
             return sr_inputs_slime, slime_outputs, sr_params, fit_params
@@ -442,13 +443,18 @@ class SymbolicModel(nn.Module):
             logger.info("🔍 SLIME mode: Global (no local focus point)")
             return inputs_np, function_to_call(inputs_np), sr_params, fit_params
 
-    def distill(self, inputs, output_dim: int = None, parent_model=None,
-                 variable_transforms: Optional[List[Callable]] = None,
-                 save_path: str = None,
-                 sr_params: Optional[Dict[str, Any]] = None,
-                 fit_params: Optional[Dict[str, Any]] = None,
-                 SLIME: bool = False,
-                 slime_params: Optional[Dict[str, Any]] = None):
+    def distill(
+        self,
+        inputs,
+        output_dim: int = None,
+        parent_model=None,
+        variable_transforms: Optional[List[Callable]] = None,
+        save_path: str = None,
+        sr_params: Optional[Dict[str, Any]] = None,
+        fit_params: Optional[Dict[str, Any]] = None,
+        SLIME: bool = False,
+        slime_params: Optional[Dict[str, Any]] = None,
+    ):
         """
         Perform symbolic regression to discover symbolic equations.
 
@@ -548,7 +554,11 @@ class SymbolicModel(nn.Module):
             >>> symbolic_layer.distill(data, output_dim=2, parent_model=model)
         """
 
-        if isinstance(self.symtorch_block, Callable) and not isinstance(self.symtorch_block, nn.Module) and parent_model is not None:
+        if (
+            isinstance(self.symtorch_block, Callable)
+            and not isinstance(self.symtorch_block, nn.Module)
+            and parent_model is not None
+        ):
             raise ValueError(
                 "Cannot use parent_model with Callable functions. "
                 "Hooks are only supported for nn.Module objects. "
@@ -556,13 +566,15 @@ class SymbolicModel(nn.Module):
             )
 
         # Check cache for I/O data
-        cache_hit, cached_sr_inputs, cached_sr_outputs = self._check_cache_hit(inputs, parent_model, SLIME, slime_params)
+        cache_hit, cached_sr_inputs, cached_sr_outputs = self._check_cache_hit(
+            inputs, parent_model, SLIME, slime_params
+        )
 
         if cache_hit:
-            logger.info(f"🔄 Cache hit! Reusing I/O data from previous distill call.")
+            logger.info("🔄 Cache hit! Reusing I/O data from previous distill call.")
             actual_inputs_numpy = cached_sr_inputs
             # cached_sr_outputs is already numpy array
-            if SLIME or (hasattr(cached_sr_outputs, 'ndim') and cached_sr_outputs.ndim == 1):
+            if SLIME or (hasattr(cached_sr_outputs, "ndim") and cached_sr_outputs.ndim == 1):
                 output = cached_sr_outputs
             else:
                 # Convert back to torch for processing
@@ -577,7 +589,7 @@ class SymbolicModel(nn.Module):
             if fit_params is None:
                 fit_params = {}
 
-            variable_names = fit_params.get('variable_names', None)
+            variable_names = fit_params.get("variable_names", None)
 
             # Extract sr_params with defaults (needed for both cache hit and miss)
             if sr_params is None:
@@ -593,7 +605,9 @@ class SymbolicModel(nn.Module):
                         actual_inputs = layer_inputs[0]
                         full_output = layer_outputs[0]
                     else:
-                        raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance.")
+                        raise RuntimeError(
+                            "Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance."
+                        )
 
                 else:
                     # Original behavior - use block directly
@@ -603,7 +617,7 @@ class SymbolicModel(nn.Module):
                         full_output = self.symtorch_block(inputs)
 
                 # Check if pruning is enabled and filter to active dimensions
-                if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                     active_dims = self.get_active_dimensions()
                     if not active_dims:
                         logger.warning("❗No active dimensions to distill!")
@@ -615,7 +629,9 @@ class SymbolicModel(nn.Module):
                     # Filter active dimensions based on output_dim parameter
                     if output_dim is not None:
                         if output_dim not in active_dims:
-                            logger.warning(f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}")
+                            logger.warning(
+                                f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}"
+                            )
                             return {}
                         target_dims = [output_dim]
                     else:
@@ -629,7 +645,9 @@ class SymbolicModel(nn.Module):
                 if variable_transforms is not None:
                     # Validate inputs - variable_names is optional
                     if variable_names is not None and len(variable_names) != len(variable_transforms):
-                        raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
+                        raise ValueError(
+                            f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})"
+                        )
 
                     # Apply transformations
                     transformed_inputs = []
@@ -675,23 +693,23 @@ class SymbolicModel(nn.Module):
 
                 # Store cache for future distill calls
                 # Convert inputs to numpy for cache storage
-                if hasattr(inputs, 'detach'):
+                if hasattr(inputs, "detach"):
                     inputs_cache = inputs.detach().cpu().numpy()
                 else:
                     inputs_cache = np.array(inputs)
 
                 # Convert output to numpy for cache storage
-                if hasattr(output, 'detach'):
+                if hasattr(output, "detach"):
                     output_cache = output.detach().cpu().numpy()
                 else:
                     output_cache = np.array(output)
 
                 # Store in appropriate cache
                 cache_data = {
-                    'inputs': inputs_cache,
-                    'sr_inputs': actual_inputs_numpy,
-                    'sr_outputs': output_cache,
-                    'parent_model': parent_model
+                    "inputs": inputs_cache,
+                    "sr_inputs": actual_inputs_numpy,
+                    "sr_outputs": output_cache,
+                    "parent_model": parent_model,
                 }
 
                 if SLIME:
@@ -699,15 +717,15 @@ class SymbolicModel(nn.Module):
                     final_slime_params = {**self.DEFAULT_SLIME_PARAMS}
                     if slime_params is not None:
                         final_slime_params.update(slime_params)
-                    cache_data['slime_params'] = final_slime_params
+                    cache_data["slime_params"] = final_slime_params
                     self.distill_data_slime = cache_data
                 else:
                     self.distill_data = cache_data
             else:
                 # Using cached data - set target_dims based on cached output shape
-                if hasattr(output, 'shape') and len(output.shape) > 1:
+                if hasattr(output, "shape") and len(output.shape) > 1:
                     # Reconstruct target_dims from cache
-                    if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                    if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                         target_dims = self.get_active_dimensions()
                     else:
                         target_dims = None
@@ -723,7 +741,7 @@ class SymbolicModel(nn.Module):
                 self.output_dims = self.initial_dim
 
                 for i, dim_idx in enumerate(target_dims):
-                    logger.info(f"🛠️ Running SR on active dimension {dim_idx} ({i+1}/{len(target_dims)})")
+                    logger.info(f"🛠️ Running SR on active dimension {dim_idx} ({i + 1}/{len(target_dims)})")
 
                     run_id = f"dim{dim_idx}_{timestamp}"
                     final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -752,8 +770,7 @@ class SymbolicModel(nn.Module):
                 if not output_dim:
                     # If output dimension is not specified, run SR on all dims
                     for dim in range(output_dims):
-
-                        logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
+                        logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims - 1}")
 
                         run_id = f"dim{dim}_{timestamp}"
                         final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -770,7 +787,6 @@ class SymbolicModel(nn.Module):
                         logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
 
                 else:
-
                     logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
 
                     run_id = f"dim{output_dim}_{timestamp}"
@@ -784,7 +800,9 @@ class SymbolicModel(nn.Module):
                     regressor.fit(*fit_args, **final_fit_params)
                     pysr_regressors[output_dim] = regressor
 
-                    logger.info(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
+                    logger.info(
+                        f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}."
+                    )
 
                 logger.info(f"❤️ SR on {self.block_name} complete.")
 
@@ -800,28 +818,27 @@ class SymbolicModel(nn.Module):
             else:
                 return pysr_regressors
 
-        else: #code for Callable function
+        else:  # code for Callable function
             # Extract fit parameters (needed for both cache hit and miss)
             if fit_params is None:
                 fit_params = {}
 
-            variable_names = fit_params.get('variable_names', None)
+            variable_names = fit_params.get("variable_names", None)
 
             # Extract sr_params with defaults (needed for both cache hit and miss)
             if sr_params is None:
                 sr_params = {}
 
             if not skip_io_extraction:
-
                 # Convert inputs to numpy if needed
-                if hasattr(inputs, 'detach'):  # torch tensor
+                if hasattr(inputs, "detach"):  # torch tensor
                     inputs_np = inputs.detach().cpu().numpy()
                 else:
                     inputs_np = np.array(inputs)
 
                 # Get outputs from the black-box function
                 outputs_raw = self.symtorch_block(inputs)
-                if hasattr(outputs_raw, 'detach'):  # torch tensor
+                if hasattr(outputs_raw, "detach"):  # torch tensor
                     outputs_np = outputs_raw.detach().cpu().numpy()
                 else:
                     outputs_np = np.array(outputs_raw)
@@ -830,7 +847,9 @@ class SymbolicModel(nn.Module):
                 if variable_transforms is not None:
                     # Validate inputs
                     if variable_names is not None and len(variable_names) != len(variable_transforms):
-                        raise ValueError(f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})")
+                        raise ValueError(
+                            f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})"
+                        )
 
                     # Apply transformations
                     transformed_inputs = []
@@ -839,7 +858,7 @@ class SymbolicModel(nn.Module):
                             # Handle both numpy and torch inputs
                             if isinstance(inputs, torch.Tensor):
                                 transformed_var = transform_func(inputs)
-                                if hasattr(transformed_var, 'detach'):
+                                if hasattr(transformed_var, "detach"):
                                     transformed_var = transformed_var.detach().cpu().numpy()
                                 else:
                                     transformed_var = np.array(transformed_var)
@@ -875,7 +894,7 @@ class SymbolicModel(nn.Module):
                     # Create function that evaluates the callable
                     def eval_callable(inputs_array):
                         outputs_raw = self.symtorch_block(inputs_array)
-                        if hasattr(outputs_raw, 'detach'):  # torch tensor
+                        if hasattr(outputs_raw, "detach"):  # torch tensor
                             return outputs_raw.detach().cpu().numpy()
                         else:
                             return np.array(outputs_raw)
@@ -890,17 +909,17 @@ class SymbolicModel(nn.Module):
 
                 # Store cache for future distill calls
                 # Convert inputs to numpy for cache storage
-                if hasattr(inputs, 'detach'):
+                if hasattr(inputs, "detach"):
                     inputs_cache = inputs.detach().cpu().numpy()
                 else:
                     inputs_cache = np.array(inputs)
 
                 # Store in appropriate cache
                 cache_data = {
-                    'inputs': inputs_cache,
-                    'sr_inputs': inputs_np,
-                    'sr_outputs': outputs_np,
-                    'parent_model': parent_model
+                    "inputs": inputs_cache,
+                    "sr_inputs": inputs_np,
+                    "sr_outputs": outputs_np,
+                    "parent_model": parent_model,
                 }
 
                 if SLIME:
@@ -908,7 +927,7 @@ class SymbolicModel(nn.Module):
                     final_slime_params = {**self.DEFAULT_SLIME_PARAMS}
                     if slime_params is not None:
                         final_slime_params.update(slime_params)
-                    cache_data['slime_params'] = final_slime_params
+                    cache_data["slime_params"] = final_slime_params
                     self.distill_data_slime = cache_data
                 else:
                     self.distill_data = cache_data
@@ -927,7 +946,7 @@ class SymbolicModel(nn.Module):
             if output_dim is None:
                 # Run on all output dimensions
                 for dim in range(output_dims):
-                    logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims-1}")
+                    logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims - 1}")
 
                     run_id = f"dim{dim}_{timestamp}"
                     final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
@@ -946,7 +965,9 @@ class SymbolicModel(nn.Module):
             else:
                 # Run on specific output dimension
                 if output_dim >= output_dims:
-                    raise ValueError(f"output_dim {output_dim} is out of range for outputs with {output_dims} dimensions")
+                    raise ValueError(
+                        f"output_dim {output_dim} is out of range for outputs with {output_dims} dimensions"
+                    )
 
                 logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
 
@@ -1007,11 +1028,18 @@ class SymbolicModel(nn.Module):
             regressor_dict = self.pysr_regressor
             mode_name = "standard"
 
-        if not hasattr(self, regressor_dict.__class__.__name__.replace('dict', 'pysr_regressor')) or regressor_dict is None:
-            logger.error(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+        if (
+            not hasattr(self, regressor_dict.__class__.__name__.replace("dict", "pysr_regressor"))
+            or regressor_dict is None
+        ):
+            logger.error(
+                f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}."
+            )
             return None
         if dim not in regressor_dict:
-            logger.error(f"❗No {mode_name} equation found for output dimension {dim}. You need to first run .distill with SLIME={SLIME}.")
+            logger.error(
+                f"❗No {mode_name} equation found for output dimension {dim}. You need to first run .distill with SLIME={SLIME}."
+            )
             return None
 
         regressor = regressor_dict[dim]
@@ -1023,7 +1051,9 @@ class SymbolicModel(nn.Module):
             matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
             if matching_rows.empty:
                 available_complexities = sorted(regressor.equations_["complexity"].unique())
-                logger.warning(f"⚠️ Warning: No equation found with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}")
+                logger.warning(
+                    f"⚠️ Warning: No equation found with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}"
+                )
                 return None
             expr = matching_rows["sympy_format"].values[0]
 
@@ -1064,15 +1094,17 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not regressor_dict:
-            logger.error(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+            logger.error(
+                f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}."
+            )
             return
 
-        if not hasattr(self, 'output_dims'):
+        if not hasattr(self, "output_dims"):
             logger.error("❗No output dimension information found. You need to first run .distill.")
             return
 
         # Check if pruning is enabled
-        if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+        if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
             # Pruning mode - only need equations for active dimensions
             active_dims = self.get_active_dimensions()
             if not active_dims:
@@ -1086,7 +1118,9 @@ class SymbolicModel(nn.Module):
                     missing_dims.append(dim)
 
             if missing_dims:
-                logger.error(f"❗Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first.")
+                logger.error(
+                    f"❗Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first."
+                )
                 return
 
             dimensions_to_process = active_dims
@@ -1098,7 +1132,9 @@ class SymbolicModel(nn.Module):
                     missing_dims.append(dim)
 
             if missing_dims:
-                logger.error(f"❗Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first.")
+                logger.error(
+                    f"❗Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first."
+                )
                 logger.error(f"Available dimensions: {list(regressor_dict.keys())}")
                 logger.error(f"Required dimensions: {list(range(self.output_dims))}")
                 return
@@ -1106,7 +1142,7 @@ class SymbolicModel(nn.Module):
             dimensions_to_process = list(range(self.output_dims))
 
         # Store original block for potential restoration
-        if not hasattr(self, '_original_block'):
+        if not hasattr(self, "_original_block"):
             self._original_block = self.symtorch_block
 
         # Get equations for dimensions to process
@@ -1122,7 +1158,9 @@ class SymbolicModel(nn.Module):
                     if i < len(complexity):
                         dim_complexity = complexity[i]
                     else:
-                        logger.warning(f"⚠️ Warning: Not enough complexity values provided. Using default for dimension {dim}")
+                        logger.warning(
+                            f"⚠️ Warning: Not enough complexity values provided. Using default for dimension {dim}"
+                        )
                 else:
                     # If complexity is a single value, use it for all dimensions
                     dim_complexity = complexity
@@ -1155,17 +1193,21 @@ class SymbolicModel(nn.Module):
 
         # Print success messages
         mode_label = f"{mode_name} " if SLIME else ""
-        if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
-            logger.info(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for {len(dimensions_to_process)} active dimensions:")
+        if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
+            logger.info(
+                f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for {len(dimensions_to_process)} active dimensions:"
+            )
         else:
-            logger.info(f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for all {len(dimensions_to_process)} dimensions:")
+            logger.info(
+                f"✅ Successfully switched {self.block_name} to {mode_label}symbolic equations for all {len(dimensions_to_process)} dimensions:"
+            )
 
         for dim in dimensions_to_process:
             logger.info(f"   Dimension {dim}: {equation_strs[dim]}")
 
             # Display variable names properly
             var_names_display = []
-            if hasattr(self, '_variable_names') and self._variable_names is not None:
+            if hasattr(self, "_variable_names") and self._variable_names is not None:
                 # Use custom variable names
                 for idx in equation_vars[dim]:
                     if idx < len(self._variable_names):
@@ -1174,19 +1216,21 @@ class SymbolicModel(nn.Module):
                         var_names_display.append(f"transform_{idx}")
             else:
                 # Use default x0, x1, etc. format
-                var_names_display = [f'x{i}' for i in equation_vars[dim]]
+                var_names_display = [f"x{i}" for i in equation_vars[dim]]
 
             logger.info(f"   Variables: {var_names_display}")
 
-        if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+        if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
             logger.info(f"🎯 Active dimensions {dimensions_to_process} now using {mode_label}symbolic equations.")
-            logger.info(f"🔒 Inactive dimensions will output zeros.")
+            logger.info("🔒 Inactive dimensions will output zeros.")
         else:
-            logger.info(f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations.")
+            logger.info(
+                f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations."
+            )
 
         # TODO: Make torch compiling optional for user.
         # Apply torch.compile() optimization if available (PyTorch 2.0+)
-        if hasattr(torch, 'compile') and torch.cuda.is_available():
+        if hasattr(torch, "compile") and torch.cuda.is_available():
             logger.info("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
             try:
                 # Compile with fullgraph=False to allow dynamic control flow
@@ -1272,17 +1316,21 @@ class SymbolicModel(nn.Module):
         if not regressor_dict:
             raise ValueError(f"No {mode_name} equations found. Run .distill(SLIME={SLIME}) first.")
 
-        if not hasattr(self, 'output_dims'):
+        if not hasattr(self, "output_dims"):
             raise ValueError("No output dimension information found. Run .distill() first.")
 
         # If only one output dimension, default to dim=0
         if self.output_dims == 1:
             dim = 0
         elif dim >= self.output_dims:
-            raise ValueError(f"Dimension {dim} out of range. Model has {self.output_dims} output dimensions (0-{self.output_dims-1})")
+            raise ValueError(
+                f"Dimension {dim} out of range. Model has {self.output_dims} output dimensions (0-{self.output_dims - 1})"
+            )
 
         if dim not in regressor_dict:
-            raise ValueError(f"No {mode_name} equation found for dimension {dim}. Available dimensions: {list(regressor_dict.keys())}")
+            raise ValueError(
+                f"No {mode_name} equation found for dimension {dim}. Available dimensions: {list(regressor_dict.keys())}"
+            )
 
         regressor = regressor_dict[dim]
 
@@ -1294,7 +1342,9 @@ class SymbolicModel(nn.Module):
             matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
             if matching_rows.empty:
                 available_complexities = sorted(regressor.equations_["complexity"].unique())
-                raise ValueError(f"No equation with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}")
+                raise ValueError(
+                    f"No equation with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}"
+                )
             expr = matching_rows["sympy_format"].values[0]
 
         vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
@@ -1327,7 +1377,7 @@ class SymbolicModel(nn.Module):
 
         return symbolic_func
 
-    def show_symbolic_expression(self, dim = None, complexity = None, SLIME: bool = False):
+    def show_symbolic_expression(self, dim=None, complexity=None, SLIME: bool = False):
         """
         Display the discovered symbolic expressions for output dimensions.
 
@@ -1395,10 +1445,12 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not regressor_dict:
-            print(f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}.")
+            print(
+                f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}."
+            )
             return
 
-        if not hasattr(self, 'output_dims'):
+        if not hasattr(self, "output_dims"):
             print("❗No output dimension information found. You need to first run .distill.")
             return
 
@@ -1407,10 +1459,12 @@ class SymbolicModel(nn.Module):
             dims_to_show = [dim]
         elif dim is None:
             # For pruned models, show only active dimensions by default
-            if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+            if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                 dims_to_show = self.get_active_dimensions()
                 if dims_to_show:
-                    print(f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)")
+                    print(
+                        f"ℹ️ Showing {mode_name} expressions for {len(dims_to_show)} active dimensions (out of {self.output_dims} total)"
+                    )
             else:
                 dims_to_show = list(range(self.output_dims))
         else:
@@ -1436,7 +1490,9 @@ class SymbolicModel(nn.Module):
                 complexities = complexity
 
             if len(complexities) != len(dims_to_show):
-                print(f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})")
+                print(
+                    f"❗Complexity list length ({len(complexities)}) must match dimension list length ({len(dims_to_show)})"
+                )
                 return
 
             for i, comp in zip(dims_to_show, complexities):
@@ -1470,14 +1526,19 @@ class SymbolicModel(nn.Module):
         self._using_equation = False
 
         # Restore original block if it was saved
-        if hasattr(self, '_original_block'):
+        if hasattr(self, "_original_block"):
             self.symtorch_block = self._original_block
 
         logger.info(f"✅ Switched {self.block_name} back to block")
 
-    def setup_pruning(self, initial_dim: int, target_dim: int, total_steps: int,
-                      end_step_frac: float = 0.5,
-                      decay_rate: Literal['cosine', 'exp', 'linear'] = 'exp'):
+    def setup_pruning(
+        self,
+        initial_dim: int,
+        target_dim: int,
+        total_steps: int,
+        end_step_frac: float = 0.5,
+        decay_rate: Literal["cosine", "exp", "linear"] = "exp",
+    ):
         """
         Set up pruning schedule for progressive dimensionality reduction on a per-step basis.
 
@@ -1507,7 +1568,7 @@ class SymbolicModel(nn.Module):
         self.target_dim = target_dim
 
         self.pruning_schedule = self._set_pruning_schedule(total_steps, decay_rate, end_step_frac)
-        self.register_buffer('pruning_mask', torch.ones(self.current_dim, dtype=torch.bool))
+        self.register_buffer("pruning_mask", torch.ones(self.current_dim, dtype=torch.bool))
 
         logger.info(f"✅ Pruning successfully set up for block {self.block_name}.")
         logger.info(f"   Initial dimensions: {initial_dim}")
@@ -1517,8 +1578,7 @@ class SymbolicModel(nn.Module):
 
         return None
 
-
-    def _set_pruning_schedule(self, total_steps: int, decay_rate: str = 'cosine', end_step_frac: float = 0.5):
+    def _set_pruning_schedule(self, total_steps: int, decay_rate: str = "cosine", end_step_frac: float = 0.5):
         """
         Create step-based pruning schedule.
 
@@ -1539,7 +1599,7 @@ class SymbolicModel(nn.Module):
 
         # Different pruning schedules
         # Exponential decay
-        if decay_rate == 'exp':
+        if decay_rate == "exp":
             decay_rate_val = 3.0
             max_decay = 1 - math.exp(-decay_rate_val)
 
@@ -1553,7 +1613,7 @@ class SymbolicModel(nn.Module):
                 schedule_dict[step] = target_dims
 
         # Linear decay
-        elif decay_rate == 'linear':
+        elif decay_rate == "linear":
             for step in range(prune_end_step):
                 progress = step / prune_steps
                 dims_pruned = math.ceil(dims_to_prune * progress)
@@ -1561,7 +1621,7 @@ class SymbolicModel(nn.Module):
                 schedule_dict[step] = target_dims
 
         # Cosine decay
-        elif decay_rate == 'cosine':
+        elif decay_rate == "cosine":
             for step in range(prune_end_step):
                 progress = step / prune_steps
                 cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
@@ -1602,8 +1662,8 @@ class SymbolicModel(nn.Module):
             >>>         model.block.prune(step, validation_data)
         """
 
-        if not hasattr(self, 'pruning_schedule') or self.pruning_schedule is None:
-            raise RuntimeError('Pruning schedule is not set. Call setup_pruning() first.')
+        if not hasattr(self, "pruning_schedule") or self.pruning_schedule is None:
+            raise RuntimeError("Pruning schedule is not set. Call setup_pruning() first.")
 
         if step not in self.pruning_schedule:
             return
@@ -1620,7 +1680,9 @@ class SymbolicModel(nn.Module):
                 if layer_outputs:
                     output_array = layer_outputs[0]
                 else:
-                    raise RuntimeError("Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance.")
+                    raise RuntimeError(
+                        "Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance."
+                    )
             else:
                 # Original behavior - use block directly
                 self.symtorch_block.eval()
@@ -1648,7 +1710,7 @@ class SymbolicModel(nn.Module):
             >>> print(f"Active dimensions: {active_dims}")
             Active dimensions: [5, 12, 18]
         """
-        if not hasattr(self, 'pruning_mask') or self.pruning_mask is None:
+        if not hasattr(self, "pruning_mask") or self.pruning_mask is None:
             raise RuntimeError("Pruning has not been set up for this block. Call setup_pruning() first.")
 
         return torch.where(self.pruning_mask)[0].tolist()
@@ -1677,7 +1739,7 @@ class SymbolicModel(nn.Module):
         Raises:
             ValueError: If symbolic equations require variables not present in input
         """
-        if hasattr(self, '_using_equation') and self._using_equation:
+        if hasattr(self, "_using_equation") and self._using_equation:
             # Track input type to return matching output type
             is_torch_input = isinstance(x, torch.Tensor)
 
@@ -1690,7 +1752,7 @@ class SymbolicModel(nn.Module):
             batch_size = x_torch.shape[0]
 
             # Check if pruning is enabled
-            if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+            if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                 # For pruning mode, initialize output with zeros for all dimensions
                 output = torch.zeros(batch_size, self.initial_dim, dtype=x_torch.dtype, device=x_torch.device)
 
@@ -1764,7 +1826,7 @@ class SymbolicModel(nn.Module):
             if isinstance(self.symtorch_block, nn.Module):
                 output = self.symtorch_block(x)
                 # Apply pruning mask if enabled
-                if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                     output = output * self.pruning_mask
                 return output
             else:
@@ -1777,20 +1839,20 @@ class SymbolicModel(nn.Module):
                     output = self.symtorch_block(x_np)
 
                     # Convert output back to torch tensor
-                    if hasattr(output, 'detach'):  # Already a torch tensor
+                    if hasattr(output, "detach"):  # Already a torch tensor
                         output = output.to(x.device)
                     else:
                         output = torch.tensor(output, dtype=x.dtype, device=x.device)
 
                     # Apply pruning mask if enabled
-                    if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                    if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                         output = output * self.pruning_mask
                     return output
                 else:
                     # Input is already numpy, call directly and return numpy
                     output = self.symtorch_block(x)
                     # Apply pruning mask if enabled (convert to numpy if needed)
-                    if hasattr(self, 'pruning_mask') and self.pruning_mask is not None:
+                    if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
                         if not isinstance(output, torch.Tensor):
                             output = torch.tensor(output, dtype=torch.float32)
                         output = output * self.pruning_mask
@@ -1858,62 +1920,67 @@ class SymbolicModel(nn.Module):
         # Note: We DO save _original_block if it exists (needed for switch_to_block())
         # Save metadata
         metadata = {
-            'block_name': self.block_name,
-            'output_dims': getattr(self, 'output_dims', None),
-            '_variable_names': getattr(self, '_variable_names', None),
-            '_using_equation': getattr(self, '_using_equation', False),
-            '_equation_vars': getattr(self, '_equation_vars', {}),
+            "block_name": self.block_name,
+            "output_dims": getattr(self, "output_dims", None),
+            "_variable_names": getattr(self, "_variable_names", None),
+            "_using_equation": getattr(self, "_using_equation", False),
+            "_equation_vars": getattr(self, "_equation_vars", {}),
         }
 
         # Try to serialize variable transforms with dill
-        if hasattr(self, '_variable_transforms') and self._variable_transforms is not None:
+        if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
             try:
-                metadata['_variable_transforms'] = dill.dumps(self._variable_transforms)
-                metadata['_variable_transforms_serialized'] = True
+                metadata["_variable_transforms"] = dill.dumps(self._variable_transforms)
+                metadata["_variable_transforms_serialized"] = True
             except Exception as e:
                 warnings.warn(
                     f"Could not serialize variable transforms for '{self.block_name}': {e}. "
                     "Transforms will need to be re-provided after loading."
                 )
-                metadata['_variable_transforms_serialized'] = False
+                metadata["_variable_transforms_serialized"] = False
         else:
-            metadata['_variable_transforms_serialized'] = False
+            metadata["_variable_transforms_serialized"] = False
 
         # Add pruning metadata if present
-        if hasattr(self, 'pruning_schedule') and self.pruning_schedule is not None:
-            metadata.update({
-                'initial_dim': self.initial_dim,
-                'target_dim': self.target_dim,
-                'current_dim': self.current_dim,
-                'pruning_schedule': self.pruning_schedule,
-            })
+        if hasattr(self, "pruning_schedule") and self.pruning_schedule is not None:
+            metadata.update(
+                {
+                    "initial_dim": self.initial_dim,
+                    "target_dim": self.target_dim,
+                    "current_dim": self.current_dim,
+                    "pruning_schedule": self.pruning_schedule,
+                }
+            )
 
-        destination[prefix + '_symtorch_metadata'] = metadata
+        destination[prefix + "_symtorch_metadata"] = metadata
 
         # Save PySR regressors (serialize with dill)
-        if hasattr(self, 'pysr_regressor') and self.pysr_regressor:
+        if hasattr(self, "pysr_regressor") and self.pysr_regressor:
             for dim, regressor in self.pysr_regressor.items():
-                key = f'_pysr_regressor_dim_{dim}'
+                key = f"_pysr_regressor_dim_{dim}"
                 try:
                     destination[prefix + key] = dill.dumps(regressor)
                 except Exception as e:
                     warnings.warn(f"Could not serialize PySR regressor for dimension {dim}: {e}")
 
         # Save SLIME PySR regressors
-        if hasattr(self, 'SLIME_pysr_regressor') and self.SLIME_pysr_regressor:
+        if hasattr(self, "SLIME_pysr_regressor") and self.SLIME_pysr_regressor:
             for dim, regressor in self.SLIME_pysr_regressor.items():
-                key = f'_slime_regressor_dim_{dim}'
+                key = f"_slime_regressor_dim_{dim}"
                 try:
                     destination[prefix + key] = dill.dumps(regressor)
                 except Exception as e:
                     warnings.warn(f"Could not serialize SLIME regressor for dimension {dim}: {e}")
 
         # Store list of regressor dimensions for easier reconstruction
-        destination[prefix + '_pysr_dims'] = list(self.pysr_regressor.keys()) if hasattr(self, 'pysr_regressor') else []
-        destination[prefix + '_slime_dims'] = list(self.SLIME_pysr_regressor.keys()) if hasattr(self, 'SLIME_pysr_regressor') else []
+        destination[prefix + "_pysr_dims"] = list(self.pysr_regressor.keys()) if hasattr(self, "pysr_regressor") else []
+        destination[prefix + "_slime_dims"] = (
+            list(self.SLIME_pysr_regressor.keys()) if hasattr(self, "SLIME_pysr_regressor") else []
+        )
 
-    def _load_from_state_dict(self, state_dict, prefix, local_metadata, strict,
-                              missing_keys, unexpected_keys, error_msgs):
+    def _load_from_state_dict(
+        self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
+    ):
         """
         Load SymbolicModel state from state dict using PyTorch's built-in mechanism.
 
@@ -1936,33 +2003,33 @@ class SymbolicModel(nn.Module):
             be re-provided by the user if needed for equation mode.
         """
         # Load metadata first
-        metadata_key = prefix + '_symtorch_metadata'
+        metadata_key = prefix + "_symtorch_metadata"
         if metadata_key in state_dict:
             metadata = state_dict.pop(metadata_key)
 
             # Restore basic metadata
-            self.block_name = metadata.get('block_name', self.block_name)
-            self.output_dims = metadata.get('output_dims')
-            self._variable_names = metadata.get('_variable_names')
-            self._using_equation = metadata.get('_using_equation', False)
-            self._equation_vars = metadata.get('_equation_vars', {})
+            self.block_name = metadata.get("block_name", self.block_name)
+            self.output_dims = metadata.get("output_dims")
+            self._variable_names = metadata.get("_variable_names")
+            self._using_equation = metadata.get("_using_equation", False)
+            self._equation_vars = metadata.get("_equation_vars", {})
 
             # Restore pruning metadata if present
-            if 'initial_dim' in metadata:
-                self.initial_dim = metadata['initial_dim']
-                self.target_dim = metadata['target_dim']
-                self.current_dim = metadata['current_dim']
-                self.pruning_schedule = metadata['pruning_schedule']
+            if "initial_dim" in metadata:
+                self.initial_dim = metadata["initial_dim"]
+                self.target_dim = metadata["target_dim"]
+                self.current_dim = metadata["current_dim"]
+                self.pruning_schedule = metadata["pruning_schedule"]
 
                 # Register pruning_mask buffer if not already registered
                 # This allows loading models with pruning without calling setup_pruning first
-                if not hasattr(self, 'pruning_mask'):
-                    self.register_buffer('pruning_mask', torch.ones(self.initial_dim, dtype=torch.bool))
+                if not hasattr(self, "pruning_mask"):
+                    self.register_buffer("pruning_mask", torch.ones(self.initial_dim, dtype=torch.bool))
 
             # Restore variable transforms if they were serialized
-            if metadata.get('_variable_transforms_serialized', False):
+            if metadata.get("_variable_transforms_serialized", False):
                 try:
-                    self._variable_transforms = dill.loads(metadata['_variable_transforms'])
+                    self._variable_transforms = dill.loads(metadata["_variable_transforms"])
                 except Exception as e:
                     warnings.warn(
                         f"Could not deserialize variable transforms for '{self.block_name}': {e}. "
@@ -1973,13 +2040,13 @@ class SymbolicModel(nn.Module):
                 self._variable_transforms = None
 
         # Load PySR regressors
-        pysr_dims_key = prefix + '_pysr_dims'
+        pysr_dims_key = prefix + "_pysr_dims"
         if pysr_dims_key in state_dict:
             pysr_dims = state_dict.pop(pysr_dims_key)
             self.pysr_regressor = {}
 
             for dim in pysr_dims:
-                key = prefix + f'_pysr_regressor_dim_{dim}'
+                key = prefix + f"_pysr_regressor_dim_{dim}"
                 if key in state_dict:
                     try:
                         self.pysr_regressor[dim] = dill.loads(state_dict.pop(key))
@@ -1989,13 +2056,13 @@ class SymbolicModel(nn.Module):
             self.pysr_regressor = {}
 
         # Load SLIME regressors
-        slime_dims_key = prefix + '_slime_dims'
+        slime_dims_key = prefix + "_slime_dims"
         if slime_dims_key in state_dict:
             slime_dims = state_dict.pop(slime_dims_key)
             self.SLIME_pysr_regressor = {}
 
             for dim in slime_dims:
-                key = prefix + f'_slime_regressor_dim_{dim}'
+                key = prefix + f"_slime_regressor_dim_{dim}"
                 if key in state_dict:
                     try:
                         self.SLIME_pysr_regressor[dim] = dill.loads(state_dict.pop(key))
@@ -2009,7 +2076,7 @@ class SymbolicModel(nn.Module):
         self.distill_data_slime = None
 
         # Check if state_dict contains _original_block (means model was in equation mode)
-        has_original_block = any(key.startswith(prefix + '_original_block.') for key in state_dict.keys())
+        has_original_block = any(key.startswith(prefix + "_original_block.") for key in state_dict.keys())
 
         # _original_block IS saved automatically by PyTorch (it's an nn.Module).
         # We create a placeholder here BEFORE calling parent's load_state_dict so PyTorch
@@ -2017,12 +2084,14 @@ class SymbolicModel(nn.Module):
         # would complain about unexpected keys in the state dict.
         if has_original_block and self._using_equation:
             import copy
+
             # Create a placeholder _original_block that will be populated by parent's load
             self._original_block = copy.deepcopy(self.symtorch_block)
 
         # Call parent to load parameters and buffers (including _original_block if present)
-        super()._load_from_state_dict(state_dict, prefix, local_metadata, strict,
-                                       missing_keys, unexpected_keys, error_msgs)
+        super()._load_from_state_dict(
+            state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
+        )
 
         # Rebuild equation functions if model was in equation mode
         if self._using_equation and self._equation_vars:
@@ -2046,7 +2115,7 @@ class SymbolicModel(nn.Module):
         Raises:
             RuntimeError: If equations cannot be rebuilt from regressors
         """
-        if not hasattr(self, '_equation_vars') or not self._equation_vars:
+        if not hasattr(self, "_equation_vars") or not self._equation_vars:
             raise RuntimeError("Cannot rebuild equations: _equation_vars not found")
 
         self._equation_funcs = {}
