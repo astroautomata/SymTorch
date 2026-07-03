@@ -41,6 +41,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test_*.py", "*_tests.py"]
 markers = ["slow: requires a real PySR/Julia run; excluded by default"]
 addopts = "-m 'not slow'"
 
