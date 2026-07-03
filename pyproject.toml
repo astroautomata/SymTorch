@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "torch-symbolic"
+version = "1.1.0"
+description = "Deep Learning Interpretability with Symbolic Regression."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Liz Tan", email = "eszt2@cam.ac.uk" }]
+keywords = ["symbolic-regression", "interpretability", "pytorch", "pysr", "machine-learning"]
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "torch",
+    "pysr",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+    "matplotlib",
+    "sympy",
+    "dill",
+]
+
+[project.optional-dependencies]
+dev = ["ipython", "ipdb", "pytest", "ruff"]
+
+[project.urls]
+Repository = "https://github.com/elizabethsztan/SymTorch"
+Documentation = "https://symtorch.readthedocs.io"
+Paper = "https://arxiv.org/abs/2602.21307"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["slow: requires a real PySR/Julia run; excluded by default"]
+addopts = "-m 'not slow'"
+
+[tool.ruff]
+line-length = 120
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
