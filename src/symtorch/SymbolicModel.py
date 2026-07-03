@@ -22,9 +22,10 @@ import dill  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
-from pysr import PySRRegressor  # noqa: E402
 from sklearn.neighbors import NearestNeighbors  # noqa: E402
 from sympy import lambdify  # noqa: E402
+
+from . import regression  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -34,13 +35,7 @@ logger = logging.getLogger(__name__)
 # TODO: integrate dim reduction workflow (e.g., pca, proj. layer training, etc...)
 class SymbolicModel(nn.Module):
     # Default PySR parameters
-    DEFAULT_SR_PARAMS = {
-        "binary_operators": ["+", "*"],
-        "unary_operators": ["inv(x) = 1/x", "sin", "exp"],
-        "extra_sympy_mappings": {"inv": lambda x: 1 / x},
-        "niterations": 400,
-        "complexity_of_operators": {"sin": 3, "exp": 3},
-    }
+    DEFAULT_SR_PARAMS = regression.DEFAULT_SR_PARAMS
 
     # Default SLIME parameters
     DEFAULT_SLIME_PARAMS = {
@@ -128,16 +123,7 @@ class SymbolicModel(nn.Module):
         Returns:
             Dict[str, Any]: Final SR parameters for PySRRegressor
         """
-        output_name = f"SR_output/{self.block_name}"
-        if save_path is not None:
-            output_name = f"{save_path}/{self.block_name}"
-
-        base_params = {**self.DEFAULT_SR_PARAMS, "output_directory": output_name, "run_id": run_id}
-
-        if custom_params:
-            base_params.update(custom_params)
-
-        return base_params
+        return regression.create_sr_params(self.block_name, save_path, run_id, custom_params)
 
     @contextmanager
     def _capture_layer_output(self, parent_model, inputs):
@@ -743,19 +729,20 @@ class SymbolicModel(nn.Module):
                 for i, dim_idx in enumerate(target_dims):
                     logger.info(f"🛠️ Running SR on active dimension {dim_idx} ({i + 1}/{len(target_dims)})")
 
-                    run_id = f"dim{dim_idx}_{timestamp}"
-                    final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
-                    regressor = PySRRegressor(**final_sr_params)
-
                     # Find the index of this dimension in the active output
                     active_dims = self.get_active_dimensions()
                     active_dim_index = active_dims.index(dim_idx)
 
-                    # Prepare fit arguments
-                    fit_args = [actual_inputs_numpy, output[:, active_dim_index].detach().cpu().numpy()]
-                    final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-
-                    regressor.fit(*fit_args, **final_fit_params)
+                    regressor = regression.fit_single_dimension(
+                        actual_inputs_numpy,
+                        output[:, active_dim_index].detach().cpu().numpy(),
+                        self.block_name,
+                        save_path,
+                        dim_idx,
+                        sr_params,
+                        fit_params,
+                        timestamp,
+                    )
 
                     pysr_regressors[dim_idx] = regressor
 
@@ -772,15 +759,16 @@ class SymbolicModel(nn.Module):
                     for dim in range(output_dims):
                         logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims - 1}")
 
-                        run_id = f"dim{dim}_{timestamp}"
-                        final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
-                        regressor = PySRRegressor(**final_sr_params)
-
-                        # Prepare fit arguments
-                        fit_args = [actual_inputs_numpy, output.detach()[:, dim].cpu().numpy()]
-                        final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-
-                        regressor.fit(*fit_args, **final_fit_params)
+                        regressor = regression.fit_single_dimension(
+                            actual_inputs_numpy,
+                            output.detach()[:, dim].cpu().numpy(),
+                            self.block_name,
+                            save_path,
+                            dim,
+                            sr_params,
+                            fit_params,
+                            timestamp,
+                        )
 
                         pysr_regressors[dim] = regressor
 
@@ -789,15 +777,16 @@ class SymbolicModel(nn.Module):
                 else:
                     logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
 
-                    run_id = f"dim{output_dim}_{timestamp}"
-                    final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
-                    regressor = PySRRegressor(**final_sr_params)
-
-                    # Prepare fit arguments
-                    fit_args = [actual_inputs_numpy, output.detach()[:, output_dim].cpu().numpy()]
-                    final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-
-                    regressor.fit(*fit_args, **final_fit_params)
+                    regressor = regression.fit_single_dimension(
+                        actual_inputs_numpy,
+                        output.detach()[:, output_dim].cpu().numpy(),
+                        self.block_name,
+                        save_path,
+                        output_dim,
+                        sr_params,
+                        fit_params,
+                        timestamp,
+                    )
                     pysr_regressors[output_dim] = regressor
 
                     logger.info(
@@ -948,15 +937,16 @@ class SymbolicModel(nn.Module):
                 for dim in range(output_dims):
                     logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims - 1}")
 
-                    run_id = f"dim{dim}_{timestamp}"
-                    final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
-                    regressor = PySRRegressor(**final_sr_params)
-
-                    # Prepare fit arguments
-                    fit_args = [inputs_np, outputs_np[:, dim]]
-                    final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-
-                    regressor.fit(*fit_args, **final_fit_params)
+                    regressor = regression.fit_single_dimension(
+                        inputs_np,
+                        outputs_np[:, dim],
+                        self.block_name,
+                        save_path,
+                        dim,
+                        sr_params,
+                        fit_params,
+                        timestamp,
+                    )
 
                     pysr_regressors[dim] = regressor
 
@@ -971,15 +961,16 @@ class SymbolicModel(nn.Module):
 
                 logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
 
-                run_id = f"dim{output_dim}_{timestamp}"
-                final_sr_params = self._create_sr_params(save_path, run_id, sr_params)
-                regressor = PySRRegressor(**final_sr_params)
-
-                # Prepare fit arguments
-                fit_args = [inputs_np, outputs_np[:, output_dim]]
-                final_fit_params = dict(fit_params)  # Copy to avoid modifying original
-
-                regressor.fit(*fit_args, **final_fit_params)
+                regressor = regression.fit_single_dimension(
+                    inputs_np,
+                    outputs_np[:, output_dim],
+                    self.block_name,
+                    save_path,
+                    output_dim,
+                    sr_params,
+                    fit_params,
+                    timestamp,
+                )
 
                 pysr_regressors[output_dim] = regressor
 
