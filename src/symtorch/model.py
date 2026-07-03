@@ -12,7 +12,6 @@ warnings.filterwarnings("ignore", message="torch was imported before juliacall")
 
 # Standard library
 import logging  # noqa: E402
-import math  # noqa: E402
 import time  # noqa: E402
 from contextlib import contextmanager  # noqa: E402
 from typing import Any, Callable, Dict, List, Literal, Optional, Union  # noqa: E402
@@ -24,7 +23,7 @@ import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 from sympy import lambdify  # noqa: E402
 
-from . import regression, slime  # noqa: E402
+from . import pruning, regression, slime  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -1475,50 +1474,7 @@ class SymbolicModel(nn.Module):
         Returns:
             dict: Mapping from step number to target dimensions
         """
-
-        prune_end_step = int(end_step_frac * total_steps)
-        prune_steps = prune_end_step
-
-        dims_to_prune = self.initial_dim - self.target_dim
-        schedule_dict = {}
-
-        # Different pruning schedules
-        # Exponential decay
-        if decay_rate == "exp":
-            decay_rate_val = 3.0
-            max_decay = 1 - math.exp(-decay_rate_val)
-
-            for step in range(prune_end_step):
-                progress = step / prune_steps
-                raw_decay = 1 - math.exp(-decay_rate_val * progress)
-                decay_factor = raw_decay / max_decay
-
-                dims_pruned = math.ceil(dims_to_prune * decay_factor)
-                target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
-                schedule_dict[step] = target_dims
-
-        # Linear decay
-        elif decay_rate == "linear":
-            for step in range(prune_end_step):
-                progress = step / prune_steps
-                dims_pruned = math.ceil(dims_to_prune * progress)
-                target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
-                schedule_dict[step] = target_dims
-
-        # Cosine decay
-        elif decay_rate == "cosine":
-            for step in range(prune_end_step):
-                progress = step / prune_steps
-                cosine_decay = 0.5 * (1 + math.cos(math.pi * progress))
-                dims_pruned = math.ceil(dims_to_prune * (1 - cosine_decay))
-                target_dims = max(self.initial_dim - dims_pruned, self.target_dim)
-                schedule_dict[step] = target_dims
-
-        # Keep target_dim for the last part of training
-        for step in range(prune_end_step, total_steps):
-            schedule_dict[step] = self.target_dim
-
-        return schedule_dict
+        return pruning.make_pruning_schedule(self.initial_dim, self.target_dim, total_steps, decay_rate, end_step_frac)
 
     def prune(self, step: int, sample_data: torch.Tensor, parent_model=None):
         """
@@ -1573,8 +1529,7 @@ class SymbolicModel(nn.Module):
                 self.symtorch_block.eval()
                 output_array = self.symtorch_block(sample_data)
 
-            output_importance = output_array.std(dim=0)
-            most_important = torch.argsort(output_importance, descending=True)[:target_dims]
+            most_important = pruning.rank_dimensions(output_array, target_dims)
 
             new_mask = torch.zeros_like(self.pruning_mask)
             new_mask[most_important] = True
