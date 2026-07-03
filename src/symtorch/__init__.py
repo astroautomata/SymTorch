@@ -2,6 +2,6 @@
 Core SymTorch modules
 """
 
-from .SymbolicModel import SymbolicModel
+from .model import SymbolicModel
 
 __all__ = ["SymbolicModel"]
