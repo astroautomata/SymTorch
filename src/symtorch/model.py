@@ -23,7 +23,7 @@ import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 from sympy import lambdify  # noqa: E402
 
-from . import pruning, regression, slime  # noqa: E402
+from . import caching, pruning, regression, slime  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -264,64 +264,8 @@ class SymbolicModel(nn.Module):
             tuple: (cache_hit, cached_inputs, cached_outputs) where cache_hit is bool,
                    and cached_inputs/outputs are numpy arrays if hit, else None
         """
-        # Convert inputs to numpy for comparison
-        if hasattr(inputs, "detach"):  # torch tensor
-            inputs_np = inputs.detach().cpu().numpy()
-        else:
-            inputs_np = np.array(inputs)
-
-        # Select appropriate cache
-        if SLIME:
-            cache = self.distill_data_slime
-        else:
-            cache = self.distill_data
-
-        # If no cache exists, return miss
-        if cache is None:
-            return False, None, None
-
-        # Check if inputs match
-        cached_inputs = cache["inputs"]
-        if not np.array_equal(inputs_np, cached_inputs):
-            return False, None, None
-
-        # Check if parent_model matches (both None or both same object)
-        if cache["parent_model"] is not parent_model:
-            return False, None, None
-
-        # For SLIME mode, also check if slime_params match
-        if SLIME:
-            # Merge with defaults to ensure complete comparison
-            final_slime_params = slime.merge_slime_params(slime_params)
-
-            cached_slime_params = cache["slime_params"]
-
-            # Compare all SLIME params except 'x' (which needs special handling for numpy arrays)
-            for key in final_slime_params:
-                if key == "x":
-                    # Handle numpy array comparison for point of interest
-                    cached_x = cached_slime_params.get("x")
-                    current_x = final_slime_params.get("x")
-
-                    # Convert to numpy if needed
-                    if isinstance(cached_x, torch.Tensor):
-                        cached_x = cached_x.detach().cpu().numpy()
-                    if isinstance(current_x, torch.Tensor):
-                        current_x = current_x.detach().cpu().numpy()
-
-                    # Check if both are None or both are equal arrays
-                    if cached_x is None and current_x is None:
-                        continue
-                    elif cached_x is None or current_x is None:
-                        return False, None, None
-                    elif not np.array_equal(np.array(cached_x), np.array(current_x)):
-                        return False, None, None
-                else:
-                    if cached_slime_params.get(key) != final_slime_params.get(key):
-                        return False, None, None
-
-        # Cache hit!
-        return True, cache["sr_inputs"], cache["sr_outputs"]
+        cache = self.distill_data_slime if SLIME else self.distill_data
+        return caching.check_cache_hit(cache, inputs, parent_model, SLIME, slime_params)
 
     def _apply_slime_sampling(self, inputs_np, function_to_call, slime_params, sr_params, fit_params):
         return slime.apply_slime_sampling(inputs_np, function_to_call, slime_params, sr_params, fit_params)
@@ -575,33 +519,17 @@ class SymbolicModel(nn.Module):
                     )
 
                 # Store cache for future distill calls
-                # Convert inputs to numpy for cache storage
-                if hasattr(inputs, "detach"):
-                    inputs_cache = inputs.detach().cpu().numpy()
-                else:
-                    inputs_cache = np.array(inputs)
-
-                # Convert output to numpy for cache storage
-                if hasattr(output, "detach"):
-                    output_cache = output.detach().cpu().numpy()
-                else:
-                    output_cache = np.array(output)
-
-                # Store in appropriate cache
-                cache_data = {
-                    "inputs": inputs_cache,
-                    "sr_inputs": actual_inputs_numpy,
-                    "sr_outputs": output_cache,
-                    "parent_model": parent_model,
-                }
-
+                entry = caching.build_cache_entry(
+                    inputs,
+                    actual_inputs_numpy,
+                    output,
+                    parent_model,
+                    slime_params=(slime_params or {}) if SLIME else None,
+                )
                 if SLIME:
-                    # Merge with defaults for complete storage
-                    final_slime_params = slime.merge_slime_params(slime_params)
-                    cache_data["slime_params"] = final_slime_params
-                    self.distill_data_slime = cache_data
+                    self.distill_data_slime = entry
                 else:
-                    self.distill_data = cache_data
+                    self.distill_data = entry
             else:
                 # Using cached data - set target_dims based on cached output shape
                 if hasattr(output, "shape") and len(output.shape) > 1:
@@ -792,27 +720,17 @@ class SymbolicModel(nn.Module):
                     outputs_np = outputs_np.reshape(-1, 1)
 
                 # Store cache for future distill calls
-                # Convert inputs to numpy for cache storage
-                if hasattr(inputs, "detach"):
-                    inputs_cache = inputs.detach().cpu().numpy()
-                else:
-                    inputs_cache = np.array(inputs)
-
-                # Store in appropriate cache
-                cache_data = {
-                    "inputs": inputs_cache,
-                    "sr_inputs": inputs_np,
-                    "sr_outputs": outputs_np,
-                    "parent_model": parent_model,
-                }
-
+                entry = caching.build_cache_entry(
+                    inputs,
+                    inputs_np,
+                    outputs_np,
+                    parent_model,
+                    slime_params=(slime_params or {}) if SLIME else None,
+                )
                 if SLIME:
-                    # Merge with defaults for complete storage
-                    final_slime_params = slime.merge_slime_params(slime_params)
-                    cache_data["slime_params"] = final_slime_params
-                    self.distill_data_slime = cache_data
+                    self.distill_data_slime = entry
                 else:
-                    self.distill_data = cache_data
+                    self.distill_data = entry
             else:
                 # Using cached data
                 inputs_np = actual_inputs_numpy
