@@ -21,9 +21,8 @@ import dill  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
-from sympy import lambdify  # noqa: E402
 
-from . import caching, pruning, regression, slime  # noqa: E402
+from . import caching, equations, pruning, regression, slime  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -166,31 +165,9 @@ class SymbolicModel(nn.Module):
         Raises:
             ValueError: If required variables/transforms are not available
         """
-        selected_inputs = []
-
-        if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
-            # Apply transformations and select needed variables
-            for idx in var_indices:
-                if idx < len(self._variable_transforms):
-                    transformed_var = self._variable_transforms[idx](x)
-                    if transformed_var.dim() > 1:
-                        transformed_var = transformed_var.flatten()
-                    selected_inputs.append(transformed_var)
-                else:
-                    raise ValueError(
-                        f"Equation for dimension {dim} requires transform {idx} but only {len(self._variable_transforms)} transforms available"
-                    )
-        else:
-            # Original behavior - extract by column index
-            for idx in var_indices:
-                if idx < x.shape[1]:
-                    selected_inputs.append(x[:, idx])
-                else:
-                    raise ValueError(
-                        f"Equation for dimension {dim} requires variable x{idx} but input only has {x.shape[1]} dimensions"
-                    )
-
-        return selected_inputs
+        return equations.extract_variables_for_equation(
+            x, var_indices, getattr(self, "_variable_transforms", None), dim,
+        )
 
     def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
         """
@@ -208,47 +185,10 @@ class SymbolicModel(nn.Module):
         Raises:
             ValueError: If variables cannot be mapped to indices
         """
-        var_indices = []
-
-        for var in vars_sorted:
-            var_str = str(var)
-            idx = None
-
-            # Try to match with custom variable names first
-            if hasattr(self, "_variable_names") and self._variable_names:
-                try:
-                    idx = self._variable_names.index(var_str)
-                except ValueError:
-                    pass  # Variable not found in custom names, try other methods
-
-            # If not found in custom names, try default x0, x1, etc. format
-            if idx is None and var_str.startswith("x"):
-                try:
-                    idx = int(var_str[1:])
-                    # With transforms, validate index is within range
-                    if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
-                        if idx >= len(self._variable_transforms):
-                            raise ValueError(
-                                f"Variable {var_str} index {idx} exceeds available transforms ({len(self._variable_transforms)}) for dimension {dim}"
-                            )
-                except ValueError as e:
-                    if "exceeds available transforms" in str(e):
-                        raise e
-                    pass  # Not a valid x-numbered variable
-
-            if idx is None:
-                error_msg = f"Could not map variable '{var_str}' for dimension {dim}"
-                if hasattr(self, "_variable_names") and self._variable_names:
-                    error_msg += f"\n   Available custom names: {self._variable_names}"
-                if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
-                    error_msg += f"\n   Available transforms: {len(self._variable_transforms)}"
-                else:
-                    error_msg += "\n   Expected format: x0, x1, x2, etc."
-                raise ValueError(error_msg)
-
-            var_indices.append(idx)
-
-        return var_indices
+        return equations.map_variables_to_indices(
+            vars_sorted, getattr(self, "_variable_names", None),
+            getattr(self, "_variable_transforms", None), dim,
+        )
 
     def _check_cache_hit(self, inputs, parent_model, SLIME, slime_params):
         """
@@ -846,24 +786,14 @@ class SymbolicModel(nn.Module):
 
         regressor = regressor_dict[dim]
 
-        if complexity is None:
-            best_str = regressor.get_best()["equation"]
-            expr = regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
-        else:
-            matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
-            if matching_rows.empty:
-                available_complexities = sorted(regressor.equations_["complexity"].unique())
-                logger.warning(
-                    f"⚠️ Warning: No equation found with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}"
-                )
-                return None
-            expr = matching_rows["sympy_format"].values[0]
+        expr = equations.select_expression(regressor, complexity)
+        if expr is None:
+            return None
 
-        vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
         try:
-            f = lambdify(vars_sorted, expr, "torch")
+            f, vars_sorted = equations.expression_to_callable(expr)
             return f, vars_sorted
-        except Exception as e:
+        except RuntimeError as e:
             logger.warning(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
             return None
 
@@ -1137,24 +1067,14 @@ class SymbolicModel(nn.Module):
         regressor = regressor_dict[dim]
 
         # Get the equation at specified complexity or best equation
-        if complexity is None:
-            best_str = regressor.get_best()["equation"]
-            expr = regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
-        else:
-            matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
-            if matching_rows.empty:
-                available_complexities = sorted(regressor.equations_["complexity"].unique())
-                raise ValueError(
-                    f"No equation with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}"
-                )
-            expr = matching_rows["sympy_format"].values[0]
+        expr = equations.select_expression(regressor, complexity)
+        if expr is None:
+            available_complexities = sorted(regressor.equations_["complexity"].unique())
+            raise ValueError(
+                f"No equation with complexity {complexity} for dimension {dim}. Available complexities: {available_complexities}"
+            )
 
-        vars_sorted = sorted(expr.free_symbols, key=lambda s: str(s))
-
-        try:
-            f = lambdify(vars_sorted, expr, "torch")
-        except Exception as e:
-            raise RuntimeError(f"Could not create lambdify function for dimension {dim}: {e}")
+        f, vars_sorted = equations.expression_to_callable(expr)
 
         # Create a wrapper function that handles variable extraction
         def symbolic_func(x):
