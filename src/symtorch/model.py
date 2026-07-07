@@ -17,12 +17,11 @@ from contextlib import contextmanager  # noqa: E402
 from typing import Any, Callable, Dict, List, Literal, Optional, Union  # noqa: E402
 
 # Third-party libraries
-import dill  # noqa: E402
 import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
-from . import caching, equations, pruning, regression, slime  # noqa: E402
+from . import caching, equations, pruning, regression, serialization, slime  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -1594,67 +1593,7 @@ class SymbolicModel(nn.Module):
         """
         # Call parent to save parameters and buffers (including pruning_mask)
         super()._save_to_state_dict(destination, prefix, keep_vars)
-
-        # Note: We DO save _original_block if it exists (needed for switch_to_block())
-        # Save metadata
-        metadata = {
-            "block_name": self.block_name,
-            "output_dims": getattr(self, "output_dims", None),
-            "_variable_names": getattr(self, "_variable_names", None),
-            "_using_equation": getattr(self, "_using_equation", False),
-            "_equation_vars": getattr(self, "_equation_vars", {}),
-        }
-
-        # Try to serialize variable transforms with dill
-        if hasattr(self, "_variable_transforms") and self._variable_transforms is not None:
-            try:
-                metadata["_variable_transforms"] = dill.dumps(self._variable_transforms)
-                metadata["_variable_transforms_serialized"] = True
-            except Exception as e:
-                warnings.warn(
-                    f"Could not serialize variable transforms for '{self.block_name}': {e}. "
-                    "Transforms will need to be re-provided after loading."
-                )
-                metadata["_variable_transforms_serialized"] = False
-        else:
-            metadata["_variable_transforms_serialized"] = False
-
-        # Add pruning metadata if present
-        if hasattr(self, "pruning_schedule") and self.pruning_schedule is not None:
-            metadata.update(
-                {
-                    "initial_dim": self.initial_dim,
-                    "target_dim": self.target_dim,
-                    "current_dim": self.current_dim,
-                    "pruning_schedule": self.pruning_schedule,
-                }
-            )
-
-        destination[prefix + "_symtorch_metadata"] = metadata
-
-        # Save PySR regressors (serialize with dill)
-        if hasattr(self, "pysr_regressor") and self.pysr_regressor:
-            for dim, regressor in self.pysr_regressor.items():
-                key = f"_pysr_regressor_dim_{dim}"
-                try:
-                    destination[prefix + key] = dill.dumps(regressor)
-                except Exception as e:
-                    warnings.warn(f"Could not serialize PySR regressor for dimension {dim}: {e}")
-
-        # Save SLIME PySR regressors
-        if hasattr(self, "SLIME_pysr_regressor") and self.SLIME_pysr_regressor:
-            for dim, regressor in self.SLIME_pysr_regressor.items():
-                key = f"_slime_regressor_dim_{dim}"
-                try:
-                    destination[prefix + key] = dill.dumps(regressor)
-                except Exception as e:
-                    warnings.warn(f"Could not serialize SLIME regressor for dimension {dim}: {e}")
-
-        # Store list of regressor dimensions for easier reconstruction
-        destination[prefix + "_pysr_dims"] = list(self.pysr_regressor.keys()) if hasattr(self, "pysr_regressor") else []
-        destination[prefix + "_slime_dims"] = (
-            list(self.SLIME_pysr_regressor.keys()) if hasattr(self, "SLIME_pysr_regressor") else []
-        )
+        serialization.save_symtorch_state(self, destination, prefix)
 
     def _load_from_state_dict(
         self, state_dict, prefix, local_metadata, strict, missing_keys, unexpected_keys, error_msgs
@@ -1680,91 +1619,7 @@ class SymbolicModel(nn.Module):
             If deserialization fails or transforms weren't serialized, they must
             be re-provided by the user if needed for equation mode.
         """
-        # Load metadata first
-        metadata_key = prefix + "_symtorch_metadata"
-        if metadata_key in state_dict:
-            metadata = state_dict.pop(metadata_key)
-
-            # Restore basic metadata
-            self.block_name = metadata.get("block_name", self.block_name)
-            self.output_dims = metadata.get("output_dims")
-            self._variable_names = metadata.get("_variable_names")
-            self._using_equation = metadata.get("_using_equation", False)
-            self._equation_vars = metadata.get("_equation_vars", {})
-
-            # Restore pruning metadata if present
-            if "initial_dim" in metadata:
-                self.initial_dim = metadata["initial_dim"]
-                self.target_dim = metadata["target_dim"]
-                self.current_dim = metadata["current_dim"]
-                self.pruning_schedule = metadata["pruning_schedule"]
-
-                # Register pruning_mask buffer if not already registered
-                # This allows loading models with pruning without calling setup_pruning first
-                if not hasattr(self, "pruning_mask"):
-                    self.register_buffer("pruning_mask", torch.ones(self.initial_dim, dtype=torch.bool))
-
-            # Restore variable transforms if they were serialized
-            if metadata.get("_variable_transforms_serialized", False):
-                try:
-                    self._variable_transforms = dill.loads(metadata["_variable_transforms"])
-                except Exception as e:
-                    warnings.warn(
-                        f"Could not deserialize variable transforms for '{self.block_name}': {e}. "
-                        "You must re-provide variable_transforms if you need to use equation mode."
-                    )
-                    self._variable_transforms = None
-            else:
-                self._variable_transforms = None
-
-        # Load PySR regressors
-        pysr_dims_key = prefix + "_pysr_dims"
-        if pysr_dims_key in state_dict:
-            pysr_dims = state_dict.pop(pysr_dims_key)
-            self.pysr_regressor = {}
-
-            for dim in pysr_dims:
-                key = prefix + f"_pysr_regressor_dim_{dim}"
-                if key in state_dict:
-                    try:
-                        self.pysr_regressor[dim] = dill.loads(state_dict.pop(key))
-                    except Exception as e:
-                        error_msgs.append(f"Could not load PySR regressor for dimension {dim}: {e}")
-        else:
-            self.pysr_regressor = {}
-
-        # Load SLIME regressors
-        slime_dims_key = prefix + "_slime_dims"
-        if slime_dims_key in state_dict:
-            slime_dims = state_dict.pop(slime_dims_key)
-            self.SLIME_pysr_regressor = {}
-
-            for dim in slime_dims:
-                key = prefix + f"_slime_regressor_dim_{dim}"
-                if key in state_dict:
-                    try:
-                        self.SLIME_pysr_regressor[dim] = dill.loads(state_dict.pop(key))
-                    except Exception as e:
-                        error_msgs.append(f"Could not load SLIME regressor for dimension {dim}: {e}")
-        else:
-            self.SLIME_pysr_regressor = {}
-
-        # Initialize cache as None (not serialized)
-        self.distill_data = None
-        self.distill_data_slime = None
-
-        # Check if state_dict contains _original_block (means model was in equation mode)
-        has_original_block = any(key.startswith(prefix + "_original_block.") for key in state_dict.keys())
-
-        # _original_block IS saved automatically by PyTorch (it's an nn.Module).
-        # We create a placeholder here BEFORE calling parent's load_state_dict so PyTorch
-        # knows where to load the saved _original_block weights. Without this, strict mode
-        # would complain about unexpected keys in the state dict.
-        if has_original_block and self._using_equation:
-            import copy
-
-            # Create a placeholder _original_block that will be populated by parent's load
-            self._original_block = copy.deepcopy(self.symtorch_block)
+        serialization.load_symtorch_extras(self, state_dict, prefix, error_msgs)
 
         # Call parent to load parameters and buffers (including _original_block if present)
         super()._load_from_state_dict(
