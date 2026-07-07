@@ -326,6 +326,36 @@ class TestDistillWithModule:
         with pytest.raises(ValueError, match="Cannot use parent_model with Callable"):
             model.distill(sample_inputs, parent_model=parent)
 
+    @patch("symtorch.regression.PySRRegressor")
+    def test_distill_output_dim_zero_module(
+        self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor
+    ):
+        """output_dim=0 must fit ONLY dimension 0 (regression test for `if not output_dim` bug)."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        symbolic_model.distill(sample_inputs, output_dim=0, sr_params=fast_sr_params)
+
+        assert list(symbolic_model.pysr_regressor.keys()) == [0]
+
+    @patch("symtorch.regression.PySRRegressor")
+    def test_slime_cache_hit_reapplies_weights(self, mock_pysr_class, sample_inputs_np, fast_sr_params):
+        """A SLIME cache-hit refit must still pass sample weights to fit()."""
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0", "loss": 0.01}
+        mock_pysr_class.return_value = mock_reg
+
+        def f(x):
+            return x[:, 0] ** 2
+
+        model = SymbolicModel(f, block_name="slime_cache")
+        slime_params = {"x": sample_inputs_np[0], "J_nn": 5, "num_synthetic": 20}
+
+        model.distill(sample_inputs_np, SLIME=True, slime_params=slime_params, sr_params=fast_sr_params)
+        model.distill(sample_inputs_np, SLIME=True, slime_params=slime_params, sr_params=fast_sr_params)
+
+        _, second_kwargs = mock_reg.fit.call_args
+        assert "weights" in second_kwargs and second_kwargs["weights"] is not None
+
 
 # ============================================================================
 # Test Distill with Callable

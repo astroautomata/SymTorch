@@ -13,15 +13,13 @@ warnings.filterwarnings("ignore", message="torch was imported before juliacall")
 # Standard library
 import logging  # noqa: E402
 import time  # noqa: E402
-from contextlib import contextmanager  # noqa: E402
 from typing import Any, Callable, Dict, List, Literal, Optional, Union  # noqa: E402
 
 # Third-party libraries
-import numpy as np  # noqa: E402
 import torch  # noqa: E402
 import torch.nn as nn  # noqa: E402
 
-from . import caching, equations, pruning, regression, serialization, slime  # noqa: E402
+from . import caching, distillation, equations, pruning, regression, serialization, slime  # noqa: E402
 
 # Logger initialization
 logger = logging.getLogger(__name__)
@@ -114,40 +112,6 @@ class SymbolicModel(nn.Module):
         """
         return regression.create_sr_params(self.block_name, save_path, run_id, custom_params)
 
-    @contextmanager
-    def _capture_layer_output(self, parent_model, inputs):
-        """
-        Context manager to capture inputs and outputs from this layer.
-
-        Args:
-            parent_model (nn.Module): Parent model containing this SymbolicMLP instance
-            inputs (torch.Tensor): Input tensor to pass through parent model
-
-        Yields:
-            tuple: (layer_inputs, layer_outputs) lists containing captured tensors
-        """
-        layer_inputs = []
-        layer_outputs = []
-
-        def hook_fn(module, input, output):
-            if module is self.symtorch_block:  # Only captures layer data for the layers we want to distil
-                layer_inputs.append(input[0].clone())
-                layer_outputs.append(output.clone())
-
-        # Register forward hook
-        hook = self.symtorch_block.register_forward_hook(hook_fn)
-
-        try:
-            # Run parent model to capture intermediate activations
-            parent_model.eval()
-            with torch.no_grad():
-                _ = parent_model(inputs)
-
-            yield layer_inputs, layer_outputs
-        finally:
-            # Always remove hook
-            hook.remove()
-
     def _extract_variables_for_equation(self, x: torch.Tensor, var_indices: List[int], dim: int) -> List[torch.Tensor]:
         """
         Extract and transform variables needed for a specific equation dimension.
@@ -165,7 +129,10 @@ class SymbolicModel(nn.Module):
             ValueError: If required variables/transforms are not available
         """
         return equations.extract_variables_for_equation(
-            x, var_indices, getattr(self, "_variable_transforms", None), dim,
+            x,
+            var_indices,
+            getattr(self, "_variable_transforms", None),
+            dim,
         )
 
     def _map_variables_to_indices(self, vars_sorted: List, dim: int) -> List[int]:
@@ -185,8 +152,10 @@ class SymbolicModel(nn.Module):
             ValueError: If variables cannot be mapped to indices
         """
         return equations.map_variables_to_indices(
-            vars_sorted, getattr(self, "_variable_names", None),
-            getattr(self, "_variable_transforms", None), dim,
+            vars_sorted,
+            getattr(self, "_variable_names", None),
+            getattr(self, "_variable_transforms", None),
+            dim,
         )
 
     def _check_cache_hit(self, inputs, parent_model, SLIME, slime_params):
@@ -320,425 +289,127 @@ class SymbolicModel(nn.Module):
             >>> symbolic_layer.distill(data, output_dim=2, parent_model=model)
         """
 
-        if (
-            isinstance(self.symtorch_block, Callable)
-            and not isinstance(self.symtorch_block, nn.Module)
-            and parent_model is not None
-        ):
+        if not isinstance(self.symtorch_block, nn.Module) and parent_model is not None:
             raise ValueError(
                 "Cannot use parent_model with Callable functions. "
                 "Hooks are only supported for nn.Module objects. "
                 "Please call distill() without parent_model argument and pass inputs directly to the function."
             )
 
-        # Check cache for I/O data
-        cache_hit, cached_sr_inputs, cached_sr_outputs = self._check_cache_hit(
-            inputs, parent_model, SLIME, slime_params
-        )
+        sr_params = dict(sr_params) if sr_params else {}
+        fit_params = dict(fit_params) if fit_params else {}
+        variable_names = fit_params.get("variable_names", None)
 
+        # --- Stage 1+2: I/O resolution, with cache short-circuit ---
+        cache = self.distill_data_slime if SLIME else self.distill_data
+        cache_hit, sr_inputs, sr_outputs = caching.check_cache_hit(cache, inputs, parent_model, SLIME, slime_params)
         if cache_hit:
             logger.info("🔄 Cache hit! Reusing I/O data from previous distill call.")
-            actual_inputs_numpy = cached_sr_inputs
-            # cached_sr_outputs is already numpy array
-            if SLIME or (hasattr(cached_sr_outputs, "ndim") and cached_sr_outputs.ndim == 1):
-                output = cached_sr_outputs
-            else:
-                # Convert back to torch for processing
-                output = torch.tensor(cached_sr_outputs, dtype=torch.float32)
-            skip_io_extraction = True
+            if SLIME:
+                # Re-apply the cached SLIME weighting so refits stay weighted
+                if cache.get("slime_loss"):
+                    sr_params.setdefault("elementwise_loss", cache["slime_loss"])
+                if cache.get("slime_weights") is not None:
+                    fit_params.setdefault("weights", cache["slime_weights"])
         else:
-            skip_io_extraction = False
+            raw_inputs, raw_outputs, eval_fn = distillation.resolve_io(self.symtorch_block, inputs, parent_model)
 
-        # Extract inputs and outputs at this layer level
-        if isinstance(self.symtorch_block, nn.Module):
-            # Extract fit parameters (needed for both cache hit and miss)
-            if fit_params is None:
-                fit_params = {}
-
-            variable_names = fit_params.get("variable_names", None)
-
-            # Extract sr_params with defaults (needed for both cache hit and miss)
-            if sr_params is None:
-                sr_params = {}
-
-            if not skip_io_extraction:
-                if parent_model is not None:
-                    with self._capture_layer_output(parent_model, inputs) as (layer_inputs, layer_outputs):
-                        pass
-
-                    # Use captured intermediate data
-                    if layer_inputs and layer_outputs:
-                        actual_inputs = layer_inputs[0]
-                        full_output = layer_outputs[0]
-                    else:
-                        raise RuntimeError(
-                            "Failed to capture intermediate activations. Ensure parent_model contains this SymbolicModel instance."
-                        )
-
-                else:
-                    # Original behavior - use block directly
-                    actual_inputs = inputs
-                    self.symtorch_block.eval()
-                    with torch.no_grad():
-                        full_output = self.symtorch_block(inputs)
-
-                # Check if pruning is enabled and filter to active dimensions
-                if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
-                    active_dims = self.get_active_dimensions()
-                    if not active_dims:
-                        logger.warning("❗No active dimensions to distill!")
-                        return {}
-
-                    # Filter to active dimensions only
-                    output = full_output[:, self.pruning_mask]
-
-                    # Filter active dimensions based on output_dim parameter
-                    if output_dim is not None:
-                        if output_dim not in active_dims:
-                            logger.warning(
-                                f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}"
-                            )
-                            return {}
-                        target_dims = [output_dim]
-                    else:
-                        target_dims = active_dims
-                else:
-                    # No pruning - use full output
-                    output = full_output
-                    target_dims = None  # Will process all dimensions
-
-                # Apply variable transformations if provided
-                if variable_transforms is not None:
-                    # Validate inputs - variable_names is optional
-                    if variable_names is not None and len(variable_names) != len(variable_transforms):
-                        raise ValueError(
-                            f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})"
-                        )
-
-                    # Apply transformations
-                    transformed_inputs = []
-                    for i, transform_func in enumerate(variable_transforms):
-                        try:
-                            transformed_var = transform_func(actual_inputs)
-                            # Ensure the result is 1D (batch_size,)
-                            if transformed_var.dim() > 1:
-                                transformed_var = transformed_var.flatten()
-                            transformed_inputs.append(transformed_var.detach().cpu().numpy())
-                        except Exception as e:
-                            raise ValueError(f"Error applying transformation {i}: {e}")
-
-                    # Stack transformed variables into input matrix
-                    actual_inputs_numpy = np.column_stack(transformed_inputs)
-
-                    # Store transformation info for later use in switch_to_symbolic
-                    self._variable_transforms = variable_transforms
-                    self._variable_names = variable_names
-
-                    logger.info(f"🔄 Applied {len(variable_transforms)} variable transformations")
-                    if variable_names:
-                        logger.info(f"   Variable names: {variable_names}")
-                else:
-                    # Use original inputs
-                    actual_inputs_numpy = actual_inputs.detach().cpu().numpy()
-                    self._variable_transforms = None
-                    # Still store variable names even without transforms for switch_to_symbolic
-                    self._variable_names = variable_names
-
-                # Apply SLIME sampling if enabled
-                if SLIME:
-                    # Create function that evaluates the block
-                    def eval_block(inputs_array):
-                        inputs_tensor = torch.tensor(inputs_array, dtype=torch.float32, device=actual_inputs.device)
-                        self.symtorch_block.eval()
-                        with torch.no_grad():
-                            return self.symtorch_block(inputs_tensor)
-
-                    actual_inputs_numpy, output, sr_params, fit_params = self._apply_slime_sampling(
-                        actual_inputs_numpy, eval_block, slime_params, sr_params, fit_params
-                    )
-
-                # Store cache for future distill calls
-                entry = caching.build_cache_entry(
-                    inputs,
-                    actual_inputs_numpy,
-                    output,
-                    parent_model,
-                    slime_params=(slime_params or {}) if SLIME else None,
-                )
-                if SLIME:
-                    self.distill_data_slime = entry
-                else:
-                    self.distill_data = entry
+            # --- Stage 3: variable transforms ---
+            if variable_transforms is not None:
+                sr_inputs = distillation.apply_variable_transforms(raw_inputs, variable_transforms, variable_names)
+                self._variable_transforms = variable_transforms
             else:
-                # Using cached data - set target_dims based on cached output shape
-                if hasattr(output, "shape") and len(output.shape) > 1:
-                    # Reconstruct target_dims from cache
-                    if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
-                        target_dims = self.get_active_dimensions()
-                    else:
-                        target_dims = None
+                sr_inputs = caching.to_numpy(raw_inputs)
+                self._variable_transforms = None
+            self._variable_names = variable_names
+            sr_outputs = caching.to_numpy(raw_outputs)
 
-            timestamp = int(time.time())
-
-            pysr_regressors = {}
-
-            # Handle pruning mode or standard mode
-            if target_dims is not None:
-                # Pruning mode - target_dims contains the list of active dimensions to process
-                # Set output_dims to initial_dim for compatibility
-                self.output_dims = self.initial_dim
-
-                for i, dim_idx in enumerate(target_dims):
-                    logger.info(f"🛠️ Running SR on active dimension {dim_idx} ({i + 1}/{len(target_dims)})")
-
-                    # Find the index of this dimension in the active output
-                    active_dims = self.get_active_dimensions()
-                    active_dim_index = active_dims.index(dim_idx)
-
-                    regressor = regression.fit_single_dimension(
-                        actual_inputs_numpy,
-                        output[:, active_dim_index].detach().cpu().numpy(),
-                        self.block_name,
-                        save_path,
-                        dim_idx,
-                        sr_params,
-                        fit_params,
-                        timestamp,
-                    )
-
-                    pysr_regressors[dim_idx] = regressor
-
-                    logger.info(f"💡Best equation for active dimension {dim_idx}: {regressor.get_best()['equation']}.")
-
-                logger.info(f"❤️ SR on {self.block_name} active dimensions complete.")
-            else:
-                # Standard mode - no pruning
-                output_dims = output.shape[1]  # Number of output dimensions
-                self.output_dims = output_dims  # Save this
-
-                if not output_dim:
-                    # If output dimension is not specified, run SR on all dims
-                    for dim in range(output_dims):
-                        logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims - 1}")
-
-                        regressor = regression.fit_single_dimension(
-                            actual_inputs_numpy,
-                            output.detach()[:, dim].cpu().numpy(),
-                            self.block_name,
-                            save_path,
-                            dim,
-                            sr_params,
-                            fit_params,
-                            timestamp,
-                        )
-
-                        pysr_regressors[dim] = regressor
-
-                        logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
-
-                else:
-                    logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
-
-                    regressor = regression.fit_single_dimension(
-                        actual_inputs_numpy,
-                        output.detach()[:, output_dim].cpu().numpy(),
-                        self.block_name,
-                        save_path,
-                        output_dim,
-                        sr_params,
-                        fit_params,
-                        timestamp,
-                    )
-                    pysr_regressors[output_dim] = regressor
-
-                    logger.info(
-                        f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}."
-                    )
-
-                logger.info(f"❤️ SR on {self.block_name} complete.")
-
-            # Store in appropriate dictionary
+            # --- Stage 4: SLIME sampling ---
             if SLIME:
-                self.SLIME_pysr_regressor = self.SLIME_pysr_regressor | pysr_regressors
-            else:
-                self.pysr_regressor = self.pysr_regressor | pysr_regressors
-
-            # For backward compatibility, return the regressor or dict of regressors
-            if output_dim is not None:
-                return pysr_regressors.get(output_dim)
-            else:
-                return pysr_regressors
-
-        else:  # code for Callable function
-            # Extract fit parameters (needed for both cache hit and miss)
-            if fit_params is None:
-                fit_params = {}
-
-            variable_names = fit_params.get("variable_names", None)
-
-            # Extract sr_params with defaults (needed for both cache hit and miss)
-            if sr_params is None:
-                sr_params = {}
-
-            if not skip_io_extraction:
-                # Convert inputs to numpy if needed
-                if hasattr(inputs, "detach"):  # torch tensor
-                    inputs_np = inputs.detach().cpu().numpy()
-                else:
-                    inputs_np = np.array(inputs)
-
-                # Get outputs from the black-box function
-                outputs_raw = self.symtorch_block(inputs)
-                if hasattr(outputs_raw, "detach"):  # torch tensor
-                    outputs_np = outputs_raw.detach().cpu().numpy()
-                else:
-                    outputs_np = np.array(outputs_raw)
-
-                # Apply variable transformations if provided
-                if variable_transforms is not None:
-                    # Validate inputs
-                    if variable_names is not None and len(variable_names) != len(variable_transforms):
-                        raise ValueError(
-                            f"Length of variable_names ({len(variable_names)}) must match length of variable_transforms ({len(variable_transforms)})"
-                        )
-
-                    # Apply transformations
-                    transformed_inputs = []
-                    for i, transform_func in enumerate(variable_transforms):
-                        try:
-                            # Handle both numpy and torch inputs
-                            if isinstance(inputs, torch.Tensor):
-                                transformed_var = transform_func(inputs)
-                                if hasattr(transformed_var, "detach"):
-                                    transformed_var = transformed_var.detach().cpu().numpy()
-                                else:
-                                    transformed_var = np.array(transformed_var)
-                            else:
-                                transformed_var = transform_func(inputs_np)
-                                transformed_var = np.array(transformed_var)
-
-                            # Ensure the result is 1D (batch_size,)
-                            if transformed_var.ndim > 1:
-                                transformed_var = transformed_var.flatten()
-                            transformed_inputs.append(transformed_var)
-                        except Exception as e:
-                            raise ValueError(f"Error applying transformation {i}: {e}")
-
-                    # Stack transformed variables into input matrix
-                    inputs_np = np.column_stack(transformed_inputs)
-
-                    # Store transformation info for later use in switch_to_symbolic
-                    self._variable_transforms = variable_transforms
-                    self._variable_names = variable_names
-
-                    logger.info(f"🔄 Applied {len(variable_transforms)} variable transformations")
-                    if variable_names:
-                        logger.info(f"   Variable names: {variable_names}")
-                else:
-                    # No transforms used
-                    self._variable_transforms = None
-                    # Still store variable names even without transforms for switch_to_symbolic
-                    self._variable_names = variable_names
-
-                # Apply SLIME sampling if enabled
-                if SLIME:
-                    # Create function that evaluates the callable
-                    def eval_callable(inputs_array):
-                        outputs_raw = self.symtorch_block(inputs_array)
-                        if hasattr(outputs_raw, "detach"):  # torch tensor
-                            return outputs_raw.detach().cpu().numpy()
-                        else:
-                            return np.array(outputs_raw)
-
-                    inputs_np, outputs_np, sr_params, fit_params = self._apply_slime_sampling(
-                        inputs_np, eval_callable, slime_params, sr_params, fit_params
-                    )
-
-                # Handle both 1D and 2D outputs
-                if outputs_np.ndim == 1:
-                    outputs_np = outputs_np.reshape(-1, 1)
-
-                # Store cache for future distill calls
-                entry = caching.build_cache_entry(
-                    inputs,
-                    inputs_np,
-                    outputs_np,
-                    parent_model,
-                    slime_params=(slime_params or {}) if SLIME else None,
+                sr_inputs, slime_outputs, sr_params, fit_params = self._apply_slime_sampling(
+                    sr_inputs, eval_fn, slime_params, sr_params, fit_params
                 )
-                if SLIME:
-                    self.distill_data_slime = entry
-                else:
-                    self.distill_data = entry
-            else:
-                # Using cached data
-                inputs_np = actual_inputs_numpy
-                outputs_np = output
+                sr_outputs = caching.to_numpy(slime_outputs)
 
-            output_dims = outputs_np.shape[1]  # Number of output dimensions
-            self.output_dims = output_dims  # Save this
-            timestamp = int(time.time())
+            if sr_outputs.ndim == 1:
+                sr_outputs = sr_outputs.reshape(-1, 1)
 
-            # Use dict for consistency with nn.Module branch
-            pysr_regressors = {}
+            # --- Stage 5a: pruning mask (mask before caching, as before) ---
+            if getattr(self, "pruning_mask", None) is not None:
+                sr_outputs = sr_outputs[:, caching.to_numpy(self.pruning_mask).astype(bool)]
 
-            if output_dim is None:
-                # Run on all output dimensions
-                for dim in range(output_dims):
-                    logger.info(f"🛠️ Running SR on output dimension {dim} of {output_dims - 1}")
-
-                    regressor = regression.fit_single_dimension(
-                        inputs_np,
-                        outputs_np[:, dim],
-                        self.block_name,
-                        save_path,
-                        dim,
-                        sr_params,
-                        fit_params,
-                        timestamp,
-                    )
-
-                    pysr_regressors[dim] = regressor
-
-                    logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
-
-            else:
-                # Run on specific output dimension
-                if output_dim >= output_dims:
-                    raise ValueError(
-                        f"output_dim {output_dim} is out of range for outputs with {output_dims} dimensions"
-                    )
-
-                logger.info(f"🛠️ Running SR on output dimension {output_dim}.")
-
-                regressor = regression.fit_single_dimension(
-                    inputs_np,
-                    outputs_np[:, output_dim],
-                    self.block_name,
-                    save_path,
-                    output_dim,
-                    sr_params,
-                    fit_params,
-                    timestamp,
-                )
-
-                pysr_regressors[output_dim] = regressor
-
-                logger.info(f"💡Best equation for output {output_dim} found to be {regressor.get_best()['equation']}.")
-
-            logger.info(f"❤️ SR on {self.block_name} complete.")
-
-            # Store in appropriate dictionary
+            entry = caching.build_cache_entry(
+                inputs,
+                sr_inputs,
+                sr_outputs,
+                parent_model,
+                slime_params=(slime_params or {}) if SLIME else None,
+                slime_weights=fit_params.get("weights") if SLIME else None,
+                slime_loss=sr_params.get("elementwise_loss") if SLIME else None,
+            )
             if SLIME:
-                self.SLIME_pysr_regressor = self.SLIME_pysr_regressor | pysr_regressors
+                self.distill_data_slime = entry
             else:
-                self.pysr_regressor = self.pysr_regressor | pysr_regressors
+                self.distill_data = entry
 
-            # For backward compatibility, return the regressor or dict of regressors
+        # --- Stage 5b: dimension selection ---
+        if getattr(self, "pruning_mask", None) is not None:
+            active_dims = self.get_active_dimensions()
+            if not active_dims:
+                logger.warning("❗No active dimensions to distill!")
+                return {}
+            self.output_dims = self.initial_dim
             if output_dim is not None:
-                return pysr_regressors[output_dim]
+                if output_dim not in active_dims:
+                    logger.warning(
+                        f"❗Requested output dimension {output_dim} is not active. Active dimensions: {active_dims}"
+                    )
+                    return {}
+                dims = [output_dim]
             else:
-                return pysr_regressors
+                dims = active_dims
+            columns = [active_dims.index(d) for d in dims]
+        else:
+            n_out = sr_outputs.shape[1]
+            self.output_dims = n_out
+            if output_dim is not None:
+                if output_dim >= n_out:
+                    raise ValueError(f"output_dim {output_dim} is out of range for outputs with {n_out} dimensions")
+                dims = [output_dim]
+                columns = [output_dim]
+            else:
+                dims = list(range(n_out))
+                columns = dims
+
+        # --- Stage 6: fit ---
+        timestamp = int(time.time())
+        pysr_regressors = {}
+        for dim, col in zip(dims, columns):
+            logger.info(f"🛠️ Running SR on output dimension {dim} ({len(pysr_regressors) + 1}/{len(dims)})")
+            regressor = regression.fit_single_dimension(
+                sr_inputs,
+                sr_outputs[:, col],
+                self.block_name,
+                save_path,
+                dim,
+                sr_params,
+                fit_params,
+                timestamp,
+            )
+            pysr_regressors[dim] = regressor
+            logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+
+        logger.info(f"❤️ SR on {self.block_name} complete.")
+
+        # --- Stage 7: store ---
+        if SLIME:
+            self.SLIME_pysr_regressor = self.SLIME_pysr_regressor | pysr_regressors
+        else:
+            self.pysr_regressor = self.pysr_regressor | pysr_regressors
+
+        if output_dim is not None:
+            return pysr_regressors.get(output_dim)
+        return pysr_regressors
 
     def _get_equation(self, dim, complexity: int = None, SLIME: bool = False):
         """
@@ -1351,7 +1022,10 @@ class SymbolicModel(nn.Module):
         with torch.no_grad():
             # Extract outputs at this layer level for importance evaluation
             if parent_model is not None:
-                with self._capture_layer_output(parent_model, sample_data) as (_, layer_outputs):
+                with distillation.capture_layer_io(self.symtorch_block, parent_model, sample_data) as (
+                    _,
+                    layer_outputs,
+                ):
                     pass
 
                 # Use captured intermediate data
