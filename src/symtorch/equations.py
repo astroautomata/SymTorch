@@ -1,4 +1,5 @@
 """Symbolic expression handling: selection, lambdification, variable mapping."""
+
 import logging
 from typing import List, Optional
 
@@ -11,9 +12,7 @@ logger = logging.getLogger(__name__)
 def select_expression(regressor, complexity: Optional[int] = None):
     if complexity is None:
         best_str = regressor.get_best()["equation"]
-        return regressor.equations_.loc[
-            regressor.equations_["equation"] == best_str, "sympy_format"
-        ].values[0]
+        return regressor.equations_.loc[regressor.equations_["equation"] == best_str, "sympy_format"].values[0]
     matching_rows = regressor.equations_[regressor.equations_["complexity"] == complexity]
     if matching_rows.empty:
         available = sorted(regressor.equations_["complexity"].unique())
