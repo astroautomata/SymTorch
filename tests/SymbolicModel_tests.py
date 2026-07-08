@@ -520,12 +520,31 @@ class TestEquationSwitching:
     """Tests for switching between block and symbolic modes."""
 
     def test_switch_to_symbolic_without_distill(self, symbolic_model):
-        """Test switch_to_symbolic() before running distill()."""
-        # Should print error and return early
+        """Switching without equations raises immediately instead of failing silently."""
+        with pytest.raises(RuntimeError, match="No standard equations found"):
+            symbolic_model.switch_to_symbolic()
+
+    @patch("symtorch.regression.PySRRegressor")
+    def test_switch_to_symbolic_no_autocompile(self, mock_pysr_class, symbolic_model, sample_inputs):
+        """forward must NOT be wrapped by torch.compile unless compile=True is passed."""
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0", "loss": 0.01}
+        mock_reg.equations_ = pd.DataFrame(
+            {
+                "equation": ["x0"],
+                "sympy_format": [sympy.sympify("x0")],
+                "complexity": [1],
+                "loss": [0.01],
+            }
+        )
+        mock_pysr_class.return_value = mock_reg
+
+        symbolic_model.distill(sample_inputs, output_dim=0)
+        symbolic_model.distill(sample_inputs, output_dim=1)
+        symbolic_model.distill(sample_inputs, output_dim=2)
         symbolic_model.switch_to_symbolic()
 
-        # Model should not be in equation mode
-        assert not hasattr(symbolic_model, "_using_equation")
+        assert not hasattr(symbolic_model, "_original_forward")
 
     @patch("symtorch.regression.PySRRegressor")
     def test_switch_to_symbolic_success(self, mock_pysr_class, symbolic_model, sample_inputs):

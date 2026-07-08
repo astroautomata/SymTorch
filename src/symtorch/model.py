@@ -480,7 +480,7 @@ class SymbolicModel(nn.Module):
             logger.warning(f"⚠️ Warning: Could not create lambdify function for dimension {dim}: {e}")
             return None
 
-    def switch_to_symbolic(self, complexity: list = None, SLIME: bool = False):
+    def switch_to_symbolic(self, complexity: list = None, SLIME: bool = False, compile: bool = False):
         """
         Switch the forward pass from model block to symbolic equations for all output dimensions.
 
@@ -494,6 +494,8 @@ class SymbolicModel(nn.Module):
             complexity (list, optional): Specific complexity levels to use for each dimension.
                                       If None, uses the best overall equation for each dimension.
             SLIME (bool, optional): If True, use SLIME equations instead of standard equations.
+            compile (bool, optional): If True, wrap the symbolic forward pass with
+                torch.compile() (PyTorch 2.0+). Default: False.
 
         Example:
             >>> model.switch_to_symbolic(complexity=5)
@@ -509,22 +511,19 @@ class SymbolicModel(nn.Module):
             mode_name = "standard"
 
         if not regressor_dict:
-            logger.error(
-                f"❗No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}."
+            raise RuntimeError(
+                f"No {mode_name} equations found for this block yet. You need to first run .distill with SLIME={SLIME}."
             )
-            return
 
         if not hasattr(self, "output_dims"):
-            logger.error("❗No output dimension information found. You need to first run .distill.")
-            return
+            raise RuntimeError("No output dimension information found. You need to first run .distill.")
 
         # Check if pruning is enabled
         if hasattr(self, "pruning_mask") and self.pruning_mask is not None:
             # Pruning mode - only need equations for active dimensions
             active_dims = self.get_active_dimensions()
             if not active_dims:
-                logger.error("❗No active dimensions to switch to equations.")
-                return
+                raise RuntimeError("No active dimensions to switch to equations.")
 
             # Check that we have equations for all active dimensions
             missing_dims = []
@@ -533,10 +532,9 @@ class SymbolicModel(nn.Module):
                     missing_dims.append(dim)
 
             if missing_dims:
-                logger.error(
-                    f"❗Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first."
+                raise RuntimeError(
+                    f"Missing {mode_name} equations for active dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all active dimensions first."
                 )
-                return
 
             dimensions_to_process = active_dims
         else:
@@ -547,12 +545,11 @@ class SymbolicModel(nn.Module):
                     missing_dims.append(dim)
 
             if missing_dims:
-                logger.error(
-                    f"❗Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first."
-                )
                 logger.error(f"Available dimensions: {list(regressor_dict.keys())}")
                 logger.error(f"Required dimensions: {list(range(self.output_dims))}")
-                return
+                raise RuntimeError(
+                    f"Missing {mode_name} equations for dimensions {missing_dims}. You need to run .distill with SLIME={SLIME} on all output dimensions first."
+                )
 
             dimensions_to_process = list(range(self.output_dims))
 
@@ -582,8 +579,9 @@ class SymbolicModel(nn.Module):
 
             result = self._get_equation(dim, dim_complexity, SLIME=SLIME)
             if result is None:
-                logger.warning(f"⚠️ Failed to get equation for dimension {dim}")
-                return
+                if dim_complexity is not None:
+                    raise ValueError(f"No equation with complexity {dim_complexity} for dimension {dim}.")
+                raise RuntimeError(f"Failed to get equation for dimension {dim}")
 
             f, vars_sorted = result
 
@@ -643,9 +641,8 @@ class SymbolicModel(nn.Module):
                 f"🎯 All {len(dimensions_to_process)} output dimensions now using {mode_label}symbolic equations."
             )
 
-        # TODO: Make torch compiling optional for user.
-        # Apply torch.compile() optimization if available (PyTorch 2.0+)
-        if hasattr(torch, "compile") and torch.cuda.is_available():
+        # Apply torch.compile() optimization if requested (PyTorch 2.0+)
+        if compile and hasattr(torch, "compile"):
             logger.info("🚀 Compiling forward pass with torch.compile() for GPU optimization...")
             try:
                 # Compile with fullgraph=False to allow dynamic control flow
