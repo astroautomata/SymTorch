@@ -383,12 +383,12 @@ class SymbolicModel(nn.Module):
 
         # --- Stage 6: fit ---
         timestamp = int(time.time())
-        pysr_regressors = {}
-        for dim, col in zip(dims, columns):
-            logger.info(f"🛠️ Running SR on output dimension {dim} ({len(pysr_regressors) + 1}/{len(dims)})")
+        if len(dims) == 1:
+            dim = dims[0]
+            logger.info(f"🛠️ Running SR on output dimension {dim}.")
             regressor = regression.fit_single_dimension(
                 sr_inputs,
-                sr_outputs[:, col],
+                sr_outputs[:, columns[0]],
                 self.block_name,
                 save_path,
                 dim,
@@ -396,9 +396,22 @@ class SymbolicModel(nn.Module):
                 fit_params,
                 timestamp,
             )
-            pysr_regressors[dim] = regressor
-            logger.info(f"💡Best equation for output {dim} found to be {regressor.get_best()['equation']}.")
+            pysr_regressors = {dim: regressor}
+        else:
+            logger.info(f"🛠️ Running multi-output SR on {len(dims)} output dimensions")
+            pysr_regressors = regression.fit_all_dimensions(
+                sr_inputs,
+                sr_outputs[:, columns],
+                dims,
+                self.block_name,
+                save_path,
+                sr_params,
+                fit_params,
+                timestamp,
+            )
 
+        for dim in dims:
+            logger.info(f"💡Best equation for output {dim} found to be {pysr_regressors[dim].get_best()['equation']}.")
         logger.info(f"❤️ SR on {self.block_name} complete.")
 
         # --- Stage 7: store ---

@@ -1946,3 +1946,101 @@ class TestStateDictSaveLoad:
         error_msg = str(exc_info.value).lower()
         assert "could not load pysr regressor" in error_msg
         assert "dimension 1" in error_msg
+
+
+# ============================================================================
+# Test Multi-Output Fitting and DimensionView
+# ============================================================================
+
+
+def _make_multi_output_mock(n_dims):
+    """Mock PySRRegressor in multi-output shape: equations_ is a list, get_best() a list."""
+    mock_reg = MagicMock()
+    frames, bests = [], []
+    for d in range(n_dims):
+        eq = f"x{d} + 1"
+        frames.append(
+            pd.DataFrame(
+                {
+                    "equation": [eq],
+                    "sympy_format": [sympy.sympify(eq)],
+                    "complexity": [3],
+                    "loss": [0.01],
+                }
+            )
+        )
+        bests.append({"equation": eq, "loss": 0.01})
+    mock_reg.equations_ = frames
+    mock_reg.get_best.return_value = bests
+    mock_reg.predict.return_value = np.zeros((50, n_dims))
+    return mock_reg
+
+
+class TestMultiOutputFitting:
+    """Tests for the default multi-output PySR fit path."""
+
+    @patch("symtorch.regression.PySRRegressor")
+    def test_single_fit_call_for_all_dims(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params):
+        mock_reg = _make_multi_output_mock(3)
+        mock_pysr_class.return_value = mock_reg
+
+        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+
+        assert mock_pysr_class.call_count == 1
+        assert mock_reg.fit.call_count == 1
+        (X, Y), _ = mock_reg.fit.call_args
+        assert Y.shape == (50, 3)
+        assert len(symbolic_model.pysr_regressor) == 3
+
+    @patch("symtorch.regression.PySRRegressor")
+    def test_dimension_view_surface(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params):
+        mock_pysr_class.return_value = _make_multi_output_mock(3)
+
+        symbolic_model.distill(sample_inputs, sr_params=fast_sr_params)
+
+        view = symbolic_model.pysr_regressor[1]
+        assert view.get_best()["equation"] == "x1 + 1"
+        assert view.equations_["equation"].iloc[0] == "x1 + 1"
+        pred = view.predict(np.zeros((50, 5)))
+        assert pred.shape == (50,)
+        # Attribute passthrough hits the shared regressor
+        assert view.niterations is mock_pysr_class.return_value.niterations
+
+    @patch("symtorch.regression.PySRRegressor")
+    def test_output_dim_still_uses_dedicated_fit(
+        self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor
+    ):
+        from symtorch.regression import DimensionView
+
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        symbolic_model.distill(sample_inputs, output_dim=1, sr_params=fast_sr_params)
+
+        (X, y), _ = mock_pysr_regressor.fit.call_args
+        assert y.ndim == 1  # single-target fit, not (N, 1)
+        assert not isinstance(symbolic_model.pysr_regressor[1], DimensionView)
+
+    @patch("symtorch.regression.PySRRegressor")
+    def test_slime_weights_tiled_for_multi_output(self, mock_pysr_class, sample_inputs_np, fast_sr_params):
+        mock_reg = _make_multi_output_mock(2)
+        mock_pysr_class.return_value = mock_reg
+
+        def f(x):
+            return np.column_stack([x[:, 0] ** 2, x[:, 1]])
+
+        model = SymbolicModel(f, block_name="slime_multi")
+        slime_params = {"x": sample_inputs_np[0], "J_nn": 5, "num_synthetic": 20}
+        model.distill(sample_inputs_np, SLIME=True, slime_params=slime_params, sr_params=fast_sr_params)
+
+        _, fit_kwargs = mock_reg.fit.call_args
+        weights = fit_kwargs["weights"]
+        assert weights.ndim == 2 and weights.shape[1] == 2
+
+    def test_dimension_view_handles_single_output_regressor(self):
+        """Defensive: views over a non-list regressor pass through unchanged."""
+        from symtorch.regression import DimensionView
+
+        base = PicklableMockRegressor("x0 * 2")
+        view = DimensionView(base, 0)
+        assert view.get_best()["equation"] == "x0 * 2"
+        assert view.equations_["equation"].iloc[0] == "x0 * 2"
