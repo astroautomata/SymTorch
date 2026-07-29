@@ -2063,3 +2063,76 @@ class TestMultiOutputFitting:
         view = DimensionView(base, 0)
         assert view.get_best()["equation"] == "x0 * 2"
         assert view.equations_["equation"].iloc[0] == "x0 * 2"
+
+
+class PicklableMockMultiRegressor:
+    """Picklable multi-output mock: equations_ is a list of DataFrames."""
+
+    def __init__(self, n_dims=2):
+        self.n_dims = n_dims
+        self.equations_ = [
+            pd.DataFrame(
+                {
+                    "equation": [f"x{d} + 1"],
+                    "sympy_format": [sympy.sympify(f"x{d} + 1")],
+                    "complexity": [3],
+                    "loss": [0.01],
+                }
+            )
+            for d in range(n_dims)
+        ]
+
+    def get_best(self):
+        return [{"equation": f"x{d} + 1", "loss": 0.01} for d in range(self.n_dims)]
+
+    def fit(self, X, y, **kwargs):
+        pass
+
+
+class TestSharedRegressorSerialization:
+    def _model_with_views(self):
+        from symtorch.regression import DimensionView
+
+        model = SymbolicModel(nn.Linear(5, 2), block_name="shared_ser")
+        model.output_dims = 2
+        shared = PicklableMockMultiRegressor(2)
+        model.pysr_regressor = {0: DimensionView(shared, 0), 1: DimensionView(shared, 1)}
+        return model
+
+    def test_shared_regressor_saved_once(self):
+        model = self._model_with_views()
+        sd = model.state_dict()
+        shared_keys = [k for k in sd if "_pysr_shared_" in k]
+        per_dim_keys = [k for k in sd if "_pysr_regressor_dim_" in k]
+        assert len(shared_keys) == 1
+        assert per_dim_keys == []
+        assert "_pysr_view_map" in " ".join(sd.keys())
+
+    def test_views_rebuilt_on_load(self, tmp_path):
+        from symtorch.regression import DimensionView
+
+        model = self._model_with_views()
+        path = tmp_path / "m.pth"
+        torch.save(model.state_dict(), path)
+
+        model2 = SymbolicModel(nn.Linear(5, 2), block_name="shared_ser")
+        model2.load_state_dict(torch.load(path, weights_only=False))
+
+        assert isinstance(model2.pysr_regressor[0], DimensionView)
+        assert model2.pysr_regressor[0].get_best()["equation"] == "x0 + 1"
+        assert model2.pysr_regressor[1].get_best()["equation"] == "x1 + 1"
+        # Both views share ONE deserialized regressor object
+        assert model2.pysr_regressor[0]._regressor is model2.pysr_regressor[1]._regressor
+
+    def test_old_format_checkpoint_still_loads(self, tmp_path):
+        """v1.0.x checkpoints (per-dim standalone blobs) must keep loading."""
+        model = SymbolicModel(nn.Linear(5, 2), block_name="old_fmt")
+        model.output_dims = 2
+        model.pysr_regressor = {0: PicklableMockRegressor("x0"), 1: PicklableMockRegressor("x1")}
+        sd = model.state_dict()
+        # Sanity: standalone regressors use the old per-dim keys
+        assert any("_pysr_regressor_dim_0" in k for k in sd)
+
+        model2 = SymbolicModel(nn.Linear(5, 2), block_name="old_fmt")
+        model2.load_state_dict(sd)
+        assert model2.pysr_regressor[0].get_best()["equation"] == "x0"
