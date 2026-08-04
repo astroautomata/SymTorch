@@ -295,6 +295,35 @@ class TestDistillWithModule:
         assert len(symbolic_model.pysr_regressor) == 1
 
     @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_distill_output_dim_zero_fits_only_that_dimension(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params):
+        """Regression test: output_dim=0 must select dimension 0, not fall back to "all dims".
+
+        `output_dim=0` is falsy in Python, so a truthiness check (`if not output_dim`)
+        would incorrectly treat it the same as `output_dim=None` and fit every
+        dimension instead of just dimension 0.
+        """
+        mock_reg = MagicMock()
+        mock_reg.get_best.return_value = {"equation": "x0", "loss": 0.001}
+        mock_pysr_class.return_value = mock_reg
+
+        symbolic_model.distill(sample_inputs, output_dim=0, sr_params=fast_sr_params)
+
+        # Only one PySRRegressor should have been constructed (for dimension 0),
+        # not one per output dimension.
+        assert mock_pysr_class.call_count == 1
+        assert list(symbolic_model.pysr_regressor.keys()) == [0]
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
+    def test_distill_output_dim_none_fits_all_dimensions(self, mock_pysr_class, symbolic_model, sample_inputs, fast_sr_params, mock_pysr_regressor):
+        """Companion test: output_dim=None (the default) must still fit every dimension."""
+        mock_pysr_class.return_value = mock_pysr_regressor
+
+        symbolic_model.distill(sample_inputs, output_dim=None, sr_params=fast_sr_params)
+
+        assert mock_pysr_class.call_count == 3
+        assert set(symbolic_model.pysr_regressor.keys()) == {0, 1, 2}
+
+    @patch('symtorch.SymbolicModel.PySRRegressor')
     def test_distill_with_parent_model(self, mock_pysr_class, sample_inputs, fast_sr_params, mock_pysr_regressor):
         """Test distill() with parent_model for layer-level analysis."""
         mock_pysr_class.return_value = mock_pysr_regressor

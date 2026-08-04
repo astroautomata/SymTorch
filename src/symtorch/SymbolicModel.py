@@ -749,7 +749,7 @@ class SymbolicModel(nn.Module):
                 output_dims = output.shape[1]  # Number of output dimensions
                 self.output_dims = output_dims  # Save this
 
-                if not output_dim:
+                if output_dim is None:
                     # If output dimension is not specified, run SR on all dims
                     for dim in range(output_dims):
 
